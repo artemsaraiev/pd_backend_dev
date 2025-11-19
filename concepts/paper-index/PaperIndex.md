@@ -15,24 +15,24 @@ us can be updated
     + **effects** if paper with given paperId is in the set of Papers, returns it.
     Otherwise, creates a new paper with the given paperId and title (if provided),
     and links and authors arrays set to empty arrays, and returns the new paper
-  + updateMeta(paper: Paper, title: String) -> ()
+  + updateMeta(paper: Paper, title: String) : ()
     + **requires** the paper is in the set of Papers
     + **effects** sets the title of the paper to the provided title
-  + addAuthors(paper: Paper, authors: String[]) -> ()
+  + addAuthors(paper: Paper, authors: String[]) : ()
     + **requires** the paper is in the set of Papers
     + **effects** for each author in the provided authors array, if the author is not
     in the authors array of the paper, adds the author to the authors array of the
     paper
-  + removeAuthors(paper: Paper, authors: String[]) -> ()
+  + removeAuthors(paper: Paper, authors: String[]) : ()
     + **requires** the paper is in the set of Papers
     + **effects** for each author in the provided authors array, if the author is in
     the authors array of the paper, removes the author from the authors array of the
     paper
-  + addLink(paper: Paper, url: String) -> ()
+  + addLink(paper: Paper, url: String) : ()
     + **requires** the paper is in the set of Papers
     + **effects** if the url is not in the links array of the paper, adds the url to
     the links array of the paper
-  + removeLink(paper: Paper, url: String) -> ()
+  + removeLink(paper: Paper, url: String) : ()
     + **requires** the paper is in the set of Papers
     + **effects** if the url is in the links array of the paper, removes the url from
     the links array of the paper. If url is not in the links array of the paper, does

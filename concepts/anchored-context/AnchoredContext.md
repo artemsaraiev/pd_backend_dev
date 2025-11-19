@@ -23,8 +23,7 @@ this context can later be referenced by discussion/other users
     current creation timestamp and missing editedAt timestamp and returns it returns
     editedContext
   + _getFilteredContexts(filter: (user: User, paper: String) => Boolean) :
-  (filteredContexts:
-    Context[])
+  (filteredContexts: Context[])
     + **requires** nothing
     + **effects** returns a subset of Contexts with users and papers that match the
     filter (e.g. for all contexts specific to a group of users for a specific paper)

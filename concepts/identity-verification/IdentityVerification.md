@@ -29,11 +29,11 @@ account, and these can be used to verify the user's identity
   + removeAffiliation(affiliation: Affiliation) : ()
     + **requires** the affiliation is in the set of Affiliations
     + **effects** removes the affiliation from the set of Affiliations
-  + addBadge(user: User, badge: String) -> (newBadge: Badge)
+  + addBadge(user: User, badge: String) : (newBadge: Badge)
     + **requires** there is no Badge with provided user User and badge String in the
     set of Badges
     + **effects** adds a new Badge into the set of Badges for the given user and
     returns the new Badge
-  + revokeBadge(badge: Badge) -> ()
+  + revokeBadge(badge: Badge) : ()
     + **requires** the badge is in the set of Badges
     + **effects** the badge is removed from the set of Badges
