@@ -37,6 +37,18 @@ us can be updated
     + **effects** if the url is in the links array of the paper, removes the url from
     the links array of the paper. If url is not in the links array of the paper, does
     nothing
++ **queries**
+  + _get(paper: Paper) : (paper: PaperDoc | null)
+    + **requires** nothing
+    + **effects** returns an array of dictionaries, each containing the paper document
+    for the given paper in the `paper` field, or null if the paper does not exist.
+    Returns an array with one dictionary containing `{ paper: PaperDoc | null }`.
+  + _listRecent(limit?: Number) : (papers: PaperDoc[])
+    + **requires** nothing
+    + **effects** returns an array of dictionaries, each containing the most recently
+    created papers in the `papers` field, limited by the provided limit (default 20).
+    Results are ordered by createdAt descending. Each paper includes _id, title, and
+    createdAt. Returns an array with one dictionary containing `{ papers: PaperDoc[] }`.
 
 **Notes:**
 
