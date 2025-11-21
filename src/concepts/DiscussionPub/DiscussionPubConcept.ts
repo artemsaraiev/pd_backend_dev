@@ -122,7 +122,7 @@ export default class DiscussionPubConcept {
    */
   async open(
     { paperId }: { paperId: string },
-    ): Promise<{ newPub: Pub } | { result: Pub } | { error: string }> {
+  ): Promise<{ newPub: Pub } | { result: Pub } | { error: string }> {
     try {
       const now = Date.now();
       try {
@@ -167,7 +167,7 @@ export default class DiscussionPubConcept {
       title?: string; // Optional for backward compatibility
       body: string;
     },
-    ): Promise<{ newThread: Thread } | { result: Thread } | { error: string }> {
+  ): Promise<{ newThread: Thread } | { result: Thread } | { error: string }> {
     try {
       const pub = await this.pubs.findOne({ _id: pubId });
       if (!pub) throw new Error("Pub not found");
@@ -219,7 +219,7 @@ export default class DiscussionPubConcept {
       body: string;
       parentReply?: Reply;
     },
-    ): Promise<{ newReply: Reply } | { result: Reply } | { error: string }> {
+  ): Promise<{ newReply: Reply } | { result: Reply } | { error: string }> {
     try {
       const th = await this.threads.findOne({ _id: threadId });
       if (!th) throw new Error("Thread not found");
@@ -262,7 +262,7 @@ export default class DiscussionPubConcept {
       author: User;
       body: string;
     },
-    ): Promise<{ result: Reply } | { error: string }> {
+  ): Promise<{ result: Reply } | { error: string }> {
     const result = await this.makeReply({ threadId, author, body });
     if ("error" in result) return result;
     // makeReply returns both newReply and result for compatibility
@@ -280,7 +280,7 @@ export default class DiscussionPubConcept {
       author: User;
       body: string;
     },
-    ): Promise<{ result: Reply } | { error: string }> {
+  ): Promise<{ result: Reply } | { error: string }> {
     const result = await this.makeReply({
       threadId,
       author,
@@ -310,7 +310,7 @@ export default class DiscussionPubConcept {
       newTitle?: string; // Optional for backward compatibility
       newBody: string;
     },
-    ): Promise<{ ok: true } | { error: string }> {
+  ): Promise<{ ok: true } | { error: string }> {
     try {
       const update: Record<string, unknown> = {
         body: newBody,
@@ -337,7 +337,7 @@ export default class DiscussionPubConcept {
    */
   async deleteThread(
     { threadId }: { threadId: Thread },
-    ): Promise<{ ok: true } | { error: string }> {
+  ): Promise<{ ok: true } | { error: string }> {
     try {
       const res = await this.threads.updateOne(
         { _id: threadId },
@@ -357,7 +357,7 @@ export default class DiscussionPubConcept {
 
   async editReply(
     { replyId, newBody }: { replyId: Reply; newBody: string },
-    ): Promise<{ ok: true } | { error: string }> {
+  ): Promise<{ ok: true } | { error: string }> {
     try {
       const res = await this.replies.updateOne(
         { _id: replyId },
@@ -379,7 +379,7 @@ export default class DiscussionPubConcept {
    */
   async deleteReply(
     { replyId }: { replyId: Reply },
-    ): Promise<{ ok: true } | { error: string }> {
+  ): Promise<{ ok: true } | { error: string }> {
     try {
       const res = await this.replies.updateOne(
         { _id: replyId },
@@ -393,6 +393,42 @@ export default class DiscussionPubConcept {
   }
 
   /**
+   * _getThread(thread: Thread) : (thread: ThreadDoc | null)
+   *
+   * **requires** nothing
+   * **effects** returns the thread document for the given thread, or null if it does not exist.
+   * Returns an array with one dictionary containing `{ thread: ThreadDoc | null }`.
+   */
+  async _getThread(
+    { thread }: { thread: Thread },
+  ): Promise<Array<{ thread: ThreadDoc | null }>> {
+    try {
+      const doc = await this.threads.findOne({ _id: thread });
+      return [{ thread: doc ?? null }];
+    } catch {
+      return [{ thread: null }];
+    }
+  }
+
+  /**
+   * _getReply(reply: Reply) : (reply: ReplyDoc | null)
+   *
+   * **requires** nothing
+   * **effects** returns the reply document for the given reply, or null if it does not exist.
+   * Returns an array with one dictionary containing `{ reply: ReplyDoc | null }`.
+   */
+  async _getReply(
+    { reply }: { reply: Reply },
+  ): Promise<Array<{ reply: ReplyDoc | null }>> {
+    try {
+      const doc = await this.replies.findOne({ _id: reply });
+      return [{ reply: doc ?? null }];
+    } catch {
+      return [{ reply: null }];
+    }
+  }
+
+  /**
    * _getPubIdByPaper(paperId: String) : (result: Pub | null)
    *
    * **requires** nothing
@@ -400,7 +436,7 @@ export default class DiscussionPubConcept {
    */
   async _getPubIdByPaper(
     { paperId }: { paperId: string },
-    ): Promise<Array<{ result: Pub | null }>> {
+  ): Promise<Array<{ result: Pub | null }>> {
     try {
       const doc = await this.pubs.findOne({ paperId });
       // Queries must return an array of dictionaries
@@ -421,7 +457,7 @@ export default class DiscussionPubConcept {
    */
   async _listThreads(
     { pubId, anchorId }: { pubId: Pub; anchorId?: Anchor },
-    ): Promise<
+  ): Promise<
     Array<
       {
         threads: Array<
@@ -474,7 +510,7 @@ export default class DiscussionPubConcept {
    */
   async _listReplies(
     { threadId }: { threadId: Thread },
-    ): Promise<
+  ): Promise<
     Array<
       {
         replies: Array<
@@ -525,7 +561,7 @@ export default class DiscussionPubConcept {
    */
   async _listRepliesTree(
     { threadId }: { threadId: Thread },
-    ): Promise<Array<{ replies: Array<ReplyTreeNode> }>> {
+  ): Promise<Array<{ replies: Array<ReplyTreeNode> }>> {
     try {
       const cur = this.replies.find({
         threadId,

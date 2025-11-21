@@ -1,9 +1,12 @@
 import { actions, Sync } from "@engine";
-import { PdfHighlighter, Requesting } from "@concepts";
+import { PdfHighlighter, Requesting, Sessioning } from "@concepts";
 
 // PdfHighlighter Actions
-export const PdfHighlighterCreateHighlightRequest: Sync = ({ request, paper, page, rects, quote }) => ({
-  when: actions([Requesting.request, { path: "/PdfHighlighter/createHighlight", paper, page, rects, quote }, { request }]),
+export const PdfHighlighterCreateHighlightRequest: Sync = ({ request, session, paper, page, rects, quote, user }) => ({
+  when: actions([Requesting.request, { path: "/PdfHighlighter/createHighlight", session, paper, page, rects, quote }, { request }]),
+  where: async (frames) => {
+    return await frames.query(Sessioning._getUser, { session }, { user });
+  },
   then: actions([PdfHighlighter.createHighlight, { paper, page, rects, quote }]),
 });
 

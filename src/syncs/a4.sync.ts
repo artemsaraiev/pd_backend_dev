@@ -5,15 +5,22 @@ import {
   IdentityVerification,
   PaperIndex,
   Requesting,
+  Sessioning,
 } from "@concepts";
 
 // PaperIndex
-export const PaperIndexEnsureRequest: Sync = ({ request, paperId, title }) => ({
+export const PaperIndexEnsureRequest: Sync = (
+  { request, session, paperId, title, user },
+) => ({
   when: actions([Requesting.request, {
     path: "/PaperIndex/ensure",
+    session,
     paperId,
     title,
   }, { request }]),
+  where: async (frames) => {
+    return await frames.query(Sessioning._getUser, { session }, { user });
+  },
   then: actions([PaperIndex.ensure, { paperId, title }]),
 });
 
@@ -25,12 +32,18 @@ export const PaperIndexEnsureResponse: Sync = ({ request, paper, error }) => ({
   then: actions([Requesting.respond, { request, paper, error }]),
 });
 
-export const PaperIndexUpdateMeta: Sync = ({ request, paper, title }) => ({
+export const PaperIndexUpdateMeta: Sync = (
+  { request, session, paper, title, user },
+) => ({
   when: actions([Requesting.request, {
     path: "/PaperIndex/updateMeta",
+    session,
     paper,
     title,
   }, { request }]),
+  where: async (frames) => {
+    return await frames.query(Sessioning._getUser, { session }, { user });
+  },
   then: actions([PaperIndex.updateMeta, { paper, title }], [
     Requesting.respond,
     { request, ok: true },
@@ -71,19 +84,22 @@ export const PaperIndexListRecentResponse: Sync = ({ request, result }) => ({
 
 // HighlightedContext
 export const HighlightedCreateRequest: Sync = (
-  { request, paperId, author, location, kind, parentContext },
+  { request, session, paperId, location, kind, parentContext, user },
 ) => ({
   when: actions([Requesting.request, {
     path: "/HighlightedContext/create",
+    session,
     paperId,
-    author,
     location,
     kind,
     parentContext,
   }, { request }]),
+  where: async (frames) => {
+    return await frames.query(Sessioning._getUser, { session }, { user });
+  },
   then: actions([HighlightedContext.create, {
     paperId,
-    author,
+    author: user,
     location,
     kind,
     parentContext,
@@ -144,29 +160,40 @@ export const DiscussionOpenResponse: Sync = ({ request, result }) => ({
 
 // startThread with anchorId
 export const DiscussionStartThreadWithAnchorRequest: Sync = (
-  { request, pubId, author, body, anchorId },
+  { request, session, pubId, body, anchorId, user },
 ) => ({
   when: actions([Requesting.request, {
     path: "/DiscussionPub/startThread",
+    session,
     pubId,
-    author,
     body,
     anchorId,
   }, { request }]),
-  then: actions([DiscussionPub.startThread, { pubId, author, body, anchorId }]),
+  where: async (frames) => {
+    return await frames.query(Sessioning._getUser, { session }, { user });
+  },
+  then: actions([DiscussionPub.startThread, {
+    pubId,
+    author: user,
+    body,
+    anchorId,
+  }]),
 });
 
 // startThread without anchorId
 export const DiscussionStartThreadRequest: Sync = (
-  { request, pubId, author, body },
+  { request, session, pubId, body, user },
 ) => ({
   when: actions([Requesting.request, {
     path: "/DiscussionPub/startThread",
+    session,
     pubId,
-    author,
     body,
   }, { request }]),
-  then: actions([DiscussionPub.startThread, { pubId, author, body }]),
+  where: async (frames) => {
+    return await frames.query(Sessioning._getUser, { session }, { user });
+  },
+  then: actions([DiscussionPub.startThread, { pubId, author: user, body }]),
 });
 
 export const DiscussionStartThreadResponse: Sync = ({ request, result }) => ({
@@ -179,15 +206,18 @@ export const DiscussionStartThreadResponse: Sync = ({ request, result }) => ({
 
 // Reply - handles with or without session
 export const DiscussionReplyRequest: Sync = (
-  { request, threadId, author, body },
+  { request, session, threadId, body, user },
 ) => ({
   when: actions([Requesting.request, {
     path: "/DiscussionPub/reply",
+    session,
     threadId,
-    author,
     body,
   }, { request }]),
-  then: actions([DiscussionPub.reply, { threadId, author, body }]),
+  where: async (frames) => {
+    return await frames.query(Sessioning._getUser, { session }, { user });
+  },
+  then: actions([DiscussionPub.reply, { threadId, author: user, body }]),
 });
 
 export const DiscussionReplyResponse: Sync = ({ request, result }) => ({
@@ -200,16 +230,24 @@ export const DiscussionReplyResponse: Sync = ({ request, result }) => ({
 
 // Support nested replies
 export const DiscussionReplyToRequest: Sync = (
-  { request, threadId, parentId, author, body },
+  { request, session, threadId, parentId, body, user },
 ) => ({
   when: actions([Requesting.request, {
     path: "/DiscussionPub/replyTo",
+    session,
     threadId,
     parentId,
-    author,
     body,
   }, { request }]),
-  then: actions([DiscussionPub.replyTo, { threadId, parentId, author, body }]),
+  where: async (frames) => {
+    return await frames.query(Sessioning._getUser, { session }, { user });
+  },
+  then: actions([DiscussionPub.replyTo, {
+    threadId,
+    parentId,
+    author: user,
+    body,
+  }]),
 });
 
 export const DiscussionReplyToResponse: Sync = ({ request, result }) => ({
@@ -311,12 +349,17 @@ export const DiscussionListRepliesTreeResponse: Sync = (
 });
 
 // IdentityVerification
-export const IdentityAddORCIDRequest: Sync = ({ request, user, orcid }) => ({
+export const IdentityAddORCIDRequest: Sync = (
+  { request, session, orcid, user },
+) => ({
   when: actions([Requesting.request, {
     path: "/IdentityVerification/addORCID",
-    user,
+    session,
     orcid,
   }, { request }]),
+  where: async (frames) => {
+    return await frames.query(Sessioning._getUser, { session }, { user });
+  },
   then: actions([IdentityVerification.addORCID, { user, orcid }]),
 });
 
@@ -332,12 +375,17 @@ export const IdentityAddORCIDResponse: Sync = (
   then: actions([Requesting.respond, { request, newORCID, error }]),
 });
 
-export const IdentityAddBadgeRequest: Sync = ({ request, user, badge }) => ({
+export const IdentityAddBadgeRequest: Sync = (
+  { request, session, badge, user },
+) => ({
   when: actions([Requesting.request, {
     path: "/IdentityVerification/addBadge",
-    user,
+    session,
     badge,
   }, { request }]),
+  where: async (frames) => {
+    return await frames.query(Sessioning._getUser, { session }, { user });
+  },
   then: actions([IdentityVerification.addBadge, { user, badge }]),
 });
 
@@ -355,13 +403,17 @@ export const IdentityAddBadgeResponse: Sync = (
 
 // PaperIndex mutations
 export const PaperIndexAddAuthorsRequest: Sync = (
-  { request, paper, authors },
+  { request, session, paper, authors, user },
 ) => ({
   when: actions([Requesting.request, {
     path: "/PaperIndex/addAuthors",
+    session,
     paper,
     authors,
   }, { request }]),
+  where: async (frames) => {
+    return await frames.query(Sessioning._getUser, { session }, { user });
+  },
   then: actions([PaperIndex.addAuthors, { paper, authors }], [
     Requesting.respond,
     { request, ok: true },
@@ -369,37 +421,53 @@ export const PaperIndexAddAuthorsRequest: Sync = (
 });
 
 export const PaperIndexRemoveAuthorsRequest: Sync = (
-  { request, paper, authors },
+  { request, session, paper, authors, user },
 ) => ({
   when: actions([Requesting.request, {
     path: "/PaperIndex/removeAuthors",
+    session,
     paper,
     authors,
   }, { request }]),
+  where: async (frames) => {
+    return await frames.query(Sessioning._getUser, { session }, { user });
+  },
   then: actions([PaperIndex.removeAuthors, { paper, authors }], [
     Requesting.respond,
     { request, ok: true },
   ]),
 });
 
-export const PaperIndexAddLinkRequest: Sync = ({ request, paper, url }) => ({
+export const PaperIndexAddLinkRequest: Sync = (
+  { request, session, paper, url, user },
+) => ({
   when: actions([Requesting.request, {
     path: "/PaperIndex/addLink",
+    session,
     paper,
     url,
   }, { request }]),
+  where: async (frames) => {
+    return await frames.query(Sessioning._getUser, { session }, { user });
+  },
   then: actions([PaperIndex.addLink, { paper, url }], [Requesting.respond, {
     request,
     ok: true,
   }]),
 });
 
-export const PaperIndexRemoveLinkRequest: Sync = ({ request, paper, url }) => ({
+export const PaperIndexRemoveLinkRequest: Sync = (
+  { request, session, paper, url, user },
+) => ({
   when: actions([Requesting.request, {
     path: "/PaperIndex/removeLink",
+    session,
     paper,
     url,
   }, { request }]),
+  where: async (frames) => {
+    return await frames.query(Sessioning._getUser, { session }, { user });
+  },
   then: actions([PaperIndex.removeLink, { paper, url }], [Requesting.respond, {
     request,
     ok: true,
@@ -408,25 +476,49 @@ export const PaperIndexRemoveLinkRequest: Sync = ({ request, paper, url }) => ({
 
 // DiscussionPub mutations
 export const DiscussionEditThreadRequest: Sync = (
-  { request, threadId, newTitle, newBody },
+  { request, session, threadId, newTitle, newBody, user, thread },
 ) => ({
   when: actions([Requesting.request, {
     path: "/DiscussionPub/editThread",
+    session,
     threadId,
     newTitle,
     newBody,
   }, { request }]),
+  where: async (frames) => {
+    frames = await frames.query(Sessioning._getUser, { session }, { user });
+    frames = await frames.query((DiscussionPub as any)._getThread, {
+      thread: threadId,
+    }, { thread });
+    return frames.filter(($) => {
+      const threadDoc = $[thread] as { author: unknown } | null;
+      return threadDoc !== null && threadDoc.author === $[user];
+    });
+  },
   then: actions([DiscussionPub.editThread, { threadId, newTitle, newBody }], [
     Requesting.respond,
     { request, ok: true },
   ]),
 });
 
-export const DiscussionDeleteThreadRequest: Sync = ({ request, threadId }) => ({
+export const DiscussionDeleteThreadRequest: Sync = (
+  { request, session, threadId, user, thread },
+) => ({
   when: actions([Requesting.request, {
     path: "/DiscussionPub/deleteThread",
+    session,
     threadId,
   }, { request }]),
+  where: async (frames) => {
+    frames = await frames.query(Sessioning._getUser, { session }, { user });
+    frames = await frames.query((DiscussionPub as any)._getThread, {
+      thread: threadId,
+    }, { thread });
+    return frames.filter(($) => {
+      const threadDoc = $[thread] as { author: unknown } | null;
+      return threadDoc !== null && threadDoc.author === $[user];
+    });
+  },
   then: actions([DiscussionPub.deleteThread, { threadId }], [
     Requesting.respond,
     { request, ok: true },
@@ -434,24 +526,48 @@ export const DiscussionDeleteThreadRequest: Sync = ({ request, threadId }) => ({
 });
 
 export const DiscussionEditReplyRequest: Sync = (
-  { request, replyId, newBody },
+  { request, session, replyId, newBody, user, reply },
 ) => ({
   when: actions([Requesting.request, {
     path: "/DiscussionPub/editReply",
+    session,
     replyId,
     newBody,
   }, { request }]),
+  where: async (frames) => {
+    frames = await frames.query(Sessioning._getUser, { session }, { user });
+    frames = await frames.query((DiscussionPub as any)._getReply, {
+      reply: replyId,
+    }, { reply });
+    return frames.filter(($) => {
+      const replyDoc = $[reply] as { author: unknown } | null;
+      return replyDoc !== null && replyDoc.author === $[user];
+    });
+  },
   then: actions([DiscussionPub.editReply, { replyId, newBody }], [
     Requesting.respond,
     { request, ok: true },
   ]),
 });
 
-export const DiscussionDeleteReplyRequest: Sync = ({ request, replyId }) => ({
+export const DiscussionDeleteReplyRequest: Sync = (
+  { request, session, replyId, user, reply },
+) => ({
   when: actions([Requesting.request, {
     path: "/DiscussionPub/deleteReply",
+    session,
     replyId,
   }, { request }]),
+  where: async (frames) => {
+    frames = await frames.query(Sessioning._getUser, { session }, { user });
+    frames = await frames.query((DiscussionPub as any)._getReply, {
+      reply: replyId,
+    }, { reply });
+    return frames.filter(($) => {
+      const replyDoc = $[reply] as { author: unknown } | null;
+      return replyDoc !== null && replyDoc.author === $[user];
+    });
+  },
   then: actions([DiscussionPub.deleteReply, { replyId }], [Requesting.respond, {
     request,
     ok: true,
@@ -460,19 +576,22 @@ export const DiscussionDeleteReplyRequest: Sync = ({ request, replyId }) => ({
 
 // makeReply with all optional parameters
 export const DiscussionMakeReplyWithAllRequest: Sync = (
-  { request, threadId, author, anchorId, body, parentReply },
+  { request, session, threadId, anchorId, body, parentReply, user },
 ) => ({
   when: actions([Requesting.request, {
     path: "/DiscussionPub/makeReply",
+    session,
     threadId,
-    author,
     anchorId,
     body,
     parentReply,
   }, { request }]),
+  where: async (frames) => {
+    return await frames.query(Sessioning._getUser, { session }, { user });
+  },
   then: actions([DiscussionPub.makeReply, {
     threadId,
-    author,
+    author: user,
     anchorId,
     body,
     parentReply,
@@ -481,31 +600,37 @@ export const DiscussionMakeReplyWithAllRequest: Sync = (
 
 // makeReply without anchorId and parentReply
 export const DiscussionMakeReplyRequest: Sync = (
-  { request, threadId, author, body },
+  { request, session, threadId, body, user },
 ) => ({
   when: actions([Requesting.request, {
     path: "/DiscussionPub/makeReply",
+    session,
     threadId,
-    author,
     body,
   }, { request }]),
-  then: actions([DiscussionPub.makeReply, { threadId, author, body }]),
+  where: async (frames) => {
+    return await frames.query(Sessioning._getUser, { session }, { user });
+  },
+  then: actions([DiscussionPub.makeReply, { threadId, author: user, body }]),
 });
 
 // makeReply with anchorId only
 export const DiscussionMakeReplyWithAnchorRequest: Sync = (
-  { request, threadId, author, anchorId, body },
+  { request, session, threadId, anchorId, body, user },
 ) => ({
   when: actions([Requesting.request, {
     path: "/DiscussionPub/makeReply",
+    session,
     threadId,
-    author,
     anchorId,
     body,
   }, { request }]),
+  where: async (frames) => {
+    return await frames.query(Sessioning._getUser, { session }, { user });
+  },
   then: actions([DiscussionPub.makeReply, {
     threadId,
-    author,
+    author: user,
     anchorId,
     body,
   }]),
@@ -513,18 +638,21 @@ export const DiscussionMakeReplyWithAnchorRequest: Sync = (
 
 // makeReply with parentReply only
 export const DiscussionMakeReplyWithParentRequest: Sync = (
-  { request, threadId, author, body, parentReply },
+  { request, session, threadId, body, parentReply, user },
 ) => ({
   when: actions([Requesting.request, {
     path: "/DiscussionPub/makeReply",
+    session,
     threadId,
-    author,
     body,
     parentReply,
   }, { request }]),
+  where: async (frames) => {
+    return await frames.query(Sessioning._getUser, { session }, { user });
+  },
   then: actions([DiscussionPub.makeReply, {
     threadId,
-    author,
+    author: user,
     body,
     parentReply,
   }]),
@@ -541,11 +669,17 @@ export const DiscussionMakeReplyResponse: Sync = (
 });
 
 // IdentityVerification mutations
-export const IdentityRemoveORCIDRequest: Sync = ({ request, orcid }) => ({
+export const IdentityRemoveORCIDRequest: Sync = (
+  { request, session, orcid, user },
+) => ({
   when: actions([Requesting.request, {
     path: "/IdentityVerification/removeORCID",
+    session,
     orcid,
   }, { request }]),
+  where: async (frames) => {
+    return await frames.query(Sessioning._getUser, { session }, { user });
+  },
   then: actions([IdentityVerification.removeORCID, { orcid }], [
     Requesting.respond,
     { request, ok: true },
@@ -553,12 +687,16 @@ export const IdentityRemoveORCIDRequest: Sync = ({ request, orcid }) => ({
 });
 
 export const IdentityRemoveAffiliationRequest: Sync = (
-  { request, affiliation },
+  { request, session, affiliation, user },
 ) => ({
   when: actions([Requesting.request, {
     path: "/IdentityVerification/removeAffiliation",
+    session,
     affiliation,
   }, { request }]),
+  where: async (frames) => {
+    return await frames.query(Sessioning._getUser, { session }, { user });
+  },
   then: actions([IdentityVerification.removeAffiliation, { affiliation }], [
     Requesting.respond,
     { request, ok: true },
@@ -566,24 +704,31 @@ export const IdentityRemoveAffiliationRequest: Sync = (
 });
 
 export const IdentityUpdateAffiliationRequest: Sync = (
-  { request, affiliation, newAffiliation },
+  { request, session, affiliation, newAffiliation, user },
 ) => ({
   when: actions([Requesting.request, {
     path: "/IdentityVerification/updateAffiliation",
+    session,
     affiliation,
     newAffiliation,
   }, { request }]),
+  where: async (frames) => {
+    return await frames.query(Sessioning._getUser, { session }, { user });
+  },
   then: actions([IdentityVerification.updateAffiliation, {
     affiliation,
     newAffiliation,
   }], [Requesting.respond, { request, ok: true }]),
 });
 
-export const IdentityGetByUserRequest: Sync = ({ request, user }) => ({
+export const IdentityGetByUserRequest: Sync = ({ request, session, user }) => ({
   when: actions([Requesting.request, {
     path: "/IdentityVerification/_getByUser",
-    user,
+    session,
   }, { request }]),
+  where: async (frames) => {
+    return await frames.query(Sessioning._getUser, { session }, { user });
+  },
   then: actions([IdentityVerification._getByUser, { user }]),
 });
 
