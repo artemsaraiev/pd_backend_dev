@@ -1,14 +1,16 @@
 # Concept: PaperIndex
 
++ **concept** PaperIndex [Author]
 + **purpose** registry of papers by id (DOI or arXiv) with minimal metadata
 + **principle** papers can be added to the index, and paper metadata relevant to
 us can be updated
 + **state**
   + a set of Papers with
     + a paperId String
-    + an authors String[]
+    + an authors Author[]
     + a links String[]
     + a title String?
+    + a createdAt Date
 + **actions**
   + ensure(paperId: String, title?: string) : (paper: Paper)
     + **requires** nothing
@@ -18,12 +20,12 @@ us can be updated
   + updateMeta(paper: Paper, title: String) : ()
     + **requires** the paper is in the set of Papers
     + **effects** sets the title of the paper to the provided title
-  + addAuthors(paper: Paper, authors: String[]) : ()
+  + addAuthors(paper: Paper, authors: Author[]) : ()
     + **requires** the paper is in the set of Papers
     + **effects** for each author in the provided authors array, if the author is not
     in the authors array of the paper, adds the author to the authors array of the
     paper
-  + removeAuthors(paper: Paper, authors: String[]) : ()
+  + removeAuthors(paper: Paper, authors: Author[]) : ()
     + **requires** the paper is in the set of Papers
     + **effects** for each author in the provided authors array, if the author is in
     the authors array of the paper, removes the author from the authors array of the
@@ -37,6 +39,24 @@ us can be updated
     + **effects** if the url is in the links array of the paper, removes the url from
     the links array of the paper. If url is not in the links array of the paper, does
     nothing
++ **queries**
+  + _get(paper: Paper) : (paper: PaperDoc | null)
+    + **requires** nothing
+    + **effects** returns an array of dictionaries, each containing the paper document
+    for the given paper in the `paper` field, or null if the paper does not exist.
+    Returns an array with one dictionary containing `{ paper: PaperDoc | null }`.
+  + _listRecent(limit?: Number) : (papers: PaperDoc[])
+    + **requires** nothing
+    + **effects** returns an array of dictionaries, each containing the most recently
+    created papers in the `papers` field, limited by the provided limit (default 20).
+    Results are ordered by createdAt descending. Each paper includes _id, title, and
+    createdAt. Returns an array with one dictionary containing `{ papers: PaperDoc[] }`.
+  + _searchArxiv(q: String) : (result: Array<{id: String, title?: String}>)
+    + **requires** nothing
+    + **effects** returns an array of dictionaries, each containing search results from
+    the arXiv API matching the query string. Each result includes an id (arXiv identifier)
+    and optionally a title. Returns an array with one dictionary containing
+    `{ result: Array<{id: String, title?: String}> }`.
 
 **Notes:**
 

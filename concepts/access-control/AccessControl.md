@@ -1,7 +1,8 @@
 # Concept: AccessControl
 
 + **concept** AccessControl [User, Resource]
-+ **purpose** manage access to certain resources to different groups of users
++ **purpose** control who can access which resources by organizing users into groups
+and granting permissions
 + **principle** users can create groups, add and remove other users to groups, and
 get access to resources based on the groups they are in. Also provides a way to grant
 universal access to a resource to all users.
@@ -26,6 +27,11 @@ universal access to a resource to all users.
     to the creator, adds it to the set of Groups and returns it. Also creates a new
     Membership with the new group, the creator as the User, and isAdmin set to true,
     and adds it to the set of Memberships
+  + updateGroup(group: Group, name?: String, description?: String) : ()
+    + **requires** the group is in the set of Groups
+    + **effects** updates the name and/or description of the group to the provided
+    values.
+    If a value is not provided, that field remains unchanged.
   + addUser(group: Group, user: User) : (newMembership: Membership)
     + **requires** the group is in the set of Groups, there is no Membership with the
     given group and user in the set of Memberships
@@ -42,10 +48,12 @@ universal access to a resource to all users.
     + **requires** the membership is in the set of Memberships, can't be the last
     admin membership for the group
     + **effects** sets the isAdmin field of the membership to false
-  + givePrivateAccess(group: Group, resource: Resource) : (newPrivateAccess: PrivateAccess)
+  + givePrivateAccess(group: Group, resource: Resource) : (newPrivateAccess:
+  PrivateAccess)
     + **requires** the group is in the set of Groups, there is no Access with the
     given group and resource in the set of PrivateAccesses
-    + **effects** creates a new PrivateAccess with the given group and resource, and adds it
+    + **effects** creates a new PrivateAccess with the given group and resource, and
+    adds it
     to the set of PrivateAccesses.
   + revokePrivateAccess(privateAccess: PrivateAccess) : ()
     + **requires** the privateAccess is in the set of PrivateAccesses
@@ -62,3 +70,29 @@ universal access to a resource to all users.
     + **requires** the group is in the set of Groups
     + **effects** removes the group from the set of Groups. Also removes all
     Memberships and Accesses associated with the group.
++ **queries**
+  + _getGroup(group: Group) : (group: GroupDoc | null)
+    + **requires** nothing
+    + **effects** returns an array of dictionaries, each containing the group document
+    for the given group in the `group` field, or null if the group does not exist.
+    Returns an array with one dictionary containing `{ group: GroupDoc | null }`.
+  + _getMembershipsByGroup(group: Group) : (memberships: MembershipDoc[])
+    + **requires** nothing
+    + **effects** returns an array of dictionaries, each containing all memberships
+    for the given group in the `memberships` field. Each membership includes _id,
+    groupId,
+    user, and isAdmin. Returns an array with one dictionary containing
+    `{ memberships: MembershipDoc[] }`.
+  + _getMembershipsByUser(user: User) : (memberships: MembershipDoc[])
+    + **requires** nothing
+    + **effects** returns an array of dictionaries, each containing all memberships
+    for the given user in the `memberships` field. Each membership includes _id,
+    groupId,
+    user, and isAdmin. Returns an array with one dictionary containing
+    `{ memberships: MembershipDoc[] }`.
+  + _hasAccess(user: User, resource: Resource) : (hasAccess: Boolean)
+    + **requires** nothing
+    + **effects** returns an array of dictionaries, each containing whether the user
+    has access to the resource. Returns true if the resource has universal access,
+    or if the user is a member of a group that has private access to the resource.
+    Returns an array with one dictionary containing `{ hasAccess: boolean }`.

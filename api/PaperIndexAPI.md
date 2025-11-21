@@ -1,0 +1,353 @@
+# API Specification: PaperIndex Concept
+
+**Purpose:** registry of papers by id (DOI or arXiv) with minimal metadata
+
+**Note:** Endpoints that require authentication will include a `session` parameter in the request body. The session token is obtained via the login endpoint and should be included in all authenticated requests.
+
+---
+
+## API Endpoints
+
+### POST /api/PaperIndex/ensure
+
+**Description:** Ensures a paper exists in the index, creating it if it doesn't exist.
+
+**Requirements:**
+- nothing
+
+**Effects:**
+- if paper with given paperId is in the set of Papers, returns it. Otherwise, creates a new paper with the given paperId and title (if provided), and links and authors arrays set to empty arrays, and returns the new paper
+
+**Request Body:**
+```json
+{
+  "session": "string",
+  "paperId": "string",
+  "title": "string"
+}
+```
+
+**Note:** This endpoint requires authentication. The `session` parameter is required.
+
+**Success Response Body (Action):**
+```json
+{
+  "paper": "string"
+}
+```
+
+**Error Response Body:**
+```json
+{
+  "error": "string"
+}
+```
+
+---
+
+### POST /api/PaperIndex/updateMeta
+
+**Description:** Updates the title metadata of a paper.
+
+**Requirements:**
+- the paper is in the set of Papers
+
+**Effects:**
+- sets the title of the paper to the provided title
+
+**Request Body:**
+```json
+{
+  "session": "string",
+  "paper": "string",
+  "title": "string"
+}
+```
+
+**Note:** This endpoint requires authentication. The `session` parameter is required.
+
+**Success Response Body (Action):**
+```json
+{
+  "ok": true
+}
+```
+
+**Error Response Body:**
+```json
+{
+  "error": "string"
+}
+```
+
+---
+
+### POST /api/PaperIndex/addAuthors
+
+**Description:** Adds authors to a paper's author list.
+
+**Requirements:**
+- the paper is in the set of Papers
+
+**Effects:**
+- for each author in the provided authors array, if the author is not in the authors array of the paper, adds the author to the authors array of the paper
+
+**Request Body:**
+```json
+{
+  "paper": "string",
+  "authors": ["string"]
+}
+```
+
+**Success Response Body (Action):**
+```json
+{
+  "ok": true
+}
+```
+
+**Error Response Body:**
+```json
+{
+  "error": "string"
+}
+```
+
+---
+
+### POST /api/PaperIndex/removeAuthors
+
+**Description:** Removes authors from a paper's author list.
+
+**Requirements:**
+- the paper is in the set of Papers
+
+**Effects:**
+- for each author in the provided authors array, if the author is in the authors array of the paper, removes the author from the authors array of the paper
+
+**Request Body:**
+```json
+{
+  "session": "string",
+  "paper": "string",
+  "authors": ["string"]
+}
+```
+
+**Note:** This endpoint requires authentication. The `session` parameter is required.
+
+**Success Response Body (Action):**
+```json
+{
+  "ok": true
+}
+```
+
+**Error Response Body:**
+```json
+{
+  "error": "string"
+}
+```
+
+---
+
+### POST /api/PaperIndex/addLink
+
+**Description:** Adds a URL link to a paper's links array.
+
+**Requirements:**
+- the paper is in the set of Papers
+
+**Effects:**
+- if the url is not in the links array of the paper, adds the url to the links array of the paper
+
+**Request Body:**
+```json
+{
+  "session": "string",
+  "paper": "string",
+  "url": "string"
+}
+```
+
+**Note:** This endpoint requires authentication. The `session` parameter is required.
+
+**Success Response Body (Action):**
+```json
+{
+  "ok": true
+}
+```
+
+**Error Response Body:**
+```json
+{
+  "error": "string"
+}
+```
+
+---
+
+### POST /api/PaperIndex/removeLink
+
+**Description:** Removes a URL link from a paper's links array.
+
+**Requirements:**
+- the paper is in the set of Papers
+
+**Effects:**
+- if the url is in the links array of the paper, removes the url from the links array of the paper. If url is not in the links array of the paper, does nothing
+
+**Request Body:**
+```json
+{
+  "session": "string",
+  "paper": "string",
+  "url": "string"
+}
+```
+
+**Note:** This endpoint requires authentication. The `session` parameter is required.
+
+**Success Response Body (Action):**
+```json
+{
+  "ok": true
+}
+```
+
+**Error Response Body:**
+```json
+{
+  "error": "string"
+}
+```
+
+---
+
+### POST /api/PaperIndex/_get
+
+**Description:** Retrieves a paper document by its ID.
+
+**Requirements:**
+- nothing
+
+**Effects:**
+- returns an array of dictionaries, each containing the paper document for the given paper in the `paper` field, or null if the paper does not exist. Returns an array with one dictionary containing `{ paper: PaperDoc | null }`.
+
+**Request Body:**
+```json
+{
+  "paper": "string"
+}
+```
+
+**Success Response Body (Query):**
+```json
+[
+  {
+    "paper": {
+      "_id": "string",
+      "title": "string",
+      "authors": ["string"],
+      "links": ["string"],
+      "createdAt": "number"
+    }
+  }
+]
+```
+
+**Error Response Body:**
+```json
+{
+  "error": "string"
+}
+```
+
+---
+
+### POST /api/PaperIndex/_listRecent
+
+**Description:** Lists the most recently created papers.
+
+**Requirements:**
+- nothing
+
+**Effects:**
+- returns an array of dictionaries, each containing the most recently created papers in the `papers` field, limited by the provided limit (default 20). Results are ordered by createdAt descending. Each paper includes _id, title, and createdAt. Returns an array with one dictionary containing `{ papers: PaperDoc[] }`.
+
+**Request Body:**
+```json
+{
+  "limit": "number"
+}
+```
+
+**Success Response Body (Query):**
+```json
+[
+  {
+    "papers": [
+      {
+        "_id": "string",
+        "title": "string",
+        "authors": ["string"],
+        "links": ["string"],
+        "createdAt": "number"
+      }
+    ]
+  }
+]
+```
+
+**Error Response Body:**
+```json
+{
+  "error": "string"
+}
+```
+
+---
+
+### POST /api/PaperIndex/_searchArxiv
+
+**Description:** Searches the arXiv API for papers matching a query string.
+
+**Requirements:**
+- nothing
+
+**Effects:**
+- returns an array of dictionaries, each containing search results from the arXiv API matching the query string. Each result includes an id (arXiv identifier) and optionally a title. Returns an array with one dictionary containing `{ result: Array<{id: String, title?: String}> }`.
+
+**Request Body:**
+```json
+{
+  "q": "string"
+}
+```
+
+**Success Response Body (Query):**
+```json
+[
+  {
+    "result": [
+      {
+        "id": "string",
+        "title": "string"
+      }
+    ]
+  }
+]
+```
+
+**Error Response Body:**
+```json
+{
+  "error": "string"
+}
+```
+
+---
+
