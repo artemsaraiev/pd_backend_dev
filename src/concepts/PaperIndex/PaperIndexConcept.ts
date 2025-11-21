@@ -6,7 +6,7 @@ type Paper = ID;
 type Author = ID;
 
 /**
- * @concept PaperIndex
+ * @concept PaperIndex [Author]
  * @purpose registry of papers by id (DOI or arXiv) with minimal metadata
  *
  * @principle papers can be added to the index, and paper metadata relevant to
@@ -21,9 +21,9 @@ type Author = ID;
  *   a title String?
  */
 interface PaperDoc {
-  _id: string; // paperId (external unique identifier)
+  _id: Paper; // paperId (external unique identifier)
   title?: string;
-  authors: string[]; // Author IDs
+  authors: Author[]; // Author IDs
   links: string[];
   createdAt?: number; // Implementation detail for ordering
 }
@@ -37,17 +37,20 @@ export default class PaperIndexConcept {
   }
 
   /**
-   * searchArxiv: simple arXiv search by query string.
-   * Returns up to 10 items with arXiv id and title.
+   * _searchArxiv(q: String) : (result: Array<{id: String, title?: String}>)
+   *
+   * **requires** nothing
+   * **effects** returns an array of dictionaries, each containing search results from
+   * the arXiv API matching the query string. Each result includes an id (arXiv identifier)
+   * and optionally a title. Returns an array with one dictionary containing
+   * `{ result: Array<{id: String, title?: String}> }`.
    */
-  async searchArxiv(
+  async _searchArxiv(
     { q }: { q: string },
-  ): Promise<
-    { result: Array<{ id: string; title?: string }> } | { error: string }
-  > {
+  ): Promise<Array<{ result: Array<{ id: string; title?: string }> }>> {
     try {
       const query = q.trim();
-      if (!query) return { result: [] };
+      if (!query) return [{ result: [] }];
       const url = `http://export.arxiv.org/api/query?search_query=all:${
         encodeURIComponent(query)
       }&start=0&max_results=10`;
@@ -69,9 +72,11 @@ export default class PaperIndexConcept {
           : undefined;
         items.push({ id, title });
       }
-      return { result: items };
-    } catch (e) {
-      return { error: e instanceof Error ? e.message : String(e) };
+      // Queries must return an array of dictionaries
+      return [{ result: items }];
+    } catch {
+      // On error, return empty array (queries should not throw)
+      return [{ result: [] }];
     }
   }
 
@@ -85,7 +90,7 @@ export default class PaperIndexConcept {
    */
   async ensure(
     { paperId, title }: { paperId: string; title?: string },
-  ): Promise<{ paper: string } | { error: string }> {
+  ): Promise<{ paper: Paper } | { error: string }> {
     try {
       const setOnInsert: Record<string, unknown> = {
         _id: paperId,
@@ -95,11 +100,11 @@ export default class PaperIndexConcept {
       };
       if (title !== undefined) setOnInsert.title = title;
       await this.papers.updateOne(
-        { _id: paperId },
+        { _id: paperId as Paper },
         { $setOnInsert: setOnInsert },
         { upsert: true },
       );
-      return { paper: paperId };
+      return { paper: paperId as Paper };
     } catch (e) {
       return { error: e instanceof Error ? e.message : String(e) };
     }
@@ -112,7 +117,7 @@ export default class PaperIndexConcept {
    * **effects** sets the title of the paper to the provided title
    */
   async updateMeta(
-    { paper, title }: { paper: string; title: string },
+    { paper, title }: { paper: Paper; title: string },
   ): Promise<{ ok: true } | { error: string }> {
     try {
       const res = await this.papers.updateOne(
@@ -135,12 +140,15 @@ export default class PaperIndexConcept {
    * paper
    */
   async addAuthors(
-    { paper, authors }: { paper: string; authors: string[] },
+    { paper, authors }: { paper: Paper; authors: Author[] },
   ): Promise<{ ok: true } | { error: string }> {
     try {
+      // Convert Author[] to string[] for MongoDB (ID is a branded string)
+      const authorStrings = authors as unknown as string[];
       const res = await this.papers.updateOne(
         { _id: paper },
-        { $addToSet: { authors: { $each: authors } } },
+        // @ts-expect-error - MongoDB types don't understand branded ID types, but at runtime these are strings
+        { $addToSet: { authors: { $each: authorStrings } } },
       );
       if (res.matchedCount === 0) throw new Error("Paper not found");
       return { ok: true };
@@ -158,12 +166,15 @@ export default class PaperIndexConcept {
    * paper
    */
   async removeAuthors(
-    { paper, authors }: { paper: string; authors: string[] },
+    { paper, authors }: { paper: Paper; authors: Author[] },
   ): Promise<{ ok: true } | { error: string }> {
     try {
+      // Convert Author[] to string[] for MongoDB (ID is a branded string)
+      const authorStrings = authors as unknown as string[];
       const res = await this.papers.updateOne(
         { _id: paper },
-        { $pull: { authors: { $in: authors } } },
+        // @ts-expect-error - MongoDB types don't understand branded ID types, but at runtime these are strings
+        { $pull: { authors: { $in: authorStrings } } },
       );
       if (res.matchedCount === 0) throw new Error("Paper not found");
       return { ok: true };
@@ -180,7 +191,7 @@ export default class PaperIndexConcept {
    * the links array of the paper
    */
   async addLink(
-    { paper, url }: { paper: string; url: string },
+    { paper, url }: { paper: Paper; url: string },
   ): Promise<{ ok: true } | { error: string }> {
     try {
       const res = await this.papers.updateOne(
@@ -203,7 +214,7 @@ export default class PaperIndexConcept {
    * nothing
    */
   async removeLink(
-    { paper, url }: { paper: string; url: string },
+    { paper, url }: { paper: Paper; url: string },
   ): Promise<{ ok: true } | { error: string }> {
     try {
       const res = await this.papers.updateOne(
@@ -226,7 +237,7 @@ export default class PaperIndexConcept {
    * Returns an array with one dictionary containing `{ paper: PaperDoc | null }`.
    */
   async _get(
-    { paper }: { paper: string },
+    { paper }: { paper: Paper },
   ): Promise<Array<{ paper: PaperDoc | null }>> {
     try {
       const result = await this.papers.findOne({ _id: paper });
@@ -251,7 +262,17 @@ export default class PaperIndexConcept {
     { limit }: { limit?: number },
   ): Promise<
     Array<
-      { papers: Array<{ _id: string; title?: string; createdAt?: number }> }
+      {
+        papers: Array<
+          {
+            _id: Paper;
+            title?: string;
+            createdAt?: number;
+            authors: Author[];
+            links: string[];
+          }
+        >;
+      }
     >
   > {
     try {

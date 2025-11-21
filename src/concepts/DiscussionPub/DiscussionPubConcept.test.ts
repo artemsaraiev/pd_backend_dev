@@ -1,5 +1,4 @@
 import { assertEquals, assertExists, assertNotEquals } from "jsr:@std/assert";
-import { ObjectId } from "npm:mongodb";
 import { testDb } from "@utils/database.ts";
 import { ID } from "@utils/types.ts";
 import DiscussionPubConcept from "./DiscussionPubConcept.ts";
@@ -37,7 +36,7 @@ Deno.test("Principle: Pub created, threads created in relation to context, repli
     console.log("  Step 1: Create pub for paper");
     const openResult = await concept.open({ paperId: paper1 });
     assertNotEquals("error" in openResult, true, "Pub creation should succeed");
-    const { newPub } = openResult as { newPub: string };
+    const { newPub } = openResult as { newPub: ID };
     assertExists(newPub, "Pub ID should be returned");
     console.log(`    Created pub: ${newPub}`);
 
@@ -55,7 +54,7 @@ Deno.test("Principle: Pub created, threads created in relation to context, repli
       true,
       "Thread creation should succeed",
     );
-    const { newThread } = threadResult as { newThread: string };
+    const { newThread } = threadResult as { newThread: ID };
     assertExists(newThread, "Thread ID should be returned");
     console.log(`    Created thread: ${newThread}`);
 
@@ -72,7 +71,7 @@ Deno.test("Principle: Pub created, threads created in relation to context, repli
       true,
       "Reply creation should succeed",
     );
-    const { newReply } = replyResult as { newReply: string };
+    const { newReply } = replyResult as { newReply: ID };
     assertExists(newReply, "Reply ID should be returned");
     console.log(`    Created reply: ${newReply}`);
 
@@ -135,7 +134,7 @@ Deno.test("Action: open successfully creates pub", async () => {
 
     // Effects: should return newPub ID
     assertNotEquals("error" in result, true, "Creation should succeed");
-    const { newPub } = result as { newPub: string };
+    const { newPub } = result as { newPub: ID };
     assertExists(newPub, "Should return pub ID");
 
     // Verify effects: pub exists with correct fields
@@ -149,7 +148,7 @@ Deno.test("Action: open successfully creates pub", async () => {
 
     // Verify createdAt is set
     const pubDoc = await db.collection("pubs").findOne({
-      _id: new ObjectId(newPub),
+      _id: newPub,
     });
     assertExists(pubDoc, "Pub document should exist");
     assertExists(pubDoc.createdAt, "createdAt should be set");
@@ -202,7 +201,7 @@ Deno.test("Action: startThread successfully creates thread with all fields", asy
     console.log("Testing startThread action - all fields provided");
 
     const { newPub } = (await concept.open({ paperId: paper1 })) as {
-      newPub: string;
+      newPub: ID;
     };
     const beforeTime = Date.now();
     const result = await concept.startThread({
@@ -216,7 +215,7 @@ Deno.test("Action: startThread successfully creates thread with all fields", asy
 
     // Effects: should return newThread ID
     assertNotEquals("error" in result, true, "Thread creation should succeed");
-    const { newThread } = result as { newThread: string };
+    const { newThread } = result as { newThread: ID };
     assertExists(newThread, "Should return thread ID");
 
     // Verify effects: thread exists with correct fields
@@ -272,7 +271,7 @@ Deno.test("Action: startThread requires pub to exist", async () => {
   try {
     console.log("Testing startThread action - pub requirement");
 
-    const fakePubId = "507f1f77bcf86cd799439011"; // Valid ObjectId format but doesn't exist
+    const fakePubId = "pub:fake" as ID; // Fake pub ID that doesn't exist
     const result = await concept.startThread({
       pubId: fakePubId,
       author: userAlice,
@@ -304,14 +303,14 @@ Deno.test("Action: editThread successfully updates title and body", async () => 
     console.log("Testing editThread action - update title and body");
 
     const { newPub } = (await concept.open({ paperId: paper1 })) as {
-      newPub: string;
+      newPub: ID;
     };
     const { newThread } = (await concept.startThread({
       pubId: newPub,
       author: userAlice,
       title: "Original Title",
       body: "Original body",
-    })) as { newThread: string };
+    })) as { newThread: ID };
 
     const beforeTime = Date.now();
     await new Promise((resolve) => setTimeout(resolve, 10)); // Small delay
@@ -356,7 +355,7 @@ Deno.test("Action: editThread requires thread to exist", async () => {
   try {
     console.log("Testing editThread action - thread requirement");
 
-    const fakeThreadId = "507f1f77bcf86cd799439011";
+    const fakeThreadId = "thread:fake" as ID;
     const result = await concept.editThread({
       threadId: fakeThreadId,
       newBody: "Updated body",
@@ -386,14 +385,14 @@ Deno.test("Action: deleteThread sets deleted flag (soft delete)", async () => {
     console.log("Testing deleteThread action - soft delete");
 
     const { newPub } = (await concept.open({ paperId: paper1 })) as {
-      newPub: string;
+      newPub: ID;
     };
     const { newThread } = (await concept.startThread({
       pubId: newPub,
       author: userAlice,
       title: "To be deleted",
       body: "This will be deleted",
-    })) as { newThread: string };
+    })) as { newThread: ID };
 
     const beforeTime = Date.now();
     await new Promise((resolve) => setTimeout(resolve, 10)); // Small delay
@@ -414,7 +413,7 @@ Deno.test("Action: deleteThread sets deleted flag (soft delete)", async () => {
 
     // Verify in database that deleted flag is set
     const threadDoc = await db.collection("threads").findOne({
-      _id: new ObjectId(newThread),
+      _id: newThread,
     });
     assertExists(threadDoc, "Thread document should still exist");
     assertEquals(threadDoc.deleted, true, "deleted flag should be set to true");
@@ -441,26 +440,26 @@ Deno.test("Action: deleteThread cascades to replies (soft delete)", async () => 
     console.log("Testing deleteThread action - cascade to replies");
 
     const { newPub } = (await concept.open({ paperId: paper1 })) as {
-      newPub: string;
+      newPub: ID;
     };
     const { newThread } = (await concept.startThread({
       pubId: newPub,
       author: userAlice,
       title: "Thread with replies",
       body: "Body",
-    })) as { newThread: string };
+    })) as { newThread: ID };
 
     const { newReply: reply1 } = (await concept.makeReply({
       threadId: newThread,
       author: userBob,
       body: "Reply 1",
-    })) as { newReply: string };
+    })) as { newReply: ID };
 
     const { newReply: reply2 } = (await concept.makeReply({
       threadId: newThread,
       author: userCharlie,
       body: "Reply 2",
-    })) as { newReply: string };
+    })) as { newReply: ID };
 
     await concept.deleteThread({ threadId: newThread });
 
@@ -480,10 +479,10 @@ Deno.test("Action: deleteThread cascades to replies (soft delete)", async () => 
 
     // Verify in database that deleted flags are set
     const reply1Doc = await db.collection("replies").findOne({
-      _id: new ObjectId(reply1),
+      _id: reply1,
     });
     const reply2Doc = await db.collection("replies").findOne({
-      _id: new ObjectId(reply2),
+      _id: reply2,
     });
     assertEquals(reply1Doc?.deleted, true, "Reply 1 should be soft-deleted");
     assertEquals(reply2Doc?.deleted, true, "Reply 2 should be soft-deleted");
@@ -502,14 +501,14 @@ Deno.test("Action: makeReply successfully creates reply", async () => {
     console.log("Testing makeReply action - successful creation");
 
     const { newPub } = (await concept.open({ paperId: paper1 })) as {
-      newPub: string;
+      newPub: ID;
     };
     const { newThread } = (await concept.startThread({
       pubId: newPub,
       author: userAlice,
       title: "Test Thread",
       body: "Test body",
-    })) as { newThread: string };
+    })) as { newThread: ID };
 
     const beforeTime = Date.now();
     const result = await concept.makeReply({
@@ -522,7 +521,7 @@ Deno.test("Action: makeReply successfully creates reply", async () => {
 
     // Effects: should return newReply ID
     assertNotEquals("error" in result, true, "Reply creation should succeed");
-    const { newReply } = result as { newReply: string };
+    const { newReply } = result as { newReply: ID };
     assertExists(newReply, "Should return reply ID");
 
     // Verify effects: reply exists with correct fields
@@ -579,27 +578,27 @@ Deno.test("Action: makeReply with parentReply creates nested reply", async () =>
     console.log("Testing makeReply action - nested reply");
 
     const { newPub } = (await concept.open({ paperId: paper1 })) as {
-      newPub: string;
+      newPub: ID;
     };
     const { newThread } = (await concept.startThread({
       pubId: newPub,
       author: userAlice,
       title: "Test Thread",
       body: "Test body",
-    })) as { newThread: string };
+    })) as { newThread: ID };
 
     const { newReply: parentReply } = (await concept.makeReply({
       threadId: newThread,
       author: userBob,
       body: "Parent reply",
-    })) as { newReply: string };
+    })) as { newReply: ID };
 
     const { newReply: childReply } = (await concept.makeReply({
       threadId: newThread,
       author: userCharlie,
       body: "Child reply",
       parentReply: parentReply,
-    })) as { newReply: string };
+    })) as { newReply: ID };
 
     // Verify child reply has parentId set
     const repliesResult = await concept._listReplies({ threadId: newThread });
@@ -630,7 +629,7 @@ Deno.test("Action: makeReply requires thread to exist", async () => {
   try {
     console.log("Testing makeReply action - thread requirement");
 
-    const fakeThreadId = "507f1f77bcf86cd799439011";
+    const fakeThreadId = "thread:fake" as ID;
     const result = await concept.makeReply({
       threadId: fakeThreadId,
       author: userAlice,
@@ -661,17 +660,17 @@ Deno.test("Action: makeReply requires parentReply to exist and match thread", as
     console.log("Testing makeReply action - parentReply validation");
 
     const { newPub } = (await concept.open({ paperId: paper1 })) as {
-      newPub: string;
+      newPub: ID;
     };
     const { newThread } = (await concept.startThread({
       pubId: newPub,
       author: userAlice,
       title: "Test Thread",
       body: "Test body",
-    })) as { newThread: string };
+    })) as { newThread: ID };
 
     // Non-existent parentReply
-    const fakeParentId = "507f1f77bcf86cd799439011";
+    const fakeParentId = "reply:fake" as ID;
     const result1 = await concept.makeReply({
       threadId: newThread,
       author: userBob,
@@ -691,19 +690,19 @@ Deno.test("Action: makeReply requires parentReply to exist and match thread", as
 
     // ParentReply from different thread
     const { newPub: pub2 } = (await concept.open({ paperId: paper2 })) as {
-      newPub: string;
+      newPub: ID;
     };
     const { newThread: thread2 } = (await concept.startThread({
       pubId: pub2,
       author: userAlice,
       title: "Other Thread",
       body: "Body",
-    })) as { newThread: string };
+    })) as { newThread: ID };
     const { newReply: otherReply } = (await concept.makeReply({
       threadId: thread2,
       author: userBob,
       body: "Other reply",
-    })) as { newReply: string };
+    })) as { newReply: ID };
 
     const result2 = await concept.makeReply({
       threadId: newThread,
@@ -736,19 +735,19 @@ Deno.test("Action: editReply successfully updates body", async () => {
     console.log("Testing editReply action - update body");
 
     const { newPub } = (await concept.open({ paperId: paper1 })) as {
-      newPub: string;
+      newPub: ID;
     };
     const { newThread } = (await concept.startThread({
       pubId: newPub,
       author: userAlice,
       title: "Test Thread",
       body: "Test body",
-    })) as { newThread: string };
+    })) as { newThread: ID };
     const { newReply } = (await concept.makeReply({
       threadId: newThread,
       author: userBob,
       body: "Original reply body",
-    })) as { newReply: string };
+    })) as { newReply: ID };
 
     const beforeTime = Date.now();
     await new Promise((resolve) => setTimeout(resolve, 10)); // Small delay
@@ -792,19 +791,19 @@ Deno.test("Action: deleteReply sets deleted flag (soft delete)", async () => {
     console.log("Testing deleteReply action - soft delete");
 
     const { newPub } = (await concept.open({ paperId: paper1 })) as {
-      newPub: string;
+      newPub: ID;
     };
     const { newThread } = (await concept.startThread({
       pubId: newPub,
       author: userAlice,
       title: "Test Thread",
       body: "Test body",
-    })) as { newThread: string };
+    })) as { newThread: ID };
     const { newReply } = (await concept.makeReply({
       threadId: newThread,
       author: userBob,
       body: "To be deleted",
-    })) as { newReply: string };
+    })) as { newReply: ID };
 
     const beforeTime = Date.now();
     await new Promise((resolve) => setTimeout(resolve, 10)); // Small delay
@@ -825,7 +824,7 @@ Deno.test("Action: deleteReply sets deleted flag (soft delete)", async () => {
 
     // Verify in database that deleted flag is set
     const replyDoc = await db.collection("replies").findOne({
-      _id: new ObjectId(newReply),
+      _id: newReply,
     });
     assertExists(replyDoc, "Reply document should still exist");
     assertEquals(replyDoc.deleted, true, "deleted flag should be set to true");
@@ -866,7 +865,7 @@ Deno.test("Query: _getPubIdByPaper returns pub ID or null", async () => {
 
     // Create pub and query
     const { newPub } = (await concept.open({ paperId: paper1 })) as {
-      newPub: string;
+      newPub: ID;
     };
     const result2 = await concept._getPubIdByPaper({ paperId: paper1 });
     assertEquals(
@@ -890,7 +889,7 @@ Deno.test("Query: _listThreads filters by pub and optionally by anchor", async (
     console.log("Testing _listThreads query - filtering");
 
     const { newPub } = (await concept.open({ paperId: paper1 })) as {
-      newPub: string;
+      newPub: ID;
     };
     const { newThread: thread1 } = (await concept.startThread({
       pubId: newPub,
@@ -898,7 +897,7 @@ Deno.test("Query: _listThreads filters by pub and optionally by anchor", async (
       anchorId: anchor1,
       title: "Thread 1",
       body: "Body 1",
-    })) as { newThread: string };
+    })) as { newThread: ID };
 
     const { newThread: thread2 } = (await concept.startThread({
       pubId: newPub,
@@ -906,7 +905,7 @@ Deno.test("Query: _listThreads filters by pub and optionally by anchor", async (
       anchorId: anchor2,
       title: "Thread 2",
       body: "Body 2",
-    })) as { newThread: string };
+    })) as { newThread: ID };
 
     const { newThread: thread3 } = (await concept.startThread({
       pubId: newPub,
@@ -914,7 +913,7 @@ Deno.test("Query: _listThreads filters by pub and optionally by anchor", async (
       anchorId: anchor1,
       title: "Thread 3",
       body: "Body 3",
-    })) as { newThread: string };
+    })) as { newThread: ID };
 
     // List all threads
     const allResult = await concept._listThreads({ pubId: newPub });
@@ -972,21 +971,21 @@ Deno.test("Query: _listThreads excludes deleted threads", async () => {
     console.log("Testing _listThreads query - excludes deleted");
 
     const { newPub } = (await concept.open({ paperId: paper1 })) as {
-      newPub: string;
+      newPub: ID;
     };
     const { newThread: thread1 } = (await concept.startThread({
       pubId: newPub,
       author: userAlice,
       title: "Thread 1",
       body: "Body 1",
-    })) as { newThread: string };
+    })) as { newThread: ID };
 
     const { newThread: thread2 } = (await concept.startThread({
       pubId: newPub,
       author: userBob,
       title: "Thread 2",
       body: "Body 2",
-    })) as { newThread: string };
+    })) as { newThread: ID };
 
     // Delete thread1
     await concept.deleteThread({ threadId: thread1 });
@@ -1016,14 +1015,14 @@ Deno.test("Query: _listThreads results are ordered by createdAt", async () => {
     console.log("Testing _listThreads query - ordering");
 
     const { newPub } = (await concept.open({ paperId: paper1 })) as {
-      newPub: string;
+      newPub: ID;
     };
     const { newThread: thread1 } = (await concept.startThread({
       pubId: newPub,
       author: userAlice,
       title: "Thread 1",
       body: "Body 1",
-    })) as { newThread: string };
+    })) as { newThread: ID };
     await new Promise((resolve) => setTimeout(resolve, 10));
 
     const { newThread: thread2 } = (await concept.startThread({
@@ -1031,7 +1030,7 @@ Deno.test("Query: _listThreads results are ordered by createdAt", async () => {
       author: userBob,
       title: "Thread 2",
       body: "Body 2",
-    })) as { newThread: string };
+    })) as { newThread: ID };
     await new Promise((resolve) => setTimeout(resolve, 10));
 
     const { newThread: thread3 } = (await concept.startThread({
@@ -1039,7 +1038,7 @@ Deno.test("Query: _listThreads results are ordered by createdAt", async () => {
       author: userCharlie,
       title: "Thread 3",
       body: "Body 3",
-    })) as { newThread: string };
+    })) as { newThread: ID };
 
     const result = await concept._listThreads({ pubId: newPub });
     assertEquals(
@@ -1079,34 +1078,34 @@ Deno.test("Query: _listReplies returns all replies for thread", async () => {
     console.log("Testing _listReplies query");
 
     const { newPub } = (await concept.open({ paperId: paper1 })) as {
-      newPub: string;
+      newPub: ID;
     };
     const { newThread } = (await concept.startThread({
       pubId: newPub,
       author: userAlice,
       title: "Test Thread",
       body: "Test body",
-    })) as { newThread: string };
+    })) as { newThread: ID };
 
     const { newReply: reply1 } = (await concept.makeReply({
       threadId: newThread,
       author: userAlice,
       body: "Reply 1",
-    })) as { newReply: string };
+    })) as { newReply: ID };
 
     const { newReply: reply2 } = (await concept.makeReply({
       threadId: newThread,
       author: userBob,
       anchorId: anchor1,
       body: "Reply 2",
-    })) as { newReply: string };
+    })) as { newReply: ID };
 
     const { newReply: reply3 } = (await concept.makeReply({
       threadId: newThread,
       author: userCharlie,
       body: "Reply 3",
       parentReply: reply1,
-    })) as { newReply: string };
+    })) as { newReply: ID };
 
     const result = await concept._listReplies({ threadId: newThread });
     assertEquals(
@@ -1145,26 +1144,26 @@ Deno.test("Query: _listReplies excludes deleted replies", async () => {
     console.log("Testing _listReplies query - excludes deleted");
 
     const { newPub } = (await concept.open({ paperId: paper1 })) as {
-      newPub: string;
+      newPub: ID;
     };
     const { newThread } = (await concept.startThread({
       pubId: newPub,
       author: userAlice,
       title: "Test Thread",
       body: "Test body",
-    })) as { newThread: string };
+    })) as { newThread: ID };
 
     const { newReply: reply1 } = (await concept.makeReply({
       threadId: newThread,
       author: userAlice,
       body: "Reply 1",
-    })) as { newReply: string };
+    })) as { newReply: ID };
 
     const { newReply: reply2 } = (await concept.makeReply({
       threadId: newThread,
       author: userBob,
       body: "Reply 2",
-    })) as { newReply: string };
+    })) as { newReply: ID };
 
     // Delete reply1
     await concept.deleteReply({ replyId: reply1 });
@@ -1194,14 +1193,14 @@ Deno.test("Query: _listRepliesTree returns tree structure", async () => {
     console.log("Testing _listRepliesTree query - tree structure");
 
     const { newPub } = (await concept.open({ paperId: paper1 })) as {
-      newPub: string;
+      newPub: ID;
     };
     const { newThread } = (await concept.startThread({
       pubId: newPub,
       author: userAlice,
       title: "Test Thread",
       body: "Test body",
-    })) as { newThread: string };
+    })) as { newThread: ID };
 
     // Create reply tree:
     // reply1 (root)
@@ -1213,27 +1212,27 @@ Deno.test("Query: _listRepliesTree returns tree structure", async () => {
       threadId: newThread,
       author: userAlice,
       body: "Root reply 1",
-    })) as { newReply: string };
+    })) as { newReply: ID };
 
     const { newReply: reply2 } = (await concept.makeReply({
       threadId: newThread,
       author: userBob,
       body: "Child of reply1",
       parentReply: reply1,
-    })) as { newReply: string };
+    })) as { newReply: ID };
 
     const { newReply: reply3 } = (await concept.makeReply({
       threadId: newThread,
       author: userCharlie,
       body: "Root reply 2",
-    })) as { newReply: string };
+    })) as { newReply: ID };
 
     const { newReply: reply4 } = (await concept.makeReply({
       threadId: newThread,
       author: userAlice,
       body: "Child of reply2",
       parentReply: reply2,
-    })) as { newReply: string };
+    })) as { newReply: ID };
 
     const result = await concept._listRepliesTree({ threadId: newThread });
     assertEquals(

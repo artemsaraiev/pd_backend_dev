@@ -1,5 +1,6 @@
-import { Collection, Db, ObjectId } from "npm:mongodb";
+import { Collection, Db } from "npm:mongodb";
 import { ID } from "@utils/types.ts";
+import { freshID } from "@utils/database.ts";
 
 // Generic types of this concept
 type User = ID;
@@ -23,7 +24,7 @@ type Reply = ID;
  *   a createdAt Date
  */
 interface PubDoc {
-  _id: ObjectId;
+  _id: Pub;
   paperId: string;
   createdAt: number;
 }
@@ -40,10 +41,10 @@ interface PubDoc {
  *   an editedAt Date?
  */
 interface ThreadDoc {
-  _id: ObjectId;
-  pubId: string;
-  author: string; // User ID
-  anchorId?: string; // Anchor ID (optional)
+  _id: Thread;
+  pubId: Pub;
+  author: User;
+  anchorId?: Anchor;
   title: string;
   body: string;
   deleted: boolean;
@@ -63,11 +64,11 @@ interface ThreadDoc {
  *   an editedAt Date?
  */
 interface ReplyDoc {
-  _id: ObjectId;
-  threadId: string;
-  parentId?: string; // Reply ID (optional)
-  author: string; // User ID
-  anchorId?: string; // Anchor ID (optional)
+  _id: Reply;
+  threadId: Thread;
+  parentId?: Reply;
+  author: User;
+  anchorId?: Anchor;
   body: string;
   deleted: boolean;
   createdAt: number;
@@ -75,13 +76,13 @@ interface ReplyDoc {
 }
 
 interface ReplyTreeNode {
-  _id: string;
-  author: string;
+  _id: Reply;
+  author: User;
   body: string;
-  anchorId?: string;
+  anchorId?: Anchor;
   createdAt: number;
   editedAt?: number;
-  parentId?: string;
+  parentId?: Reply;
   children: ReplyTreeNode[];
 }
 
@@ -121,18 +122,16 @@ export default class DiscussionPubConcept {
    */
   async open(
     { paperId }: { paperId: string },
-  ): Promise<{ newPub: string } | { result: string } | { error: string }> {
+    ): Promise<{ newPub: Pub } | { result: Pub } | { error: string }> {
     try {
       const now = Date.now();
       try {
-        // MongoDB insertOne accepts documents without _id (it generates one), but our Collection type requires it
-        // @ts-expect-error - MongoDB generates _id automatically, type definition is too strict
-        const res = await this.pubs.insertOne({ paperId, createdAt: now });
-        const pubId = String(res.insertedId);
+        const pubId = freshID() as Pub;
+        await this.pubs.insertOne({ _id: pubId, paperId, createdAt: now });
         // Support both return types for backward compatibility
         return { newPub: pubId, result: pubId } as {
-          newPub: string;
-          result: string;
+          newPub: Pub;
+          result: Pub;
         };
       } catch (e) {
         if (String(e).includes("duplicate key")) {
@@ -162,20 +161,20 @@ export default class DiscussionPubConcept {
       title,
       body,
     }: {
-      pubId: string; // Pub ID
-      author: string; // User ID
-      anchorId?: string; // Anchor ID (optional)
+      pubId: Pub;
+      author: User;
+      anchorId?: Anchor;
       title?: string; // Optional for backward compatibility
       body: string;
     },
-  ): Promise<{ newThread: string } | { result: string } | { error: string }> {
+    ): Promise<{ newThread: Thread } | { result: Thread } | { error: string }> {
     try {
-      const pub = await this.pubs.findOne({ _id: new ObjectId(pubId) }).catch(
-        () => null,
-      );
+      const pub = await this.pubs.findOne({ _id: pubId });
       if (!pub) throw new Error("Pub not found");
       const now = Date.now();
-      const doc = {
+      const threadId = freshID() as Thread;
+      const doc: ThreadDoc = {
+        _id: threadId,
         pubId,
         author,
         title: title ?? "", // Default to empty string for backward compatibility
@@ -184,14 +183,11 @@ export default class DiscussionPubConcept {
         createdAt: now,
         ...(anchorId !== undefined && { anchorId }),
       };
-      // MongoDB insertOne accepts documents without _id (it generates one), but our Collection type requires it
-      // @ts-expect-error - MongoDB generates _id automatically, type definition is too strict
-      const res = await this.threads.insertOne(doc);
-      const threadId = String(res.insertedId);
+      await this.threads.insertOne(doc);
       // Support both return types for backward compatibility
       return { newThread: threadId, result: threadId } as {
-        newThread: string;
-        result: string;
+        newThread: Thread;
+        result: Thread;
       };
     } catch (e) {
       return { error: e instanceof Error ? e.message : String(e) };
@@ -217,28 +213,27 @@ export default class DiscussionPubConcept {
       body,
       parentReply,
     }: {
-      threadId: string; // Thread ID
-      author: string; // User ID
-      anchorId?: string; // Anchor ID (optional)
+      threadId: Thread;
+      author: User;
+      anchorId?: Anchor;
       body: string;
-      parentReply?: string; // Reply ID (optional)
+      parentReply?: Reply;
     },
-  ): Promise<{ newReply: string } | { result: string } | { error: string }> {
+    ): Promise<{ newReply: Reply } | { result: Reply } | { error: string }> {
     try {
-      const th = await this.threads.findOne({ _id: new ObjectId(threadId) })
-        .catch(() => null);
+      const th = await this.threads.findOne({ _id: threadId });
       if (!th) throw new Error("Thread not found");
       if (parentReply) {
-        const parent = await this.replies.findOne({
-          _id: new ObjectId(parentReply),
-        }).catch(() => null);
+        const parent = await this.replies.findOne({ _id: parentReply });
         if (!parent) throw new Error("Parent reply not found");
-        if (String(parent.threadId) !== String(threadId)) {
+        if (parent.threadId !== threadId) {
           throw new Error("Parent/thread mismatch");
         }
       }
       const now = Date.now();
-      const doc = {
+      const replyId = freshID() as Reply;
+      const doc: ReplyDoc = {
+        _id: replyId,
         threadId,
         author,
         body,
@@ -247,14 +242,11 @@ export default class DiscussionPubConcept {
         ...(anchorId !== undefined && { anchorId }),
         ...(parentReply !== undefined && { parentId: parentReply }),
       };
-      // MongoDB insertOne accepts documents without _id (it generates one), but our Collection type requires it
-      // @ts-expect-error - MongoDB generates _id automatically, type definition is too strict
-      const res = await this.replies.insertOne(doc);
-      const replyId = String(res.insertedId);
+      await this.replies.insertOne(doc);
       // Support both return types for backward compatibility
       return { newReply: replyId, result: replyId } as {
-        newReply: string;
-        result: string;
+        newReply: Reply;
+        result: Reply;
       };
     } catch (e) {
       return { error: e instanceof Error ? e.message : String(e) };
@@ -266,15 +258,15 @@ export default class DiscussionPubConcept {
    */
   async reply(
     { threadId, author, body }: {
-      threadId: string;
-      author: string;
+      threadId: Thread;
+      author: User;
       body: string;
     },
-  ): Promise<{ result: string } | { error: string }> {
+    ): Promise<{ result: Reply } | { error: string }> {
     const result = await this.makeReply({ threadId, author, body });
     if ("error" in result) return result;
     // makeReply returns both newReply and result for compatibility
-    const replyResult = result as { newReply: string; result: string };
+    const replyResult = result as { newReply: Reply; result: Reply };
     return { result: replyResult.newReply };
   }
 
@@ -283,12 +275,12 @@ export default class DiscussionPubConcept {
    */
   async replyTo(
     { threadId, parentId, author, body }: {
-      threadId: string;
-      parentId?: string;
-      author: string;
+      threadId: Thread;
+      parentId?: Reply;
+      author: User;
       body: string;
     },
-  ): Promise<{ result: string } | { error: string }> {
+    ): Promise<{ result: Reply } | { error: string }> {
     const result = await this.makeReply({
       threadId,
       author,
@@ -297,7 +289,7 @@ export default class DiscussionPubConcept {
     });
     if ("error" in result) return result;
     // makeReply returns both newReply and result for compatibility
-    const replyResult = result as { newReply: string; result: string };
+    const replyResult = result as { newReply: Reply; result: Reply };
     return { result: replyResult.newReply };
   }
 
@@ -314,11 +306,11 @@ export default class DiscussionPubConcept {
       newTitle,
       newBody,
     }: {
-      threadId: string; // Thread ID
+      threadId: Thread;
       newTitle?: string; // Optional for backward compatibility
       newBody: string;
     },
-  ): Promise<{ ok: true } | { error: string }> {
+    ): Promise<{ ok: true } | { error: string }> {
     try {
       const update: Record<string, unknown> = {
         body: newBody,
@@ -326,7 +318,7 @@ export default class DiscussionPubConcept {
       };
       if (newTitle !== undefined) update.title = newTitle;
       const res = await this.threads.updateOne(
-        { _id: new ObjectId(threadId) },
+        { _id: threadId },
         { $set: update },
       );
       if (res.matchedCount === 0) throw new Error("Thread not found");
@@ -344,11 +336,11 @@ export default class DiscussionPubConcept {
    * current timestamp
    */
   async deleteThread(
-    { threadId }: { threadId: string },
-  ): Promise<{ ok: true } | { error: string }> {
+    { threadId }: { threadId: Thread },
+    ): Promise<{ ok: true } | { error: string }> {
     try {
       const res = await this.threads.updateOne(
-        { _id: new ObjectId(threadId) },
+        { _id: threadId },
         { $set: { deleted: true, editedAt: Date.now() } },
       );
       if (res.matchedCount === 0) throw new Error("Thread not found");
@@ -364,11 +356,11 @@ export default class DiscussionPubConcept {
   }
 
   async editReply(
-    { replyId, newBody }: { replyId: string; newBody: string },
-  ): Promise<{ ok: true } | { error: string }> {
+    { replyId, newBody }: { replyId: Reply; newBody: string },
+    ): Promise<{ ok: true } | { error: string }> {
     try {
       const res = await this.replies.updateOne(
-        { _id: new ObjectId(replyId) },
+        { _id: replyId },
         { $set: { body: newBody, editedAt: Date.now() } },
       );
       if (res.matchedCount === 0) throw new Error("Reply not found");
@@ -386,11 +378,11 @@ export default class DiscussionPubConcept {
    * current timestamp
    */
   async deleteReply(
-    { replyId }: { replyId: string },
-  ): Promise<{ ok: true } | { error: string }> {
+    { replyId }: { replyId: Reply },
+    ): Promise<{ ok: true } | { error: string }> {
     try {
       const res = await this.replies.updateOne(
-        { _id: new ObjectId(replyId) },
+        { _id: replyId },
         { $set: { deleted: true, editedAt: Date.now() } },
       );
       if (res.matchedCount === 0) throw new Error("Reply not found");
@@ -408,11 +400,11 @@ export default class DiscussionPubConcept {
    */
   async _getPubIdByPaper(
     { paperId }: { paperId: string },
-  ): Promise<Array<{ result: string | null }>> {
+    ): Promise<Array<{ result: Pub | null }>> {
     try {
       const doc = await this.pubs.findOne({ paperId });
       // Queries must return an array of dictionaries
-      return [{ result: doc?._id ? String(doc._id) : null }];
+      return [{ result: doc?._id ?? null }];
     } catch {
       // On error, return array with null result (queries should not throw)
       return [{ result: null }];
@@ -428,17 +420,17 @@ export default class DiscussionPubConcept {
    * with a `threads` field containing an array of threads.
    */
   async _listThreads(
-    { pubId, anchorId }: { pubId: string; anchorId?: string },
-  ): Promise<
+    { pubId, anchorId }: { pubId: Pub; anchorId?: Anchor },
+    ): Promise<
     Array<
       {
         threads: Array<
           {
-            _id: string;
-            author: string;
+            _id: Thread;
+            author: User;
             title: string;
             body: string;
-            anchorId?: string;
+            anchorId?: Anchor;
             createdAt: number;
             editedAt?: number;
           }
@@ -451,11 +443,11 @@ export default class DiscussionPubConcept {
         pubId,
         $or: [{ deleted: false }, { deleted: { $exists: false } }],
       };
-      if (anchorId) filter.anchorId = anchorId;
+      if (anchorId !== undefined) filter.anchorId = anchorId;
       const cur = this.threads.find(filter).sort({ createdAt: 1 });
       const items = await cur.toArray();
       const threads = items.map((t) => ({
-        _id: String(t._id),
+        _id: t._id,
         author: t.author,
         title: t.title ?? "", // Default for backward compatibility
         body: t.body,
@@ -481,17 +473,17 @@ export default class DiscussionPubConcept {
    * containing an array of replies.
    */
   async _listReplies(
-    { threadId }: { threadId: string },
-  ): Promise<
+    { threadId }: { threadId: Thread },
+    ): Promise<
     Array<
       {
         replies: Array<
           {
-            _id: string;
-            author: string;
+            _id: Reply;
+            author: User;
             body: string;
-            anchorId?: string;
-            parentId?: string;
+            anchorId?: Anchor;
+            parentId?: Reply;
             createdAt: number;
             editedAt?: number;
           }
@@ -506,7 +498,7 @@ export default class DiscussionPubConcept {
       }).sort({ createdAt: 1 });
       const items = await cur.toArray();
       const replies = items.map((r) => ({
-        _id: String(r._id),
+        _id: r._id,
         author: r.author,
         body: r.body,
         anchorId: r.anchorId,
@@ -532,8 +524,8 @@ export default class DiscussionPubConcept {
    * `replies` field containing an array of reply tree nodes.
    */
   async _listRepliesTree(
-    { threadId }: { threadId: string },
-  ): Promise<Array<{ replies: Array<ReplyTreeNode> }>> {
+    { threadId }: { threadId: Thread },
+    ): Promise<Array<{ replies: Array<ReplyTreeNode> }>> {
     try {
       const cur = this.replies.find({
         threadId,
@@ -543,14 +535,15 @@ export default class DiscussionPubConcept {
       // Build id->node
       const nodeById: Record<string, ReplyTreeNode> = {};
       for (const r of items) {
-        nodeById[String(r._id)] = {
-          _id: String(r._id),
+        const id = r._id;
+        nodeById[id] = {
+          _id: id,
           author: r.author,
           body: r.body,
           anchorId: r.anchorId,
           createdAt: r.createdAt,
           editedAt: r.editedAt,
-          parentId: r.parentId ? String(r.parentId) : undefined,
+          parentId: r.parentId,
           children: [],
         };
       }

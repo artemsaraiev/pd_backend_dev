@@ -33,7 +33,7 @@ Deno.test("Principle: Authors have variations, users claim authors", async () =>
       affiliations: ["MIT"],
     });
     assertNotEquals("error" in createResult, true, "Author creation should succeed");
-    const { newAuthor: authorId } = createResult as { newAuthor: string };
+    const { newAuthor: authorId } = createResult as { newAuthor: ID };
     assertExists(authorId, "Author ID should be returned");
     console.log(`    Created author: ${authorId}`);
 
@@ -100,7 +100,7 @@ Deno.test("Action: createAuthor creates author and canonical variation", async (
       affiliations: ["Stanford"],
     });
     assertNotEquals("error" in result, true, "Should succeed");
-    const { newAuthor } = result as { newAuthor: string };
+    const { newAuthor } = result as { newAuthor: ID };
 
     const getResult = await concept._getAuthor({ author: newAuthor });
     const author = getResult[0].author;
@@ -128,11 +128,11 @@ Deno.test("Action: addNameVariation requires author exists and unique name", asy
     const { newAuthor } = (await concept.createAuthor({
       canonicalName: "Author One",
       affiliations: [],
-    })) as { newAuthor: string };
+    })) as { newAuthor: ID };
 
     // Test: requires author exists
     const error1 = await concept.addNameVariation({
-      author: "nonexistent",
+      author: "author:nonexistent" as ID,
       name: "A. One",
     });
     assertEquals("error" in error1, true, "Should fail for nonexistent author");
@@ -165,12 +165,12 @@ Deno.test("Action: removeNameVariation requires author, existing variation, not 
     const { newAuthor } = (await concept.createAuthor({
       canonicalName: "Canonical Name",
       affiliations: [],
-    })) as { newAuthor: string };
+    })) as { newAuthor: ID };
     await concept.addNameVariation({ author: newAuthor, name: "Variation" });
 
     // Test: requires author exists
     const error1 = await concept.removeNameVariation({
-      author: "nonexistent",
+      author: "author:nonexistent" as ID,
       name: "Variation",
     });
     assertEquals("error" in error1, true, "Should fail for nonexistent author");
@@ -215,7 +215,7 @@ Deno.test("Action: updateAuthorProfile updates fields if provided", async () => 
     const { newAuthor } = (await concept.createAuthor({
       canonicalName: "Author",
       affiliations: ["Old Affiliation"],
-    })) as { newAuthor: string };
+    })) as { newAuthor: ID };
 
     // Update website
     await concept.updateAuthorProfile({
@@ -252,12 +252,12 @@ Deno.test("Action: claimAuthor requires user/author exist, no existing link", as
     const { newAuthor } = (await concept.createAuthor({
       canonicalName: "Author",
       affiliations: [],
-    })) as { newAuthor: string };
+    })) as { newAuthor: ID };
 
     // Test: requires author exists
     const error1 = await concept.claimAuthor({
       user: userAlice,
-      author: "nonexistent",
+      author: "author:nonexistent" as ID,
     });
     assertEquals("error" in error1, true, "Should fail for nonexistent author");
 
@@ -289,7 +289,7 @@ Deno.test("Action: unclaimAuthor requires link exists, removes it", async () => 
     const { newAuthor } = (await concept.createAuthor({
       canonicalName: "Author",
       affiliations: [],
-    })) as { newAuthor: string };
+    })) as { newAuthor: ID };
     await concept.claimAuthor({ user: userAlice, author: newAuthor });
 
     // Test: requires link exists
@@ -327,12 +327,12 @@ Deno.test("Action: mergeAuthors moves variations and links, deletes secondary", 
       canonicalName: "Primary",
       affiliations: [],
     });
-    const idA = (resA as { newAuthor: string }).newAuthor;
+    const idA = (resA as { newAuthor: ID }).newAuthor;
     const resB = await concept.createAuthor({
       canonicalName: "Secondary",
       affiliations: [],
     });
-    const idB = (resB as { newAuthor: string }).newAuthor;
+    const idB = (resB as { newAuthor: ID }).newAuthor;
 
     await concept.addNameVariation({ author: idB, name: "Sec Var" });
     await concept.claimAuthor({ user: userBob, author: idB });
@@ -388,7 +388,7 @@ Deno.test("Query: _findAuthorsByName matches canonical and variations", async ()
     const { newAuthor } = (await concept.createAuthor({
       canonicalName: "Jonathan Smith",
       affiliations: [],
-    })) as { newAuthor: string };
+    })) as { newAuthor: ID };
     await concept.addNameVariation({ author: newAuthor, name: "Jonny S" });
 
     // Partial match on canonical

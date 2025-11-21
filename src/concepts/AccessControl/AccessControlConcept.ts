@@ -1,5 +1,6 @@
-import { Collection, Db, ObjectId } from "npm:mongodb";
+import { Collection, Db } from "npm:mongodb";
 import { ID } from "@utils/types.ts";
+import { freshID } from "@utils/database.ts";
 
 // Generic types of this concept
 type User = ID;
@@ -25,10 +26,10 @@ type UniversalAccess = ID;
  *   an admin User
  */
 interface GroupDoc {
-  _id: ObjectId;
+  _id: Group;
   name: string;
   description: string;
-  admin: string; // User ID
+  admin: User;
 }
 
 /**
@@ -38,9 +39,9 @@ interface GroupDoc {
  *   a isAdmin Boolean
  */
 interface MembershipDoc {
-  _id: ObjectId;
-  groupId: string; // Group ID
-  user: string; // User ID
+  _id: Membership;
+  groupId: Group;
+  user: User;
   isAdmin: boolean;
 }
 
@@ -50,9 +51,9 @@ interface MembershipDoc {
  *   a resource Resource
  */
 interface PrivateAccessDoc {
-  _id: ObjectId;
-  groupId: string; // Group ID
-  resource: string; // Resource ID
+  _id: PrivateAccess;
+  groupId: Group;
+  resource: Resource;
 }
 
 /**
@@ -60,8 +61,8 @@ interface PrivateAccessDoc {
  *   a resource Resource
  */
 interface UniversalAccessDoc {
-  _id: ObjectId;
-  resource: string; // Resource ID
+  _id: UniversalAccess;
+  resource: Resource;
 }
 
 export default class AccessControlConcept {
@@ -109,22 +110,22 @@ export default class AccessControlConcept {
    * and adds it to the set of Memberships
    */
   async createGroup(
-    { creator, name, description }: { creator: string; name: string; description: string },
-  ): Promise<{ newGroup: string } | { error: string }> {
+    { creator, name, description }: { creator: User; name: string; description: string },
+    ): Promise<{ newGroup: Group } | { error: string }> {
     try {
       // Create the group
-      // MongoDB insertOne accepts documents without _id (it generates one), but our Collection type requires it
-      // @ts-expect-error - MongoDB generates _id automatically, type definition is too strict
-      const groupRes = await this.groups.insertOne({
+      const groupId = freshID() as Group;
+      await this.groups.insertOne({
+        _id: groupId,
         name,
         description,
         admin: creator,
       });
-      const groupId = String(groupRes.insertedId);
 
       // Create the membership for the creator
-      // @ts-expect-error - MongoDB generates _id automatically, type definition is too strict
+      const membershipId = freshID() as Membership;
       await this.memberships.insertOne({
+        _id: membershipId,
         groupId,
         user: creator,
         isAdmin: true,
@@ -144,11 +145,11 @@ export default class AccessControlConcept {
    * If a value is not provided, that field remains unchanged.
    */
   async updateGroup(
-    { group, name, description }: { group: string; name?: string; description?: string },
-  ): Promise<{ ok: true } | { error: string }> {
+    { group, name, description }: { group: Group; name?: string; description?: string },
+    ): Promise<{ ok: true } | { error: string }> {
     try {
       // Check if group exists
-      const groupDoc = await this.groups.findOne({ _id: new ObjectId(group) });
+      const groupDoc = await this.groups.findOne({ _id: group });
       if (!groupDoc) throw new Error("Group not found");
 
       // Build update object with only provided fields
@@ -167,7 +168,7 @@ export default class AccessControlConcept {
 
       // Update the group
       const res = await this.groups.updateOne(
-        { _id: new ObjectId(group) },
+        { _id: group },
         { $set: updateFields },
       );
       if (res.matchedCount === 0) throw new Error("Group not found");
@@ -187,11 +188,11 @@ export default class AccessControlConcept {
    * set to false, and adds it to the set of Memberships
    */
   async addUser(
-    { group, user }: { group: string; user: string },
-  ): Promise<{ newMembership: string } | { error: string }> {
+    { group, user }: { group: Group; user: User },
+    ): Promise<{ newMembership: Membership } | { error: string }> {
     try {
       // Check if group exists
-      const groupDoc = await this.groups.findOne({ _id: new ObjectId(group) });
+      const groupDoc = await this.groups.findOne({ _id: group });
       if (!groupDoc) throw new Error("Group not found");
 
       // Check if membership already exists
@@ -201,14 +202,15 @@ export default class AccessControlConcept {
       }
 
       // Create the membership
-      // @ts-expect-error - MongoDB generates _id automatically, type definition is too strict
-      const res = await this.memberships.insertOne({
+      const membershipId = freshID() as Membership;
+      await this.memberships.insertOne({
+        _id: membershipId,
         groupId: group,
         user,
         isAdmin: false,
       });
 
-      return { newMembership: String(res.insertedId) };
+      return { newMembership: membershipId };
     } catch (e) {
       return { error: e instanceof Error ? e.message : String(e) };
     }
@@ -222,12 +224,12 @@ export default class AccessControlConcept {
    * **effects** removes the membership from the set of Memberships
    */
   async revokeMembership(
-    { membership }: { membership: string },
-  ): Promise<{ ok: true } | { error: string }> {
+    { membership }: { membership: Membership },
+    ): Promise<{ ok: true } | { error: string }> {
     try {
       // Get the membership to check group
       const membershipDoc = await this.memberships.findOne({
-        _id: new ObjectId(membership),
+        _id: membership,
       });
       if (!membershipDoc) throw new Error("Membership not found");
 
@@ -240,7 +242,7 @@ export default class AccessControlConcept {
       }
 
       // Delete the membership
-      const res = await this.memberships.deleteOne({ _id: new ObjectId(membership) });
+      const res = await this.memberships.deleteOne({ _id: membership });
       if (res.deletedCount === 0) throw new Error("Membership not found");
 
       return { ok: true };
@@ -256,11 +258,11 @@ export default class AccessControlConcept {
    * **effects** sets the isAdmin field of the membership to true
    */
   async promoteUser(
-    { membership }: { membership: string },
-  ): Promise<{ ok: true } | { error: string }> {
+    { membership }: { membership: Membership },
+    ): Promise<{ ok: true } | { error: string }> {
     try {
       const res = await this.memberships.updateOne(
-        { _id: new ObjectId(membership) },
+        { _id: membership },
         { $set: { isAdmin: true } },
       );
       if (res.matchedCount === 0) throw new Error("Membership not found");
@@ -278,12 +280,12 @@ export default class AccessControlConcept {
    * **effects** sets the isAdmin field of the membership to false
    */
   async demoteUser(
-    { membership }: { membership: string },
-  ): Promise<{ ok: true } | { error: string }> {
+    { membership }: { membership: Membership },
+    ): Promise<{ ok: true } | { error: string }> {
     try {
       // Get the membership to check group
       const membershipDoc = await this.memberships.findOne({
-        _id: new ObjectId(membership),
+        _id: membership,
       });
       if (!membershipDoc) throw new Error("Membership not found");
 
@@ -298,7 +300,7 @@ export default class AccessControlConcept {
 
       // Update the membership
       const res = await this.memberships.updateOne(
-        { _id: new ObjectId(membership) },
+        { _id: membership },
         { $set: { isAdmin: false } },
       );
       if (res.matchedCount === 0) throw new Error("Membership not found");
@@ -318,11 +320,11 @@ export default class AccessControlConcept {
    * to the set of PrivateAccesses.
    */
   async givePrivateAccess(
-    { group, resource }: { group: string; resource: string },
-  ): Promise<{ newPrivateAccess: string } | { error: string }> {
+    { group, resource }: { group: Group; resource: Resource },
+    ): Promise<{ newPrivateAccess: PrivateAccess } | { error: string }> {
     try {
       // Check if group exists
-      const groupDoc = await this.groups.findOne({ _id: new ObjectId(group) });
+      const groupDoc = await this.groups.findOne({ _id: group });
       if (!groupDoc) throw new Error("Group not found");
 
       // Check if access already exists
@@ -332,13 +334,14 @@ export default class AccessControlConcept {
       }
 
       // Create the private access
-      // @ts-expect-error - MongoDB generates _id automatically, type definition is too strict
-      const res = await this.privateAccesses.insertOne({
+      const accessId = freshID() as PrivateAccess;
+      await this.privateAccesses.insertOne({
+        _id: accessId,
         groupId: group,
         resource,
       });
 
-      return { newPrivateAccess: String(res.insertedId) };
+      return { newPrivateAccess: accessId };
     } catch (e) {
       return { error: e instanceof Error ? e.message : String(e) };
     }
@@ -351,11 +354,11 @@ export default class AccessControlConcept {
    * **effects** removes the privateAccess from the set of PrivateAccesses
    */
   async revokePrivateAccess(
-    { privateAccess }: { privateAccess: string },
-  ): Promise<{ ok: true } | { error: string }> {
+    { privateAccess }: { privateAccess: PrivateAccess },
+    ): Promise<{ ok: true } | { error: string }> {
     try {
       const res = await this.privateAccesses.deleteOne({
-        _id: new ObjectId(privateAccess),
+        _id: privateAccess,
       });
       if (res.deletedCount === 0) throw new Error("PrivateAccess not found");
       return { ok: true };
@@ -373,8 +376,8 @@ export default class AccessControlConcept {
    * to the set of UniversalAccesses
    */
   async giveUniversalAccess(
-    { resource }: { resource: string },
-  ): Promise<{ newUniversalAccess: string } | { error: string }> {
+    { resource }: { resource: Resource },
+    ): Promise<{ newUniversalAccess: UniversalAccess } | { error: string }> {
     try {
       // Check if universal access already exists
       const existing = await this.universalAccesses.findOne({ resource });
@@ -383,10 +386,10 @@ export default class AccessControlConcept {
       }
 
       // Create the universal access
-      // @ts-expect-error - MongoDB generates _id automatically, type definition is too strict
-      const res = await this.universalAccesses.insertOne({ resource });
+      const accessId = freshID() as UniversalAccess;
+      await this.universalAccesses.insertOne({ _id: accessId, resource });
 
-      return { newUniversalAccess: String(res.insertedId) };
+      return { newUniversalAccess: accessId };
     } catch (e) {
       return { error: e instanceof Error ? e.message : String(e) };
     }
@@ -399,11 +402,11 @@ export default class AccessControlConcept {
    * **effects** removes the UniversalAccess from the set of UniversalAccesses
    */
   async revokeUniversalAccess(
-    { universalAccess }: { universalAccess: string },
-  ): Promise<{ ok: true } | { error: string }> {
+    { universalAccess }: { universalAccess: UniversalAccess },
+    ): Promise<{ ok: true } | { error: string }> {
     try {
       const res = await this.universalAccesses.deleteOne({
-        _id: new ObjectId(universalAccess),
+        _id: universalAccess,
       });
       if (res.deletedCount === 0) throw new Error("UniversalAccess not found");
       return { ok: true };
@@ -420,11 +423,11 @@ export default class AccessControlConcept {
    * Memberships and Accesses associated with the group.
    */
   async removeGroup(
-    { group }: { group: string },
-  ): Promise<{ ok: true } | { error: string }> {
+    { group }: { group: Group },
+    ): Promise<{ ok: true } | { error: string }> {
     try {
       // Check if group exists
-      const groupDoc = await this.groups.findOne({ _id: new ObjectId(group) });
+      const groupDoc = await this.groups.findOne({ _id: group });
       if (!groupDoc) throw new Error("Group not found");
 
       // Remove all memberships for this group
@@ -434,7 +437,7 @@ export default class AccessControlConcept {
       await this.privateAccesses.deleteMany({ groupId: group });
 
       // Remove the group
-      const res = await this.groups.deleteOne({ _id: new ObjectId(group) });
+      const res = await this.groups.deleteOne({ _id: group });
       if (res.deletedCount === 0) throw new Error("Group not found");
 
       return { ok: true };
@@ -452,10 +455,10 @@ export default class AccessControlConcept {
    * Returns an array with one dictionary containing `{ group: GroupDoc | null }`.
    */
   async _getGroup(
-    { group }: { group: string },
-  ): Promise<Array<{ group: GroupDoc | null }>> {
+    { group }: { group: Group },
+    ): Promise<Array<{ group: GroupDoc | null }>> {
     try {
-      const result = await this.groups.findOne({ _id: new ObjectId(group) });
+      const result = await this.groups.findOne({ _id: group });
       // Queries must return an array of dictionaries
       return [{ group: result ?? null }];
     } catch {
@@ -473,12 +476,12 @@ export default class AccessControlConcept {
    * containing `{ memberships: MembershipDoc[] }`.
    */
   async _getMembershipsByGroup(
-    { group }: { group: string },
-  ): Promise<Array<{ memberships: Array<{ _id: string; groupId: string; user: string; isAdmin: boolean }> }>> {
+    { group }: { group: Group },
+    ): Promise<Array<{ memberships: Array<{ _id: Membership; groupId: Group; user: User; isAdmin: boolean }> }>> {
     try {
       const items = await this.memberships.find({ groupId: group }).toArray();
       const memberships = items.map((m) => ({
-        _id: String(m._id),
+        _id: m._id,
         groupId: m.groupId,
         user: m.user,
         isAdmin: m.isAdmin,
@@ -500,12 +503,12 @@ export default class AccessControlConcept {
    * containing `{ memberships: MembershipDoc[] }`.
    */
   async _getMembershipsByUser(
-    { user }: { user: string },
-  ): Promise<Array<{ memberships: Array<{ _id: string; groupId: string; user: string; isAdmin: boolean }> }>> {
+    { user }: { user: User },
+    ): Promise<Array<{ memberships: Array<{ _id: Membership; groupId: Group; user: User; isAdmin: boolean }> }>> {
     try {
       const items = await this.memberships.find({ user }).toArray();
       const memberships = items.map((m) => ({
-        _id: String(m._id),
+        _id: m._id,
         groupId: m.groupId,
         user: m.user,
         isAdmin: m.isAdmin,
@@ -528,8 +531,8 @@ export default class AccessControlConcept {
    * Returns an array with one dictionary containing `{ hasAccess: boolean }`.
    */
   async _hasAccess(
-    { user, resource }: { user: string; resource: string },
-  ): Promise<Array<{ hasAccess: boolean }>> {
+    { user, resource }: { user: User; resource: Resource },
+    ): Promise<Array<{ hasAccess: boolean }>> {
     try {
       // Check for universal access
       const universal = await this.universalAccesses.findOne({ resource });

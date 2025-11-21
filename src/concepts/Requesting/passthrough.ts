@@ -63,7 +63,7 @@ export const inclusions: Record<string, string> = {
   // Remove direct Session endpoints; handled via exclusions and syncs
 
   // Public queries
-  "/api/PaperIndex/searchArxiv": "public search query",
+  "/api/PaperIndex/_searchArxiv": "public search query",
 };
 
 /**

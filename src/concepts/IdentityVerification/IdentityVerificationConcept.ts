@@ -1,5 +1,6 @@
-import { Collection, Db, ObjectId } from "npm:mongodb";
+import { Collection, Db } from "npm:mongodb";
 import { ID } from "@utils/types.ts";
+import { freshID } from "@utils/database.ts";
 
 // Generic types of this concept
 type User = ID;
@@ -21,8 +22,8 @@ type Badge = ID;
  *   an orcid String
  */
 interface ORCIDDoc {
-  _id: ObjectId;
-  user: string; // User ID
+  _id: ORCID;
+  user: User;
   orcid: string;
 }
 
@@ -32,8 +33,8 @@ interface ORCIDDoc {
  *   an affiliation String
  */
 interface AffiliationDoc {
-  _id: ObjectId;
-  user: string; // User ID
+  _id: Affiliation;
+  user: User;
   affiliation: string;
 }
 
@@ -43,8 +44,8 @@ interface AffiliationDoc {
  *   a badge String
  */
 interface BadgeDoc {
-  _id: ObjectId;
-  user: string; // User ID
+  _id: Badge;
+  user: User;
   badge: string;
 }
 
@@ -69,7 +70,9 @@ export default class IdentityVerificationConcept {
   private async initIndexes(): Promise<void> {
     try {
       await this.orcids.createIndex({ user: 1 }, { unique: true });
-      await this.affiliations.createIndex({ user: 1, affiliation: 1 }, { unique: true });
+      await this.affiliations.createIndex({ user: 1, affiliation: 1 }, {
+        unique: true,
+      });
       await this.badges.createIndex({ user: 1, badge: 1 }, { unique: true });
     } catch {
       // best-effort
@@ -84,18 +87,17 @@ export default class IdentityVerificationConcept {
    * returns the new ORCID
    */
   async addORCID(
-    { user, orcid }: { user: string; orcid: string },
-  ): Promise<{ newORCID: string } | { error: string }> {
+    { user, orcid }: { user: User; orcid: string },
+  ): Promise<{ newORCID: ORCID } | { error: string }> {
     try {
       // Check if ORCID already exists for this user
       const existing = await this.orcids.findOne({ user });
       if (existing) {
         throw new Error("ORCID already exists for this user");
       }
-      // MongoDB insertOne accepts documents without _id (it generates one), but our Collection type requires it
-      // @ts-expect-error - MongoDB generates _id automatically, type definition is too strict
-      const res = await this.orcids.insertOne({ user, orcid });
-      return { newORCID: String(res.insertedId) };
+      const orcidId = freshID() as ORCID;
+      await this.orcids.insertOne({ _id: orcidId, user, orcid });
+      return { newORCID: orcidId };
     } catch (e) {
       return { error: e instanceof Error ? e.message : String(e) };
     }
@@ -108,10 +110,10 @@ export default class IdentityVerificationConcept {
    * **effects** removes the ORCID from the set of ORCIDs
    */
   async removeORCID(
-    { orcid }: { orcid: string },
+    { orcid }: { orcid: ORCID },
   ): Promise<{ ok: true } | { error: string }> {
     try {
-      const res = await this.orcids.deleteOne({ _id: new ObjectId(orcid) });
+      const res = await this.orcids.deleteOne({ _id: orcid });
       if (res.deletedCount === 0) throw new Error("ORCID not found");
       return { ok: true };
     } catch (e) {
@@ -128,18 +130,21 @@ export default class IdentityVerificationConcept {
    * user and returns the new Affiliation
    */
   async addAffiliation(
-    { user, affiliation }: { user: string; affiliation: string },
-  ): Promise<{ newAffiliation: string } | { error: string }> {
+    { user, affiliation }: { user: User; affiliation: string },
+  ): Promise<{ newAffiliation: Affiliation } | { error: string }> {
     try {
       // Check if this affiliation already exists for this user
       const existing = await this.affiliations.findOne({ user, affiliation });
       if (existing) {
         throw new Error("Affiliation already exists for this user");
       }
-      // MongoDB insertOne accepts documents without _id (it generates one), but our Collection type requires it
-      // @ts-expect-error - MongoDB generates _id automatically, type definition is too strict
-      const res = await this.affiliations.insertOne({ user, affiliation });
-      return { newAffiliation: String(res.insertedId) };
+      const affiliationId = freshID() as Affiliation;
+      await this.affiliations.insertOne({
+        _id: affiliationId,
+        user,
+        affiliation,
+      });
+      return { newAffiliation: affiliationId };
     } catch (e) {
       return { error: e instanceof Error ? e.message : String(e) };
     }
@@ -152,10 +157,10 @@ export default class IdentityVerificationConcept {
    * **effects** removes the affiliation from the set of Affiliations
    */
   async removeAffiliation(
-    { affiliation }: { affiliation: string },
+    { affiliation }: { affiliation: Affiliation },
   ): Promise<{ ok: true } | { error: string }> {
     try {
-      const res = await this.affiliations.deleteOne({ _id: new ObjectId(affiliation) });
+      const res = await this.affiliations.deleteOne({ _id: affiliation });
       if (res.deletedCount === 0) throw new Error("Affiliation not found");
       return { ok: true };
     } catch (e) {
@@ -172,18 +177,21 @@ export default class IdentityVerificationConcept {
    * String
    */
   async updateAffiliation(
-    { affiliation, newAffiliation }: { affiliation: string; newAffiliation: string },
+    { affiliation, newAffiliation }: {
+      affiliation: Affiliation;
+      newAffiliation: string;
+    },
   ): Promise<{ ok: true } | { error: string }> {
     try {
       // Get the existing affiliation to check user
-      const existing = await this.affiliations.findOne({ _id: new ObjectId(affiliation) });
+      const existing = await this.affiliations.findOne({ _id: affiliation });
       if (!existing) throw new Error("Affiliation not found");
 
       // Check if another affiliation with same user and newAffiliation already exists
       const duplicate = await this.affiliations.findOne({
         user: existing.user,
         affiliation: newAffiliation,
-        _id: { $ne: new ObjectId(affiliation) },
+        _id: { $ne: affiliation },
       });
       if (duplicate) {
         throw new Error("Affiliation already exists for this user");
@@ -191,7 +199,7 @@ export default class IdentityVerificationConcept {
 
       // Update the affiliation
       const res = await this.affiliations.updateOne(
-        { _id: new ObjectId(affiliation) },
+        { _id: affiliation },
         { $set: { affiliation: newAffiliation } },
       );
       if (res.matchedCount === 0) throw new Error("Affiliation not found");
@@ -210,18 +218,17 @@ export default class IdentityVerificationConcept {
    * returns the new Badge
    */
   async addBadge(
-    { user, badge }: { user: string; badge: string },
-  ): Promise<{ newBadge: string } | { error: string }> {
+    { user, badge }: { user: User; badge: string },
+  ): Promise<{ newBadge: Badge } | { error: string }> {
     try {
       // Check if this badge already exists for this user
       const existing = await this.badges.findOne({ user, badge });
       if (existing) {
         throw new Error("Badge already exists for this user");
       }
-      // MongoDB insertOne accepts documents without _id (it generates one), but our Collection type requires it
-      // @ts-expect-error - MongoDB generates _id automatically, type definition is too strict
-      const res = await this.badges.insertOne({ user, badge });
-      return { newBadge: String(res.insertedId) };
+      const badgeId = freshID() as Badge;
+      await this.badges.insertOne({ _id: badgeId, user, badge });
+      return { newBadge: badgeId };
     } catch (e) {
       return { error: e instanceof Error ? e.message : String(e) };
     }
@@ -234,10 +241,10 @@ export default class IdentityVerificationConcept {
    * **effects** the badge is removed from the set of Badges
    */
   async revokeBadge(
-    { badge }: { badge: string },
+    { badge }: { badge: Badge },
   ): Promise<{ ok: true } | { error: string }> {
     try {
-      const res = await this.badges.deleteOne({ _id: new ObjectId(badge) });
+      const res = await this.badges.deleteOne({ _id: badge });
       if (res.deletedCount === 0) throw new Error("Badge not found");
       return { ok: true };
     } catch (e) {
@@ -254,12 +261,14 @@ export default class IdentityVerificationConcept {
    * `{ orcids: ORCIDDoc[], affiliations: AffiliationDoc[], badges: BadgeDoc[] }`.
    */
   async _getByUser(
-    { user }: { user: string },
+    { user }: { user: User },
   ): Promise<
     Array<{
-      orcids: Array<{ _id: string; user: string; orcid: string }>;
-      affiliations: Array<{ _id: string; user: string; affiliation: string }>;
-      badges: Array<{ _id: string; user: string; badge: string }>;
+      orcids: Array<{ _id: ORCID; user: User; orcid: string }>;
+      affiliations: Array<
+        { _id: Affiliation; user: User; affiliation: string }
+      >;
+      badges: Array<{ _id: Badge; user: User; badge: string }>;
     }>
   > {
     try {
@@ -271,17 +280,17 @@ export default class IdentityVerificationConcept {
       // Queries must return an array of dictionaries
       return [{
         orcids: orcids.map((o) => ({
-          _id: String(o._id),
+          _id: o._id,
           user: o.user,
           orcid: o.orcid,
         })),
         affiliations: affiliations.map((a) => ({
-          _id: String(a._id),
+          _id: a._id,
           user: a.user,
           affiliation: a.affiliation,
         })),
         badges: badges.map((b) => ({
-          _id: String(b._id),
+          _id: b._id,
           user: b.user,
           badge: b.badge,
         })),
@@ -292,4 +301,3 @@ export default class IdentityVerificationConcept {
     }
   }
 }
-

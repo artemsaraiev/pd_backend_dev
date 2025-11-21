@@ -50,7 +50,13 @@ us can be updated
     + **effects** returns an array of dictionaries, each containing the most recently
     created papers in the `papers` field, limited by the provided limit (default 20).
     Results are ordered by createdAt descending. Each paper includes _id, title, and
-    createdAt. Returns an array with one dictionary containing `{ papers: PaperDoc[] }`.<!--  -->
+    createdAt. Returns an array with one dictionary containing `{ papers: PaperDoc[] }`.
+  + _searchArxiv(q: String) : (result: Array<{id: String, title?: String}>)
+    + **requires** nothing
+    + **effects** returns an array of dictionaries, each containing search results from
+    the arXiv API matching the query string. Each result includes an id (arXiv identifier)
+    and optionally a title. Returns an array with one dictionary containing
+    `{ result: Array<{id: String, title?: String}> }`.
 
 **Notes:**
 

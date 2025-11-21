@@ -6,8 +6,8 @@ import AccessControlConcept from "./AccessControlConcept.ts";
 const userAlice = "user:Alice" as ID;
 const userBob = "user:Bob" as ID;
 const userCharlie = "user:Charlie" as ID;
-const resource1 = "resource:paper1";
-const resource2 = "resource:paper2";
+const resource1 = "resource:paper1" as ID;
+const resource2 = "resource:paper2" as ID;
 
 /**
  * # trace: Principle fulfillment
@@ -38,7 +38,7 @@ Deno.test("Principle: Users create groups, manage members, and control resource 
       description: "Team working on research project",
     });
     assertNotEquals("error" in groupResult, true, "Group creation should succeed");
-    const { newGroup: groupId } = groupResult as { newGroup: string };
+    const { newGroup: groupId } = groupResult as { newGroup: ID };
     assertExists(groupId, "Group ID should be returned");
     console.log(`    Created group: ${groupId}`);
 
@@ -136,7 +136,7 @@ Deno.test("Action: createGroup creates group and membership for creator", async 
       description: "Test Description",
     });
     assertNotEquals("error" in result, true, "Should succeed");
-    const { newGroup: groupId } = result as { newGroup: string };
+    const { newGroup: groupId } = result as { newGroup: ID };
     assertExists(groupId, "Should return group ID");
     console.log("    Group created successfully");
 
@@ -186,12 +186,12 @@ Deno.test("Action: updateGroup requires group exists, updates name and/or descri
       name: "Test Group",
       description: "Original Description",
     });
-    const { newGroup: groupId } = groupResult as { newGroup: string };
+    const { newGroup: groupId } = groupResult as { newGroup: ID };
 
     // Test: updateGroup requires group exists
     console.log("  Testing requires: group must exist");
     const errorResult = await concept.updateGroup({
-      group: "nonexistent",
+      group: "group:nonexistent" as ID,
       name: "New Name",
     });
     assertEquals("error" in errorResult, true, "Should fail for nonexistent group");
@@ -289,12 +289,12 @@ Deno.test("Action: addUser requires group exists and no duplicate, creates membe
       name: "Test Group",
       description: "Test",
     });
-    const { newGroup: groupId } = groupResult as { newGroup: string };
+    const { newGroup: groupId } = groupResult as { newGroup: ID };
 
     // Test: addUser requires group exists
     console.log("  Testing requires: group must exist");
     const errorResult = await concept.addUser({
-      group: "nonexistent",
+      group: "group:nonexistent" as ID,
       user: userBob,
     });
     assertEquals("error" in errorResult, true, "Should fail for nonexistent group");
@@ -304,7 +304,7 @@ Deno.test("Action: addUser requires group exists and no duplicate, creates membe
     console.log("  Testing requires: no duplicate membership");
     const result1 = await concept.addUser({ group: groupId, user: userBob });
     assertNotEquals("error" in result1, true, "Should succeed");
-    const { newMembership: membershipId1 } = result1 as { newMembership: string };
+    const { newMembership: membershipId1 } = result1 as { newMembership: ID };
 
     const duplicateResult = await concept.addUser({
       group: groupId,
@@ -346,13 +346,13 @@ Deno.test("Action: revokeMembership requires membership exists and not last, rem
       name: "Test Group",
       description: "Test",
     });
-    const { newGroup: groupId } = groupResult as { newGroup: string };
+    const { newGroup: groupId } = groupResult as { newGroup: ID };
     const addResult = await concept.addUser({ group: groupId, user: userBob });
-    const { newMembership: membershipId } = addResult as { newMembership: string };
+    const { newMembership: membershipId } = addResult as { newMembership: ID };
 
     // Test: revokeMembership requires membership exists
     console.log("  Testing requires: membership must exist");
-    const errorResult = await concept.revokeMembership({ membership: "nonexistent" });
+    const errorResult = await concept.revokeMembership({ membership: "membership:nonexistent" as ID });
     assertEquals("error" in errorResult, true, "Should fail for nonexistent membership");
     console.log("    Correctly rejects nonexistent membership");
 
@@ -378,7 +378,7 @@ Deno.test("Action: revokeMembership requires membership exists and not last, rem
     console.log("  Testing effects: removes membership");
     // Re-add a member first
     const addResult2 = await concept.addUser({ group: groupId, user: userBob });
-    const { newMembership: membershipId2 } = addResult2 as { newMembership: string };
+    const { newMembership: membershipId2 } = addResult2 as { newMembership: ID };
 
     const revokeResult = await concept.revokeMembership({ membership: membershipId2 });
     assertNotEquals("error" in revokeResult, true, "Should succeed");
@@ -409,13 +409,13 @@ Deno.test("Action: promoteUser requires membership exists, sets isAdmin to true"
       name: "Test Group",
       description: "Test",
     });
-    const { newGroup: groupId } = groupResult as { newGroup: string };
+    const { newGroup: groupId } = groupResult as { newGroup: ID };
     const addResult = await concept.addUser({ group: groupId, user: userBob });
-    const { newMembership: membershipId } = addResult as { newMembership: string };
+    const { newMembership: membershipId } = addResult as { newMembership: ID };
 
     // Test: promoteUser requires membership exists
     console.log("  Testing requires: membership must exist");
-    const errorResult = await concept.promoteUser({ membership: "nonexistent" });
+    const errorResult = await concept.promoteUser({ membership: "membership:nonexistent" as ID });
     assertEquals("error" in errorResult, true, "Should fail for nonexistent membership");
     console.log("    Correctly rejects nonexistent membership");
 
@@ -450,14 +450,14 @@ Deno.test("Action: demoteUser requires membership exists and not last admin, set
       name: "Test Group",
       description: "Test",
     });
-    const { newGroup: groupId } = groupResult as { newGroup: string };
+    const { newGroup: groupId } = groupResult as { newGroup: ID };
     const addResult = await concept.addUser({ group: groupId, user: userBob });
-    const { newMembership: membershipId } = addResult as { newMembership: string };
+    const { newMembership: membershipId } = addResult as { newMembership: ID };
     await concept.promoteUser({ membership: membershipId });
 
     // Test: demoteUser requires membership exists
     console.log("  Testing requires: membership must exist");
-    const errorResult = await concept.demoteUser({ membership: "nonexistent" });
+    const errorResult = await concept.demoteUser({ membership: "membership:nonexistent" as ID });
     assertEquals("error" in errorResult, true, "Should fail for nonexistent membership");
     console.log("    Correctly rejects nonexistent membership");
 
@@ -513,12 +513,12 @@ Deno.test("Action: givePrivateAccess requires group exists and no duplicate, cre
       name: "Test Group",
       description: "Test",
     });
-    const { newGroup: groupId } = groupResult as { newGroup: string };
+    const { newGroup: groupId } = groupResult as { newGroup: ID };
 
     // Test: givePrivateAccess requires group exists
     console.log("  Testing requires: group must exist");
     const errorResult = await concept.givePrivateAccess({
-      group: "nonexistent",
+      group: "group:nonexistent" as ID,
       resource: resource1,
     });
     assertEquals("error" in errorResult, true, "Should fail for nonexistent group");
@@ -531,7 +531,7 @@ Deno.test("Action: givePrivateAccess requires group exists and no duplicate, cre
       resource: resource1,
     });
     assertNotEquals("error" in result1, true, "Should succeed");
-    const { newPrivateAccess: accessId1 } = result1 as { newPrivateAccess: string };
+    const { newPrivateAccess: accessId1 } = result1 as { newPrivateAccess: ID };
 
     const duplicateResult = await concept.givePrivateAccess({
       group: groupId,
@@ -567,17 +567,17 @@ Deno.test("Action: revokePrivateAccess requires access exists, removes it", asyn
       name: "Test Group",
       description: "Test",
     });
-    const { newGroup: groupId } = groupResult as { newGroup: string };
+    const { newGroup: groupId } = groupResult as { newGroup: ID };
     const accessResult = await concept.givePrivateAccess({
       group: groupId,
       resource: resource1,
     });
-    const { newPrivateAccess: accessId } = accessResult as { newPrivateAccess: string };
+    const { newPrivateAccess: accessId } = accessResult as { newPrivateAccess: ID };
 
     // Test: revokePrivateAccess requires access exists
     console.log("  Testing requires: access must exist");
     const errorResult = await concept.revokePrivateAccess({
-      privateAccess: "nonexistent",
+      privateAccess: "privateAccess:nonexistent" as ID,
     });
     assertEquals("error" in errorResult, true, "Should fail for nonexistent access");
     console.log("    Correctly rejects nonexistent access");
@@ -610,7 +610,7 @@ Deno.test("Action: giveUniversalAccess requires no duplicate, creates universal 
     console.log("  Testing requires: no duplicate universal access");
     const result1 = await concept.giveUniversalAccess({ resource: resource1 });
     assertNotEquals("error" in result1, true, "Should succeed");
-    const { newUniversalAccess: accessId1 } = result1 as { newUniversalAccess: string };
+    const { newUniversalAccess: accessId1 } = result1 as { newUniversalAccess: ID };
 
     const duplicateResult = await concept.giveUniversalAccess({ resource: resource1 });
     assertEquals(
@@ -648,12 +648,12 @@ Deno.test("Action: revokeUniversalAccess requires access exists, removes it", as
 
     // Grant universal access
     const accessResult = await concept.giveUniversalAccess({ resource: resource1 });
-    const { newUniversalAccess: accessId } = accessResult as { newUniversalAccess: string };
+    const { newUniversalAccess: accessId } = accessResult as { newUniversalAccess: ID };
 
     // Test: revokeUniversalAccess requires access exists
     console.log("  Testing requires: access must exist");
     const errorResult = await concept.revokeUniversalAccess({
-      universalAccess: "nonexistent",
+      universalAccess: "universalAccess:nonexistent" as ID,
     });
     assertEquals("error" in errorResult, true, "Should fail for nonexistent access");
     console.log("    Correctly rejects nonexistent access");
@@ -690,13 +690,13 @@ Deno.test("Action: removeGroup requires group exists, removes group and associat
       name: "Test Group",
       description: "Test",
     });
-    const { newGroup: groupId } = groupResult as { newGroup: string };
+    const { newGroup: groupId } = groupResult as { newGroup: ID };
     await concept.addUser({ group: groupId, user: userBob });
     await concept.givePrivateAccess({ group: groupId, resource: resource1 });
 
     // Test: removeGroup requires group exists
     console.log("  Testing requires: group must exist");
-    const errorResult = await concept.removeGroup({ group: "nonexistent" });
+    const errorResult = await concept.removeGroup({ group: "group:nonexistent" as ID });
     assertEquals("error" in errorResult, true, "Should fail for nonexistent group");
     console.log("    Correctly rejects nonexistent group");
 
@@ -739,7 +739,7 @@ Deno.test("Query: _getGroup returns group document or null", async () => {
 
     // Test: returns null for nonexistent group
     console.log("  Testing nonexistent group");
-    const result1 = await concept._getGroup({ group: "nonexistent" });
+    const result1 = await concept._getGroup({ group: "group:nonexistent" as ID });
     assertEquals(
       result1.length,
       1,
@@ -755,7 +755,7 @@ Deno.test("Query: _getGroup returns group document or null", async () => {
       name: "Test Group",
       description: "Test Description",
     });
-    const { newGroup: groupId } = createResult as { newGroup: string };
+    const { newGroup: groupId } = createResult as { newGroup: ID };
 
     const result2 = await concept._getGroup({ group: groupId });
     assertEquals(
@@ -789,11 +789,11 @@ Deno.test("Query: _getMembershipsByGroup returns all memberships for group", asy
       name: "Test Group",
       description: "Test",
     });
-    const { newGroup: groupId } = groupResult as { newGroup: string };
+    const { newGroup: groupId } = groupResult as { newGroup: ID };
     const addResult1 = await concept.addUser({ group: groupId, user: userBob });
-    const { newMembership: membershipId1 } = addResult1 as { newMembership: string };
+    const { newMembership: membershipId1 } = addResult1 as { newMembership: ID };
     const addResult2 = await concept.addUser({ group: groupId, user: userCharlie });
-    const { newMembership: membershipId2 } = addResult2 as { newMembership: string };
+    const { newMembership: membershipId2 } = addResult2 as { newMembership: ID };
 
     const result = await concept._getMembershipsByGroup({ group: groupId });
     assertEquals(
@@ -833,13 +833,13 @@ Deno.test("Query: _getMembershipsByUser returns all memberships for user", async
       name: "Group 1",
       description: "Test",
     });
-    const { newGroup: groupId1 } = groupResult1 as { newGroup: string };
+    const { newGroup: groupId1 } = groupResult1 as { newGroup: ID };
     const groupResult2 = await concept.createGroup({
       creator: userBob,
       name: "Group 2",
       description: "Test",
     });
-    const { newGroup: groupId2 } = groupResult2 as { newGroup: string };
+    const { newGroup: groupId2 } = groupResult2 as { newGroup: ID };
     await concept.addUser({ group: groupId2, user: userAlice });
 
     const result = await concept._getMembershipsByUser({ user: userAlice });
@@ -892,7 +892,7 @@ Deno.test("Query: _hasAccess returns true for group member with private access",
       name: "Test Group",
       description: "Test",
     });
-    const { newGroup: groupId } = groupResult as { newGroup: string };
+    const { newGroup: groupId } = groupResult as { newGroup: ID };
     await concept.addUser({ group: groupId, user: userBob });
     await concept.givePrivateAccess({ group: groupId, resource: resource1 });
 

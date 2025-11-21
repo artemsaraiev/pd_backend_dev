@@ -38,7 +38,7 @@ Deno.test("Principle: User can add ORCID, affiliation, and badges to verify iden
       orcid: orcid1,
     });
     assertNotEquals("error" in orcidResult, true, "ORCID addition should succeed");
-    const { newORCID } = orcidResult as { newORCID: string };
+    const { newORCID } = orcidResult as { newORCID: ID };
     assertExists(newORCID, "ORCID ID should be returned");
     console.log(`    Added ORCID: ${newORCID}`);
 
@@ -53,7 +53,7 @@ Deno.test("Principle: User can add ORCID, affiliation, and badges to verify iden
       true,
       "Affiliation addition should succeed",
     );
-    const { newAffiliation } = affiliationResult as { newAffiliation: string };
+    const { newAffiliation } = affiliationResult as { newAffiliation: ID };
     assertExists(newAffiliation, "Affiliation ID should be returned");
     console.log(`    Added affiliation: ${newAffiliation}`);
 
@@ -68,7 +68,7 @@ Deno.test("Principle: User can add ORCID, affiliation, and badges to verify iden
       true,
       "Badge addition should succeed",
     );
-    const { newBadge: newBadge1 } = badgeResult1 as { newBadge: string };
+    const { newBadge: newBadge1 } = badgeResult1 as { newBadge: ID };
     assertExists(newBadge1, "Badge ID should be returned");
     console.log(`    Added badge: ${newBadge1}`);
 
@@ -108,7 +108,7 @@ Deno.test("Action: addORCID requires no existing ORCID, returns new ORCID", asyn
       orcid: orcid1,
     });
     assertNotEquals("error" in result1, true, "Should succeed");
-    const { newORCID: orcidId1 } = result1 as { newORCID: string };
+    const { newORCID: orcidId1 } = result1 as { newORCID: ID };
     assertExists(orcidId1, "Should return ORCID ID");
 
     // Try to add another ORCID for same user (should fail)
@@ -141,7 +141,7 @@ Deno.test("Action: removeORCID requires ORCID exists, removes it", async () => {
 
     // Test: removeORCID requires ORCID exists
     console.log("  Testing requires: ORCID must exist");
-    const errorResult = await concept.removeORCID({ orcid: "nonexistent" });
+    const errorResult = await concept.removeORCID({ orcid: "orcid:nonexistent" as ID });
     assertEquals("error" in errorResult, true, "Should fail for nonexistent ORCID");
     console.log("    Correctly rejects nonexistent ORCID");
 
@@ -151,7 +151,7 @@ Deno.test("Action: removeORCID requires ORCID exists, removes it", async () => {
       user: userAlice,
       orcid: orcid1,
     });
-    const { newORCID: orcidId } = addResult as { newORCID: string };
+    const { newORCID: orcidId } = addResult as { newORCID: ID };
 
     const removeResult = await concept.removeORCID({ orcid: orcidId });
     assertNotEquals("error" in removeResult, true, "Should succeed");
@@ -179,7 +179,7 @@ Deno.test("Action: addAffiliation requires no duplicate, returns new Affiliation
       affiliation: affiliation1,
     });
     assertNotEquals("error" in result1, true, "Should succeed");
-    const { newAffiliation: affId1 } = result1 as { newAffiliation: string };
+    const { newAffiliation: affId1 } = result1 as { newAffiliation: ID };
     assertExists(affId1, "Should return Affiliation ID");
 
     // Try to add same affiliation for same user (should fail)
@@ -220,7 +220,7 @@ Deno.test("Action: removeAffiliation requires Affiliation exists, removes it", a
 
     // Test: removeAffiliation requires Affiliation exists
     console.log("  Testing requires: Affiliation must exist");
-    const errorResult = await concept.removeAffiliation({ affiliation: "nonexistent" });
+    const errorResult = await concept.removeAffiliation({ affiliation: "affiliation:nonexistent" as ID });
     assertEquals("error" in errorResult, true, "Should fail for nonexistent Affiliation");
     console.log("    Correctly rejects nonexistent Affiliation");
 
@@ -230,7 +230,7 @@ Deno.test("Action: removeAffiliation requires Affiliation exists, removes it", a
       user: userAlice,
       affiliation: affiliation1,
     });
-    const { newAffiliation: affId } = addResult as { newAffiliation: string };
+    const { newAffiliation: affId } = addResult as { newAffiliation: ID };
 
     const removeResult = await concept.removeAffiliation({ affiliation: affId });
     assertNotEquals("error" in removeResult, true, "Should succeed");
@@ -254,7 +254,7 @@ Deno.test("Action: updateAffiliation requires Affiliation exists and no duplicat
     // Test: updateAffiliation requires Affiliation exists
     console.log("  Testing requires: Affiliation must exist");
     const errorResult = await concept.updateAffiliation({
-      affiliation: "nonexistent",
+      affiliation: "affiliation:nonexistent" as ID,
       newAffiliation: affiliation1,
     });
     assertEquals("error" in errorResult, true, "Should fail for nonexistent Affiliation");
@@ -266,13 +266,13 @@ Deno.test("Action: updateAffiliation requires Affiliation exists and no duplicat
       user: userAlice,
       affiliation: affiliation1,
     });
-    const { newAffiliation: affId1 } = addResult1 as { newAffiliation: string };
+    const { newAffiliation: affId1 } = addResult1 as { newAffiliation: ID };
 
     const addResult2 = await concept.addAffiliation({
       user: userAlice,
       affiliation: affiliation2,
     });
-    const { newAffiliation: affId2 } = addResult2 as { newAffiliation: string };
+    const { newAffiliation: affId2 } = addResult2 as { newAffiliation: ID };
 
     // Try to update affId1 to affiliation2 (should fail - duplicate)
     const duplicateError = await concept.updateAffiliation({
@@ -321,7 +321,7 @@ Deno.test("Action: addBadge requires no duplicate, returns new Badge", async () 
       badge: badge1,
     });
     assertNotEquals("error" in result1, true, "Should succeed");
-    const { newBadge: badgeId1 } = result1 as { newBadge: string };
+    const { newBadge: badgeId1 } = result1 as { newBadge: ID };
     assertExists(badgeId1, "Should return Badge ID");
 
     // Try to add same badge for same user (should fail)
@@ -362,7 +362,7 @@ Deno.test("Action: revokeBadge requires Badge exists, removes it", async () => {
 
     // Test: revokeBadge requires Badge exists
     console.log("  Testing requires: Badge must exist");
-    const errorResult = await concept.revokeBadge({ badge: "nonexistent" });
+    const errorResult = await concept.revokeBadge({ badge: "badge:nonexistent" as ID });
     assertEquals("error" in errorResult, true, "Should fail for nonexistent Badge");
     console.log("    Correctly rejects nonexistent Badge");
 
@@ -372,7 +372,7 @@ Deno.test("Action: revokeBadge requires Badge exists, removes it", async () => {
       user: userAlice,
       badge: badge1,
     });
-    const { newBadge: badgeId } = addResult as { newBadge: string };
+    const { newBadge: badgeId } = addResult as { newBadge: ID };
 
     const revokeResult = await concept.revokeBadge({ badge: badgeId });
     assertNotEquals("error" in revokeResult, true, "Should succeed");
@@ -409,23 +409,23 @@ Deno.test("Query: _getByUser returns all verification signals for user", async (
     // Test: returns all verification signals for user
     console.log("  Testing user with verification signals");
     const orcidResult = await concept.addORCID({ user: userAlice, orcid: orcid1 });
-    const { newORCID: orcidId } = orcidResult as { newORCID: string };
+    const { newORCID: orcidId } = orcidResult as { newORCID: ID };
 
     const affResult1 = await concept.addAffiliation({
       user: userAlice,
       affiliation: affiliation1,
     });
-    const { newAffiliation: affId1 } = affResult1 as { newAffiliation: string };
+    const { newAffiliation: affId1 } = affResult1 as { newAffiliation: ID };
     const affResult2 = await concept.addAffiliation({
       user: userAlice,
       affiliation: affiliation2,
     });
-    const { newAffiliation: affId2 } = affResult2 as { newAffiliation: string };
+    const { newAffiliation: affId2 } = affResult2 as { newAffiliation: ID };
 
     const badgeResult1 = await concept.addBadge({ user: userAlice, badge: badge1 });
-    const { newBadge: badgeId1 } = badgeResult1 as { newBadge: string };
+    const { newBadge: badgeId1 } = badgeResult1 as { newBadge: ID };
     const badgeResult2 = await concept.addBadge({ user: userAlice, badge: badge2 });
-    const { newBadge: badgeId2 } = badgeResult2 as { newBadge: string };
+    const { newBadge: badgeId2 } = badgeResult2 as { newBadge: ID };
 
     const result2 = await concept._getByUser({ user: userAlice });
     assertEquals(

@@ -3,9 +3,9 @@ import { testDb } from "@utils/database.ts";
 import { ID } from "@utils/types.ts";
 import PaperIndexConcept from "./PaperIndexConcept.ts";
 
-const paper1 = "arxiv:1234.5678";
-const paper2 = "doi:10.1234/example";
-const paper3 = "arxiv:9876.5432";
+const paper1 = "arxiv:1234.5678" as ID;
+const paper2 = "doi:10.1234/example" as ID;
+const paper3 = "arxiv:9876.5432" as ID;
 const author1 = "author:Alice" as ID;
 const author2 = "author:Bob" as ID;
 const author3 = "author:Charlie" as ID;
@@ -39,7 +39,7 @@ Deno.test("Principle: Papers can be added to index and metadata can be updated",
       true,
       "Paper ensure should succeed",
     );
-    const { paper } = ensureResult as { paper: string };
+    const { paper } = ensureResult as { paper: ID };
     assertExists(paper, "Paper ID should be returned");
     assertEquals(paper, paper1, "Paper ID should match");
     console.log(`    Added paper: ${paper}`);
@@ -125,7 +125,7 @@ Deno.test("Action: ensure creates paper if not exists, returns existing if exist
       title: "First Paper",
     });
     assertNotEquals("error" in result1, true, "Should succeed");
-    const { paper: paperId1 } = result1 as { paper: string };
+    const { paper: paperId1 } = result1 as { paper: ID };
     assertEquals(paperId1, paper1, "Should return the paperId");
 
     // Verify paper was created
@@ -151,7 +151,7 @@ Deno.test("Action: ensure creates paper if not exists, returns existing if exist
       title: "Different Title", // Should not update
     });
     assertNotEquals("error" in result2, true, "Should succeed");
-    const { paper: paperId2 } = result2 as { paper: string };
+    const { paper: paperId2 } = result2 as { paper: ID };
     assertEquals(paperId2, paper1, "Should return same paperId");
 
     // Verify paper was not updated (idempotent)
@@ -167,7 +167,7 @@ Deno.test("Action: ensure creates paper if not exists, returns existing if exist
     console.log("  Creating paper without title");
     const result3 = await concept.ensure({ paperId: paper2 });
     assertNotEquals("error" in result3, true, "Should succeed");
-    const { paper: paperId3 } = result3 as { paper: string };
+    const { paper: paperId3 } = result3 as { paper: ID };
     assertEquals(paperId3, paper2, "Should return the paperId");
 
     const getResult3 = await concept._get({ paper: paperId3 });
@@ -194,7 +194,7 @@ Deno.test("Action: updateMeta requires paper exists, sets title", async () => {
     // Test: updateMeta requires paper exists
     console.log("  Testing requires: paper must exist");
     const errorResult = await concept.updateMeta({
-      paper: "nonexistent",
+      paper: "nonexistent" as ID,
       title: "New Title",
     });
     assertEquals("error" in errorResult, true, "Should fail for nonexistent paper");
@@ -204,7 +204,7 @@ Deno.test("Action: updateMeta requires paper exists, sets title", async () => {
     console.log("  Testing effects: sets title");
     await concept.ensure({ paperId: paper1, title: "Original Title" });
     const updateResult = await concept.updateMeta({
-      paper: paper1,
+      paper: paper1 as ID,
       title: "Updated Title",
     });
     assertNotEquals("error" in updateResult, true, "Should succeed");
@@ -232,7 +232,7 @@ Deno.test("Action: addAuthors requires paper exists, adds unique authors", async
     // Test: addAuthors requires paper exists
     console.log("  Testing requires: paper must exist");
     const errorResult = await concept.addAuthors({
-      paper: "nonexistent",
+      paper: "nonexistent" as ID,
       authors: [author1],
     });
     assertEquals("error" in errorResult, true, "Should fail for nonexistent paper");
@@ -270,7 +270,7 @@ Deno.test("Action: removeAuthors requires paper exists, removes authors if prese
     // Test: removeAuthors requires paper exists
     console.log("  Testing requires: paper must exist");
     const errorResult = await concept.removeAuthors({
-      paper: "nonexistent",
+      paper: "nonexistent" as ID,
       authors: [author1],
     });
     assertEquals("error" in errorResult, true, "Should fail for nonexistent paper");
@@ -305,7 +305,7 @@ Deno.test("Action: addLink requires paper exists, adds url if not present", asyn
     // Test: addLink requires paper exists
     console.log("  Testing requires: paper must exist");
     const errorResult = await concept.addLink({
-      paper: "nonexistent",
+      paper: "nonexistent" as ID,
       url: "https://example.com",
     });
     assertEquals("error" in errorResult, true, "Should fail for nonexistent paper");
@@ -348,7 +348,7 @@ Deno.test("Action: removeLink requires paper exists, removes url if present", as
     // Test: removeLink requires paper exists
     console.log("  Testing requires: paper must exist");
     const errorResult = await concept.removeLink({
-      paper: "nonexistent",
+      paper: "nonexistent" as ID,
       url: "https://example.com",
     });
     assertEquals("error" in errorResult, true, "Should fail for nonexistent paper");
@@ -391,7 +391,7 @@ Deno.test("Query: _get returns paper document or null", async () => {
 
     // Test: returns null for nonexistent paper
     console.log("  Testing nonexistent paper");
-    const result1 = await concept._get({ paper: "nonexistent" });
+    const result1 = await concept._get({ paper: "nonexistent" as ID });
     assertEquals(
       result1.length,
       1,

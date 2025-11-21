@@ -1,5 +1,6 @@
-import { Collection, Db, ObjectId } from "npm:mongodb";
+import { Collection, Db } from "npm:mongodb";
 import { ID } from "@utils/types.ts";
+import { freshID } from "@utils/database.ts";
 
 // Generic types of this concept
 type User = ID;
@@ -22,7 +23,7 @@ type UserLink = ID;
  *   a website String?
  */
 interface AuthorDoc {
-  _id: ObjectId;
+  _id: Author;
   canonicalName: string;
   affiliations: string[];
   externalIds: string[];
@@ -35,9 +36,9 @@ interface AuthorDoc {
  *   an author Author
  */
 interface NameVariationDoc {
-  _id: ObjectId;
+  _id: NameVariation;
   name: string;
-  authorId: string; // Author ID
+  authorId: Author;
 }
 
 /**
@@ -46,9 +47,9 @@ interface NameVariationDoc {
  *   an author Author
  */
 interface UserLinkDoc {
-  _id: ObjectId;
-  user: string; // User ID
-  authorId: string; // Author ID
+  _id: UserLink;
+  user: User;
+  authorId: Author;
 }
 
 export default class AuthorRegistryConcept {
@@ -91,20 +92,21 @@ export default class AuthorRegistryConcept {
    */
   async createAuthor(
     { canonicalName, affiliations }: { canonicalName: string; affiliations: string[] },
-  ): Promise<{ newAuthor: string } | { error: string }> {
+    ): Promise<{ newAuthor: Author } | { error: string }> {
     try {
       // Create author
-      // @ts-expect-error - MongoDB generates _id automatically
-      const authorRes = await this.authors.insertOne({
+      const authorId = freshID() as Author;
+      await this.authors.insertOne({
+        _id: authorId,
         canonicalName,
         affiliations,
         externalIds: [],
       });
-      const authorId = String(authorRes.insertedId);
 
       // Create name variation
-      // @ts-expect-error - MongoDB generates _id automatically
+      const variationId = freshID() as NameVariation;
       await this.nameVariations.insertOne({
+        _id: variationId,
         name: canonicalName,
         authorId,
       });
@@ -122,11 +124,11 @@ export default class AuthorRegistryConcept {
    * **effects** creates a new NameVariation linking the given name string to the author
    */
   async addNameVariation(
-    { author, name }: { author: string; name: string },
-  ): Promise<{ ok: true } | { error: string }> {
+    { author, name }: { author: Author; name: string },
+    ): Promise<{ ok: true } | { error: string }> {
     try {
       // Check if author exists
-      const authorDoc = await this.authors.findOne({ _id: new ObjectId(author) });
+      const authorDoc = await this.authors.findOne({ _id: author });
       if (!authorDoc) throw new Error("Author not found");
 
       // Check if name variation exists (globally? or just for this author? Spec says "name is not already in NameVariations".
@@ -139,8 +141,9 @@ export default class AuthorRegistryConcept {
       }
 
       // Create variation
-      // @ts-expect-error - MongoDB generates _id automatically
+      const variationId = freshID() as NameVariation;
       await this.nameVariations.insertOne({
+        _id: variationId,
         name,
         authorId: author,
       });
@@ -158,10 +161,10 @@ export default class AuthorRegistryConcept {
    * **effects** removes the NameVariation
    */
   async removeNameVariation(
-    { author, name }: { author: string; name: string },
-  ): Promise<{ ok: true } | { error: string }> {
+    { author, name }: { author: Author; name: string },
+    ): Promise<{ ok: true } | { error: string }> {
     try {
-      const authorDoc = await this.authors.findOne({ _id: new ObjectId(author) });
+      const authorDoc = await this.authors.findOne({ _id: author });
       if (!authorDoc) throw new Error("Author not found");
 
       if (authorDoc.canonicalName === name) {
@@ -188,10 +191,10 @@ export default class AuthorRegistryConcept {
    * **effects** updates the provided fields (website, affiliations). If a field is not provided, it remains unchanged.
    */
   async updateAuthorProfile(
-    { author, website, affiliations }: { author: string; website?: string; affiliations?: string[] },
-  ): Promise<{ ok: true } | { error: string }> {
+    { author, website, affiliations }: { author: Author; website?: string; affiliations?: string[] },
+    ): Promise<{ ok: true } | { error: string }> {
     try {
-      const authorDoc = await this.authors.findOne({ _id: new ObjectId(author) });
+      const authorDoc = await this.authors.findOne({ _id: author });
       if (!authorDoc) throw new Error("Author not found");
 
       const updateFields: { website?: string; affiliations?: string[] } = {};
@@ -201,7 +204,7 @@ export default class AuthorRegistryConcept {
       if (Object.keys(updateFields).length === 0) return { ok: true };
 
       await this.authors.updateOne(
-        { _id: new ObjectId(author) },
+        { _id: author },
         { $set: updateFields },
       );
 
@@ -218,17 +221,18 @@ export default class AuthorRegistryConcept {
    * **effects** creates a UserLink between the user and the author
    */
   async claimAuthor(
-    { user, author }: { user: string; author: string },
-  ): Promise<{ ok: true } | { error: string }> {
+    { user, author }: { user: User; author: Author },
+    ): Promise<{ ok: true } | { error: string }> {
     try {
-      const authorDoc = await this.authors.findOne({ _id: new ObjectId(author) });
+      const authorDoc = await this.authors.findOne({ _id: author });
       if (!authorDoc) throw new Error("Author not found");
 
       const existing = await this.userLinks.findOne({ user });
       if (existing) throw new Error("User already claimed an author");
 
-      // @ts-expect-error - MongoDB generates _id automatically
+      const linkId = freshID() as UserLink;
       await this.userLinks.insertOne({
+        _id: linkId,
         user,
         authorId: author,
       });
@@ -246,8 +250,8 @@ export default class AuthorRegistryConcept {
    * **effects** removes the UserLink
    */
   async unclaimAuthor(
-    { user, author }: { user: string; author: string },
-  ): Promise<{ ok: true } | { error: string }> {
+    { user, author }: { user: User; author: Author },
+    ): Promise<{ ok: true } | { error: string }> {
     try {
       const res = await this.userLinks.deleteOne({
         user,
@@ -269,13 +273,13 @@ export default class AuthorRegistryConcept {
    * **effects** moves all NameVariations from secondary to primary. Moves all UserLinks from secondary to primary (if a link for that user doesn't already exist on primary). Deletes the secondary Author.
    */
   async mergeAuthors(
-    { primary, secondary }: { primary: string; secondary: string },
-  ): Promise<{ ok: true } | { error: string }> {
+    { primary, secondary }: { primary: Author; secondary: Author },
+    ): Promise<{ ok: true } | { error: string }> {
     try {
       if (primary === secondary) throw new Error("Cannot merge author into itself");
 
-      const primaryDoc = await this.authors.findOne({ _id: new ObjectId(primary) });
-      const secondaryDoc = await this.authors.findOne({ _id: new ObjectId(secondary) });
+      const primaryDoc = await this.authors.findOne({ _id: primary });
+      const secondaryDoc = await this.authors.findOne({ _id: secondary });
 
       if (!primaryDoc || !secondaryDoc) throw new Error("One or both authors not found");
 
@@ -298,7 +302,7 @@ export default class AuthorRegistryConcept {
       );
 
       // Delete secondary author
-      await this.authors.deleteOne({ _id: new ObjectId(secondary) });
+      await this.authors.deleteOne({ _id: secondary });
 
       return { ok: true };
     } catch (e) {
@@ -313,10 +317,10 @@ export default class AuthorRegistryConcept {
    * **effects** returns the author document or null
    */
   async _getAuthor(
-    { author }: { author: string },
-  ): Promise<Array<{ author: AuthorDoc | null }>> {
+    { author }: { author: Author },
+    ): Promise<Array<{ author: AuthorDoc | null }>> {
     try {
-      const doc = await this.authors.findOne({ _id: new ObjectId(author) });
+      const doc = await this.authors.findOne({ _id: author });
       return [{ author: doc ?? null }];
     } catch {
       return [{ author: null }];
@@ -330,13 +334,13 @@ export default class AuthorRegistryConcept {
    * **effects** returns the author linked to this user, or null if none
    */
   async _getAuthorByUser(
-    { user }: { user: string },
-  ): Promise<Array<{ author: AuthorDoc | null }>> {
+    { user }: { user: User },
+    ): Promise<Array<{ author: AuthorDoc | null }>> {
     try {
       const link = await this.userLinks.findOne({ user });
       if (!link) return [{ author: null }];
 
-      const doc = await this.authors.findOne({ _id: new ObjectId(link.authorId) });
+      const doc = await this.authors.findOne({ _id: link.authorId });
       return [{ author: doc ?? null }];
     } catch {
       return [{ author: null }];
@@ -351,7 +355,7 @@ export default class AuthorRegistryConcept {
    */
   async _findAuthorsByName(
     { nameQuery }: { nameQuery: string },
-  ): Promise<Array<{ matches: Array<{ author: AuthorDoc; matchType: string }> }>> {
+    ): Promise<Array<{ matches: Array<{ author: AuthorDoc; matchType: string }> }>> {
     try {
       // Find matching name variations
       const regex = new RegExp(nameQuery, "i");
@@ -359,7 +363,7 @@ export default class AuthorRegistryConcept {
       
       const authorIds = [...new Set(variations.map(v => v.authorId))];
       const authors = await this.authors.find({ 
-        _id: { $in: authorIds.map(id => new ObjectId(id)) } 
+        _id: { $in: authorIds } 
       }).toArray();
 
       const matches = authors.map(author => {
@@ -385,12 +389,12 @@ export default class AuthorRegistryConcept {
    */
   async _resolveAuthor(
     { exactName }: { exactName: string },
-  ): Promise<Array<{ author: AuthorDoc | null }>> {
+    ): Promise<Array<{ author: AuthorDoc | null }>> {
     try {
       const variation = await this.nameVariations.findOne({ name: exactName });
       if (!variation) return [{ author: null }];
 
-      const doc = await this.authors.findOne({ _id: new ObjectId(variation.authorId) });
+      const doc = await this.authors.findOne({ _id: variation.authorId });
       return [{ author: doc ?? null }];
     } catch {
       return [{ author: null }];

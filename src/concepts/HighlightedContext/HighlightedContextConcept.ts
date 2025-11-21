@@ -1,5 +1,6 @@
-import { Collection, Db, ObjectId } from "npm:mongodb";
+import { Collection, Db } from "npm:mongodb";
 import { ID } from "@utils/types.ts";
+import { freshID } from "@utils/database.ts";
 
 // Generic types of this concept
 type Highlight = ID;
@@ -28,12 +29,12 @@ export type AnchorKind = "Section" | "Figure" | "Lines";
  *   a kind Literal['Section'|'Figure'|'Lines']?
  */
 interface ContextDoc {
-  _id: ObjectId;
+  _id: Context;
   paperId: string;
-  author: string; // User ID
-  location: string; // Highlight ID
+  author: User;
+  location: Highlight;
   createdAt: number;
-  parentContext?: string; // Context ID (optional)
+  parentContext?: Context;
   kind?: AnchorKind;
 }
 
@@ -60,25 +61,25 @@ export default class HighlightedContextConcept {
       parentContext,
     }: {
       paperId: string;
-      author: string; // User ID
-      location: string; // Highlight ID
+      author: User;
+      location: Highlight;
       kind?: AnchorKind;
-      parentContext?: string; // Context ID
+      parentContext?: Context;
     },
-  ): Promise<{ newContext: string } | { error: string }> {
+    ): Promise<{ newContext: Context } | { error: string }> {
     try {
       // Validate parentContext exists if provided
       if (parentContext) {
-        const parent = await this.contexts.findOne({
-          _id: new ObjectId(parentContext),
-        }).catch(() => null);
+        const parent = await this.contexts.findOne({ _id: parentContext });
         if (!parent) {
           return { error: "Parent context not found" };
         }
       }
 
       const now = Date.now();
-      const doc = {
+      const contextId = freshID() as Context;
+      const doc: ContextDoc = {
+        _id: contextId,
         paperId,
         author,
         location,
@@ -87,11 +88,8 @@ export default class HighlightedContextConcept {
         ...(parentContext !== undefined && { parentContext }),
       };
 
-      // MongoDB insertOne accepts documents without _id (it generates one), but our Collection type requires it
-      // This cast matches the pattern used in DiscussionPub and other concepts
-      // @ts-expect-error - MongoDB generates _id automatically, type definition is too strict
-      const res = await this.contexts.insertOne(doc);
-      return { newContext: String(res.insertedId) };
+      await this.contexts.insertOne(doc);
+      return { newContext: contextId };
     } catch (e) {
       return { error: e instanceof Error ? e.message : String(e) };
     }
@@ -108,18 +106,18 @@ export default class HighlightedContextConcept {
    * accepts filter criteria as parameters (paperIds and authors arrays) instead of a function.
    */
   async _getFilteredContexts(
-    { paperIds, authors }: { paperIds?: string[]; authors?: string[] },
-  ): Promise<
+    { paperIds, authors }: { paperIds?: string[]; authors?: User[] },
+    ): Promise<
     Array<
       {
         filteredContexts: Array<
           {
-            _id: string;
+            _id: Context;
             paperId: string;
-            author: string;
-            location: string;
+            author: User;
+            location: Highlight;
             kind?: AnchorKind;
-            parentContext?: string;
+            parentContext?: Context;
             createdAt: number;
           }
         >;
@@ -132,13 +130,15 @@ export default class HighlightedContextConcept {
         filter.paperId = { $in: paperIds };
       }
       if (authors && authors.length > 0) {
-        filter.author = { $in: authors };
+        // Convert User[] to string[] for MongoDB (ID is a branded string)
+        const authorStrings = authors as unknown as string[];
+        filter.author = { $in: authorStrings };
       }
 
       const cur = this.contexts.find(filter).sort({ createdAt: 1 });
       const items = await cur.toArray();
       const filteredContexts = items.map((c) => ({
-        _id: String(c._id),
+        _id: c._id,
         paperId: c.paperId,
         author: c.author,
         location: c.location,

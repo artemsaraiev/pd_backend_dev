@@ -44,7 +44,7 @@ Deno.test("Principle: User provides location and kind, context can be referenced
       true,
       "Alice's context creation should succeed",
     );
-    const { newContext: context1 } = create1Result as { newContext: string };
+    const { newContext: context1 } = create1Result as { newContext: ID };
     assertExists(context1, "Context 1 ID should be returned");
     console.log(`    Created context: ${context1}`);
 
@@ -61,7 +61,7 @@ Deno.test("Principle: User provides location and kind, context can be referenced
       true,
       "Bob's context creation should succeed",
     );
-    const { newContext: context2 } = create2Result as { newContext: string };
+    const { newContext: context2 } = create2Result as { newContext: ID };
     assertExists(context2, "Context 2 ID should be returned");
     console.log(`    Created context: ${context2}`);
 
@@ -118,7 +118,7 @@ Deno.test("Action: create successfully creates context with all fields", async (
 
     // Effects: should return newContext ID
     assertNotEquals("error" in result, true, "Creation should succeed");
-    const { newContext } = result as { newContext: string };
+    const { newContext } = result as { newContext: ID };
     assertExists(newContext, "Should return context ID");
 
     // Verify effects: context exists with correct fields
@@ -156,7 +156,7 @@ Deno.test("Action: create with optional fields", async () => {
       location: highlight1,
     });
     assertNotEquals("error" in result1, true, "Creation without kind should succeed");
-    const { newContext: ctx1 } = result1 as { newContext: string };
+    const { newContext: ctx1 } = result1 as { newContext: ID };
 
     // Create with kind
     const result2 = await concept.create({
@@ -166,7 +166,7 @@ Deno.test("Action: create with optional fields", async () => {
       kind: "Section",
     });
     assertNotEquals("error" in result2, true, "Creation with kind should succeed");
-    const { newContext: ctx2 } = result2 as { newContext: string };
+    const { newContext: ctx2 } = result2 as { newContext: ID };
 
     // Verify both contexts exist
     const allContexts = await concept._getFilteredContexts({});
@@ -194,7 +194,7 @@ Deno.test("Action: create requires parentContext to exist if provided", async ()
     console.log("Testing create action - parentContext requirement");
 
     // Requires: parentContext must exist if provided
-    const fakeParentId = "507f1f77bcf86cd799439011"; // Valid ObjectId format but doesn't exist
+    const fakeParentId = "context:fake" as ID; // Fake context ID that doesn't exist
     const result1 = await concept.create({
       paperId: paper1,
       author: userAlice,
@@ -220,7 +220,7 @@ Deno.test("Action: create requires parentContext to exist if provided", async ()
       location: highlight1,
     });
     assertNotEquals("error" in parentResult, true, "Parent creation should succeed");
-    const { newContext: parentId } = parentResult as { newContext: string };
+    const { newContext: parentId } = parentResult as { newContext: ID };
 
     // Now create child with valid parent
     const result2 = await concept.create({
@@ -234,7 +234,7 @@ Deno.test("Action: create requires parentContext to exist if provided", async ()
       true,
       "Creating with valid parentContext should succeed",
     );
-    const { newContext: childId } = result2 as { newContext: string };
+    const { newContext: childId } = result2 as { newContext: ID };
 
     // Verify child has parentContext set
     const allContexts = await concept._getFilteredContexts({});
@@ -261,19 +261,19 @@ Deno.test("Query: _getFilteredContexts filters by paperIds", async () => {
       paperId: paper1,
       author: userAlice,
       location: highlight1,
-    })) as { newContext: string };
+    })) as { newContext: ID };
 
     const { newContext: ctx2 } = (await concept.create({
       paperId: paper2,
       author: userAlice,
       location: highlight2,
-    })) as { newContext: string };
+    })) as { newContext: ID };
 
     const { newContext: ctx3 } = (await concept.create({
       paperId: paper1,
       author: userBob,
       location: highlight3,
-    })) as { newContext: string };
+    })) as { newContext: ID };
 
     // Filter by paper1 only
     const result = await concept._getFilteredContexts({ paperIds: [paper1] });
@@ -323,19 +323,19 @@ Deno.test("Query: _getFilteredContexts filters by authors", async () => {
       paperId: paper1,
       author: userAlice,
       location: highlight1,
-    })) as { newContext: string };
+    })) as { newContext: ID };
 
     const { newContext: ctx2 } = (await concept.create({
       paperId: paper1,
       author: userBob,
       location: highlight2,
-    })) as { newContext: string };
+    })) as { newContext: ID };
 
     const { newContext: ctx3 } = (await concept.create({
       paperId: paper2,
       author: userAlice,
       location: highlight3,
-    })) as { newContext: string };
+    })) as { newContext: ID };
 
     // Filter by userAlice only
     const result = await concept._getFilteredContexts({ authors: [userAlice] });
@@ -385,19 +385,19 @@ Deno.test("Query: _getFilteredContexts filters by both paperIds and authors", as
       paperId: paper1,
       author: userAlice,
       location: highlight1,
-    })) as { newContext: string };
+    })) as { newContext: ID };
 
     const { newContext: ctx2 } = (await concept.create({
       paperId: paper1,
       author: userBob,
       location: highlight2,
-    })) as { newContext: string };
+    })) as { newContext: ID };
 
     const { newContext: ctx3 } = (await concept.create({
       paperId: paper2,
       author: userAlice,
       location: highlight3,
-    })) as { newContext: string };
+    })) as { newContext: ID };
 
     // Filter by paper1 AND userAlice (should only match ctx1)
     const result = await concept._getFilteredContexts({
@@ -436,19 +436,19 @@ Deno.test("Query: _getFilteredContexts returns all contexts when no filters prov
       paperId: paper1,
       author: userAlice,
       location: highlight1,
-    })) as { newContext: string };
+    })) as { newContext: ID };
 
     const { newContext: ctx2 } = (await concept.create({
       paperId: paper2,
       author: userBob,
       location: highlight2,
-    })) as { newContext: string };
+    })) as { newContext: ID };
 
     const { newContext: ctx3 } = (await concept.create({
       paperId: paper1,
       author: userCharlie,
       location: highlight3,
-    })) as { newContext: string };
+    })) as { newContext: ID };
 
     // Query with no filters
     const result = await concept._getFilteredContexts({});
@@ -493,21 +493,21 @@ Deno.test("Query: _getFilteredContexts results are ordered by createdAt", async 
       paperId: paper1,
       author: userAlice,
       location: highlight1,
-    })) as { newContext: string };
+    })) as { newContext: ID };
     await new Promise((resolve) => setTimeout(resolve, 10)); // Small delay
 
     const { newContext: ctx2 } = (await concept.create({
       paperId: paper1,
       author: userBob,
       location: highlight2,
-    })) as { newContext: string };
+    })) as { newContext: ID };
     await new Promise((resolve) => setTimeout(resolve, 10)); // Small delay
 
     const { newContext: ctx3 } = (await concept.create({
       paperId: paper1,
       author: userCharlie,
       location: highlight3,
-    })) as { newContext: string };
+    })) as { newContext: ID };
 
     // Query all contexts
     const result = await concept._getFilteredContexts({});
