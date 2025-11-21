@@ -1,14 +1,16 @@
 # Concept: PaperIndex
 
++ **concept** PaperIndex [Author]
 + **purpose** registry of papers by id (DOI or arXiv) with minimal metadata
 + **principle** papers can be added to the index, and paper metadata relevant to
 us can be updated
 + **state**
   + a set of Papers with
     + a paperId String
-    + an authors String[]
+    + an authors Author[]
     + a links String[]
     + a title String?
+    + a createdAt Date
 + **actions**
   + ensure(paperId: String, title?: string) : (paper: Paper)
     + **requires** nothing
@@ -18,12 +20,12 @@ us can be updated
   + updateMeta(paper: Paper, title: String) : ()
     + **requires** the paper is in the set of Papers
     + **effects** sets the title of the paper to the provided title
-  + addAuthors(paper: Paper, authors: String[]) : ()
+  + addAuthors(paper: Paper, authors: Author[]) : ()
     + **requires** the paper is in the set of Papers
     + **effects** for each author in the provided authors array, if the author is not
     in the authors array of the paper, adds the author to the authors array of the
     paper
-  + removeAuthors(paper: Paper, authors: String[]) : ()
+  + removeAuthors(paper: Paper, authors: Author[]) : ()
     + **requires** the paper is in the set of Papers
     + **effects** for each author in the provided authors array, if the author is in
     the authors array of the paper, removes the author from the authors array of the

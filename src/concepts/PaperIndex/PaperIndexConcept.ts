@@ -3,6 +3,7 @@ import { ID } from "@utils/types.ts";
 
 // Generic types of this concept
 type Paper = ID;
+type Author = ID;
 
 /**
  * @concept PaperIndex
@@ -15,14 +16,14 @@ type Paper = ID;
 /**
  * a set of Papers with
  *   a paperId String
- *   an authors String[]
+ *   an authors Author[]
  *   a links String[]
  *   a title String?
  */
 interface PaperDoc {
   _id: string; // paperId (external unique identifier)
   title?: string;
-  authors: string[];
+  authors: string[]; // Author IDs
   links: string[];
   createdAt?: number; // Implementation detail for ordering
 }
@@ -126,7 +127,7 @@ export default class PaperIndexConcept {
   }
 
   /**
-   * addAuthors(paper: Paper, authors: String[]) : ()
+   * addAuthors(paper: Paper, authors: Author[]) : ()
    *
    * **requires** the paper is in the set of Papers
    * **effects** for each author in the provided authors array, if the author is not
@@ -149,7 +150,7 @@ export default class PaperIndexConcept {
   }
 
   /**
-   * removeAuthors(paper: Paper, authors: String[]) : ()
+   * removeAuthors(paper: Paper, authors: Author[]) : ()
    *
    * **requires** the paper is in the set of Papers
    * **effects** for each author in the provided authors array, if the author is in
@@ -255,13 +256,13 @@ export default class PaperIndexConcept {
   > {
     try {
       const cur = this.papers
-        .find({}, { projection: { _id: 1, title: 1, createdAt: 1 } })
+        .find({}, {
+          projection: { _id: 1, title: 1, createdAt: 1, authors: 1, links: 1 },
+        })
         .sort({ createdAt: -1 })
         .limit(limit ?? 20);
       const items = await cur.toArray();
-      const papers = items as Array<
-        { _id: string; title?: string; createdAt?: number }
-      >;
+      const papers = items as Array<PaperDoc>;
       // Queries must return an array of dictionaries
       return [{ papers }];
     } catch {

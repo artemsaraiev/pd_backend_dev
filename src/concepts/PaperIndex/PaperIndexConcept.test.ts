@@ -1,10 +1,14 @@
 import { assertEquals, assertExists, assertNotEquals } from "jsr:@std/assert";
 import { testDb } from "@utils/database.ts";
+import { ID } from "@utils/types.ts";
 import PaperIndexConcept from "./PaperIndexConcept.ts";
 
 const paper1 = "arxiv:1234.5678";
 const paper2 = "doi:10.1234/example";
 const paper3 = "arxiv:9876.5432";
+const author1 = "author:Alice" as ID;
+const author2 = "author:Bob" as ID;
+const author3 = "author:Charlie" as ID;
 
 /**
  * # trace: Principle fulfillment
@@ -55,7 +59,7 @@ Deno.test("Principle: Papers can be added to index and metadata can be updated",
 
     const addAuthorsResult = await concept.addAuthors({
       paper,
-      authors: ["Alice", "Bob"],
+      authors: [author1, author2],
     });
     assertNotEquals(
       "error" in addAuthorsResult,
@@ -89,11 +93,11 @@ Deno.test("Principle: Papers can be added to index and metadata can be updated",
       "Should have two authors",
     );
     assertEquals(
-      paperDoc!.authors.includes("Alice"),
+      paperDoc!.authors.includes(author1),
       true,
       "Should include Alice",
     );
-    assertEquals(paperDoc!.authors.includes("Bob"), true, "Should include Bob");
+    assertEquals(paperDoc!.authors.includes(author2), true, "Should include Bob");
     assertEquals(paperDoc!.links.length, 1, "Should have one link");
     assertEquals(
       paperDoc!.links.includes("https://example.com/paper"),
@@ -229,7 +233,7 @@ Deno.test("Action: addAuthors requires paper exists, adds unique authors", async
     console.log("  Testing requires: paper must exist");
     const errorResult = await concept.addAuthors({
       paper: "nonexistent",
-      authors: ["Alice"],
+      authors: [author1],
     });
     assertEquals("error" in errorResult, true, "Should fail for nonexistent paper");
     console.log("    Correctly rejects nonexistent paper");
@@ -237,17 +241,17 @@ Deno.test("Action: addAuthors requires paper exists, adds unique authors", async
     // Test: addAuthors adds unique authors (set semantics)
     console.log("  Testing effects: adds unique authors");
     await concept.ensure({ paperId: paper1 });
-    await concept.addAuthors({ paper: paper1, authors: ["Alice", "Bob"] });
-    await concept.addAuthors({ paper: paper1, authors: ["Bob", "Charlie"] }); // Bob already exists
+    await concept.addAuthors({ paper: paper1, authors: [author1, author2] });
+    await concept.addAuthors({ paper: paper1, authors: [author2, author3] }); // author2 already exists
 
     const getResult = await concept._get({ paper: paper1 });
     const authors = getResult[0].paper?.authors ?? [];
     assertEquals(authors.length, 3, "Should have three unique authors");
-    assertEquals(authors.includes("Alice"), true, "Should include Alice");
-    assertEquals(authors.includes("Bob"), true, "Should include Bob");
-    assertEquals(authors.includes("Charlie"), true, "Should include Charlie");
+    assertEquals(authors.includes(author1), true, "Should include Alice");
+    assertEquals(authors.includes(author2), true, "Should include Bob");
+    assertEquals(authors.includes(author3), true, "Should include Charlie");
     // Verify Bob appears only once
-    const bobCount = authors.filter((a) => a === "Bob").length;
+    const bobCount = authors.filter((a) => a === author2).length;
     assertEquals(bobCount, 1, "Bob should appear only once");
     console.log("    Authors added with set semantics (no duplicates)");
   } finally {
@@ -267,7 +271,7 @@ Deno.test("Action: removeAuthors requires paper exists, removes authors if prese
     console.log("  Testing requires: paper must exist");
     const errorResult = await concept.removeAuthors({
       paper: "nonexistent",
-      authors: ["Alice"],
+      authors: [author1],
     });
     assertEquals("error" in errorResult, true, "Should fail for nonexistent paper");
     console.log("    Correctly rejects nonexistent paper");
@@ -275,16 +279,15 @@ Deno.test("Action: removeAuthors requires paper exists, removes authors if prese
     // Test: removeAuthors removes authors if present
     console.log("  Testing effects: removes authors if present");
     await concept.ensure({ paperId: paper1 });
-    await concept.addAuthors({ paper: paper1, authors: ["Alice", "Bob", "Charlie"] });
-    await concept.removeAuthors({ paper: paper1, authors: ["Bob", "David"] }); // David doesn't exist
+    await concept.addAuthors({ paper: paper1, authors: [author1, author2, author3] });
+    await concept.removeAuthors({ paper: paper1, authors: [author2, "nonexistent" as ID] }); // nonexistent doesn't exist
 
     const getResult = await concept._get({ paper: paper1 });
     const authors = getResult[0].paper?.authors ?? [];
     assertEquals(authors.length, 2, "Should have two authors remaining");
-    assertEquals(authors.includes("Alice"), true, "Should include Alice");
-    assertEquals(authors.includes("Charlie"), true, "Should include Charlie");
-    assertEquals(authors.includes("Bob"), false, "Should not include Bob");
-    assertEquals(authors.includes("David"), false, "Should not include David");
+    assertEquals(authors.includes(author1), true, "Should include Alice");
+    assertEquals(authors.includes(author3), true, "Should include Charlie");
+    assertEquals(authors.includes(author2), false, "Should not include Bob");
     console.log("    Authors removed correctly (no-op for non-existent)");
   } finally {
     await client.close();
@@ -400,7 +403,7 @@ Deno.test("Query: _get returns paper document or null", async () => {
     // Test: returns paper document for existing paper
     console.log("  Testing existing paper");
     await concept.ensure({ paperId: paper1, title: "Test Paper" });
-    await concept.addAuthors({ paper: paper1, authors: ["Alice"] });
+    await concept.addAuthors({ paper: paper1, authors: [author1] });
     await concept.addLink({ paper: paper1, url: "https://example.com" });
 
     const result2 = await concept._get({ paper: paper1 });
@@ -414,7 +417,7 @@ Deno.test("Query: _get returns paper document or null", async () => {
     assertEquals(paperDoc!._id, paper1, "Paper ID should match");
     assertEquals(paperDoc!.title, "Test Paper", "Title should match");
     assertEquals(paperDoc!.authors.length, 1, "Should have one author");
-    assertEquals(paperDoc!.authors[0], "Alice", "Author should match");
+    assertEquals(paperDoc!.authors[0], author1, "Author should match");
     assertEquals(paperDoc!.links.length, 1, "Should have one link");
     assertEquals(paperDoc!.links[0], "https://example.com", "Link should match");
     console.log("    Correctly returns paper document");
@@ -485,4 +488,3 @@ Deno.test("Query: _listRecent returns empty array when no papers exist", async (
     await client.close();
   }
 });
-
