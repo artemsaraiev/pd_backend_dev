@@ -38,20 +38,27 @@ export const inclusions: Record<string, string> = {
   "/api/PaperIndex/addLink": "simple mutation; no orchestration",
   "/api/PaperIndex/removeLink": "simple mutation; no orchestration",
 
-  // AnchoredContext
-  "/api/AnchoredContext/edit": "simple edit; currently no auth in syncs",
-  "/api/AnchoredContext/delete": "simple delete; currently no auth in syncs",
+  // HighlightedContext
+  "/api/HighlightedContext/edit": "simple edit; currently no auth in syncs",
+  "/api/HighlightedContext/delete": "simple delete; currently no auth in syncs",
 
   // DiscussionPub: editorial mutations currently left as passthrough
-  "/api/DiscussionPub/editThread": "editorial action; currently no auth in syncs",
-  "/api/DiscussionPub/deleteThread": "editorial action; currently no auth in syncs",
-  "/api/DiscussionPub/editReply": "editorial action; currently no auth in syncs",
-  "/api/DiscussionPub/deleteReply": "editorial action; currently no auth in syncs",
+  "/api/DiscussionPub/editThread":
+    "editorial action; currently no auth in syncs",
+  "/api/DiscussionPub/deleteThread":
+    "editorial action; currently no auth in syncs",
+  "/api/DiscussionPub/editReply":
+    "editorial action; currently no auth in syncs",
+  "/api/DiscussionPub/deleteReply":
+    "editorial action; currently no auth in syncs",
 
   // IdentityVerification: ancillary operations not yet synced
-  "/api/IdentityVerification/addAffiliation": "user self-update; no orchestration",
-  "/api/IdentityVerification/updateAffiliation": "user self-update; no orchestration",
-  "/api/IdentityVerification/revokeBadge": "admin-like action; currently passthrough",
+  "/api/IdentityVerification/addAffiliation":
+    "user self-update; no orchestration",
+  "/api/IdentityVerification/updateAffiliation":
+    "user self-update; no orchestration",
+  "/api/IdentityVerification/revokeBadge":
+    "admin-like action; currently passthrough",
 
   // Remove direct Session endpoints; handled via exclusions and syncs
 
@@ -78,9 +85,9 @@ export const exclusions: Array<string> = [
   "/api/PaperIndex/get",
   "/api/PaperIndex/listRecent",
 
-  // AnchoredContext
-  "/api/AnchoredContext/create",
-  "/api/AnchoredContext/listByPaper",
+  // HighlightedContext
+  "/api/HighlightedContext/create",
+  "/api/HighlightedContext/listByPaper",
 
   // DiscussionPub
   "/api/DiscussionPub/open",
@@ -111,12 +118,12 @@ export const exclusions: Array<string> = [
   // Internal auth queries should not be public
   "/api/UserAuthentication/_getUserByUsername",
   "/api/UserAuthentication/_getUsername",
-  
+
   // Sessioning - internal concept, use via syncs only
   "/api/Sessioning/create",
   "/api/Sessioning/delete",
   "/api/Sessioning/_getUser",
-  
+
   // Block old Session concept (use UserAuthentication + Sessioning instead)
   "/api/Session/login",
   "/api/Session/logout",

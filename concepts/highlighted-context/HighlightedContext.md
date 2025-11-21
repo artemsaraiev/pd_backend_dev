@@ -20,10 +20,13 @@ this context can later be referenced by discussion/other users
   Context)
     + **requires** parentContext, if provided, should be in a set of Contexts
     + **effects** inserts new Context into a set of Contexts with provided fields,
-    current creation timestamp and missing editedAt timestamp and returns it returns
-    editedContext
-  + _getFilteredContexts(filter: (user: User, paper: String) => Boolean) :
+    current creation timestamp and missing editedAt timestamp and returns newContext
++ **queries**
+  + _getFilteredContexts(paperIds?: String[], authors?: User[]) :
   (filteredContexts: Context[])
     + **requires** nothing
-    + **effects** returns a subset of Contexts with users and papers that match the
-    filter (e.g. for all contexts specific to a group of users for a specific paper)
+    + **effects** returns a subset of Contexts where the paperID is in the provided
+    paperIds array (if provided) and/or the author is in the provided authors array
+    (if provided). If both are provided, returns contexts matching both criteria.
+    Returns all contexts if neither parameter is provided. Results are ordered by
+    createdAt.

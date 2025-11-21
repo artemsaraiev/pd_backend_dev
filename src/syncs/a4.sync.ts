@@ -1,7 +1,7 @@
 import { actions, Sync } from "@engine";
 import {
   PaperIndex,
-  AnchoredContext,
+  HighlightedContext,
   DiscussionPub,
   IdentityVerification,
   Requesting,
@@ -54,29 +54,29 @@ export const PaperIndexListRecentResponse: Sync = ({ request, result }) => ({
   then: actions([Requesting.respond, { request, result }]),
 });
 
-// AnchoredContext
-export const AnchoredCreateRequest: Sync = ({ request, paperId, kind, ref, snippet }) => ({
-  when: actions([Requesting.request, { path: "/AnchoredContext/create", paperId, kind, ref, snippet }, { request }]),
-  then: actions([AnchoredContext.create, { paperId, kind, ref, snippet }]),
+// HighlightedContext
+export const HighlightedCreateRequest: Sync = ({ request, paperId, kind, ref, snippet }) => ({
+  when: actions([Requesting.request, { path: "/HighlightedContext/create", paperId, kind, ref, snippet }, { request }]),
+  then: actions([HighlightedContext.create, { paperId, kind, ref, snippet }]),
 });
 
-export const AnchoredCreateResponse: Sync = ({ request, result }) => ({
+export const HighlightedCreateResponse: Sync = ({ request, result }) => ({
   when: actions(
-    [Requesting.request, { path: "/AnchoredContext/create" }, { request }],
-    [AnchoredContext.create, {}, { result }],
+    [Requesting.request, { path: "/HighlightedContext/create" }, { request }],
+    [HighlightedContext.create, {}, { result }],
   ),
   then: actions([Requesting.respond, { request, result }]),
 });
 
-export const AnchoredListByPaperRequest: Sync = ({ request, paperId }) => ({
-  when: actions([Requesting.request, { path: "/AnchoredContext/listByPaper", paperId }, { request }]),
-  then: actions([AnchoredContext.listByPaper, { paperId }]),
+export const HighlightedListByPaperRequest: Sync = ({ request, paperId }) => ({
+  when: actions([Requesting.request, { path: "/HighlightedContext/listByPaper", paperId }, { request }]),
+  then: actions([HighlightedContext.listByPaper, { paperId }]),
 });
 
-export const AnchoredListByPaperResponse: Sync = ({ request, result }) => ({
+export const HighlightedListByPaperResponse: Sync = ({ request, result }) => ({
   when: actions(
-    [Requesting.request, { path: "/AnchoredContext/listByPaper" }, { request }],
-    [AnchoredContext.listByPaper, {}, { result }],
+    [Requesting.request, { path: "/HighlightedContext/listByPaper" }, { request }],
+    [HighlightedContext.listByPaper, {}, { result }],
   ),
   then: actions([Requesting.respond, { request, result }]),
 });
