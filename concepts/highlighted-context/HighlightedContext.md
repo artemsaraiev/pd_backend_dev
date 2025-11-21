@@ -3,7 +3,8 @@
 + **concept** HighlightedContext [Highlight, User]
 + **purpose** store regions of papers (lines, figures, sections) highlighted by users
 as well as the parent context in which the region is highlighted
-+ **principle** the user provides a location of the paper and kind of the region so that
++ **principle** the user provides a location of the paper and kind of the region so
+that
 this context can later be referenced by discussion/other users
 
 + **state**

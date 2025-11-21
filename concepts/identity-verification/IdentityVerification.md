@@ -30,9 +30,12 @@ account, and these can be used to verify the user's identity
     + **requires** the affiliation is in the set of Affiliations
     + **effects** removes the affiliation from the set of Affiliations
   + updateAffiliation(affiliation: Affiliation, newAffiliation: String) : ()
-    + **requires** the affiliation is in the set of Affiliations, and there is no other
-    Affiliation with the same user and newAffiliation String in the set of Affiliations
-    + **effects** updates the affiliation String of the given Affiliation to the newAffiliation
+    + **requires** the affiliation is in the set of Affiliations, and there is no
+    other
+    Affiliation with the same user and newAffiliation String in the set of
+    Affiliations
+    + **effects** updates the affiliation String of the given Affiliation to the
+    newAffiliation
     String
   + addBadge(user: User, badge: String) : (newBadge: Badge)
     + **requires** there is no Badge with provided user User and badge String in the
@@ -43,9 +46,14 @@ account, and these can be used to verify the user's identity
     + **requires** the badge is in the set of Badges
     + **effects** the badge is removed from the set of Badges
 + **queries**
-  + _getByUser(user: User) : (orcids: ORCIDDoc[], affiliations: AffiliationDoc[], badges: BadgeDoc[])
+  + _getByUser(user: User) : (orcids: ORCIDDoc[], affiliations: AffiliationDoc[],
+  badges: BadgeDoc[])
     + **requires** nothing
-    + **effects** returns an array of dictionaries, each containing all ORCIDs, Affiliations,
-    and Badges for the given user. Each ORCID includes _id, user, and orcid. Each Affiliation
-    includes _id, user, and affiliation. Each Badge includes _id, user, and badge. Returns an
-    array with one dictionary containing `{ orcids: ORCIDDoc[], affiliations: AffiliationDoc[], badges: BadgeDoc[] }`.
+    + **effects** returns an array of dictionaries, each containing all ORCIDs,
+    Affiliations,
+    and Badges for the given user. Each ORCID includes _id, user, and orcid. Each
+    Affiliation
+    includes _id, user, and affiliation. Each Badge includes _id, user, and badge.
+    Returns an
+    array with one dictionary containing `{ orcids: ORCIDDoc[], affiliations:
+    AffiliationDoc[], badges: BadgeDoc[] }`.

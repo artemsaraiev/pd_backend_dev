@@ -1,7 +1,8 @@
 # Concept: AccessControl
 
 + **concept** AccessControl [User, Resource]
-+ **purpose** control who can access which resources by organizing users into groups and granting permissions
++ **purpose** control who can access which resources by organizing users into groups
+and granting permissions
 + **principle** users can create groups, add and remove other users to groups, and
 get access to resources based on the groups they are in. Also provides a way to grant
 universal access to a resource to all users.
@@ -28,7 +29,8 @@ universal access to a resource to all users.
     and adds it to the set of Memberships
   + updateGroup(group: Group, name?: String, description?: String) : ()
     + **requires** the group is in the set of Groups
-    + **effects** updates the name and/or description of the group to the provided values.
+    + **effects** updates the name and/or description of the group to the provided
+    values.
     If a value is not provided, that field remains unchanged.
   + addUser(group: Group, user: User) : (newMembership: Membership)
     + **requires** the group is in the set of Groups, there is no Membership with the
@@ -46,10 +48,12 @@ universal access to a resource to all users.
     + **requires** the membership is in the set of Memberships, can't be the last
     admin membership for the group
     + **effects** sets the isAdmin field of the membership to false
-  + givePrivateAccess(group: Group, resource: Resource) : (newPrivateAccess: PrivateAccess)
+  + givePrivateAccess(group: Group, resource: Resource) : (newPrivateAccess:
+  PrivateAccess)
     + **requires** the group is in the set of Groups, there is no Access with the
     given group and resource in the set of PrivateAccesses
-    + **effects** creates a new PrivateAccess with the given group and resource, and adds it
+    + **effects** creates a new PrivateAccess with the given group and resource, and
+    adds it
     to the set of PrivateAccesses.
   + revokePrivateAccess(privateAccess: PrivateAccess) : ()
     + **requires** the privateAccess is in the set of PrivateAccesses
@@ -75,13 +79,15 @@ universal access to a resource to all users.
   + _getMembershipsByGroup(group: Group) : (memberships: MembershipDoc[])
     + **requires** nothing
     + **effects** returns an array of dictionaries, each containing all memberships
-    for the given group in the `memberships` field. Each membership includes _id, groupId,
+    for the given group in the `memberships` field. Each membership includes _id,
+    groupId,
     user, and isAdmin. Returns an array with one dictionary containing
     `{ memberships: MembershipDoc[] }`.
   + _getMembershipsByUser(user: User) : (memberships: MembershipDoc[])
     + **requires** nothing
     + **effects** returns an array of dictionaries, each containing all memberships
-    for the given user in the `memberships` field. Each membership includes _id, groupId,
+    for the given user in the `memberships` field. Each membership includes _id,
+    groupId,
     user, and isAdmin. Returns an array with one dictionary containing
     `{ memberships: MembershipDoc[] }`.
   + _hasAccess(user: User, resource: Resource) : (hasAccess: Boolean)

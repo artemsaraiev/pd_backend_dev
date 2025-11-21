@@ -34,8 +34,10 @@ relation to a thread
   + startThread(pub: Pub, author: User, anchor: Anchor, title: String, body: String) :
   (newThread: Thread)
     + **requires** the pub is in the set of Pubs
-    + **effects** inserts a new thread with the given pub, author, anchor, title, body,
-    current timestamp, deleted flag set to false and editedAt set to null and returns it
+    + **effects** inserts a new thread with the given pub, author, anchor, title,
+    body,
+    current timestamp, deleted flag set to false and editedAt set to null and returns
+    it
   + editThread(thread: Thread, newTitle: String, newBody: String) : ()
     + **requires** the thread is in the set of Threads
     + **effects** updates the title and body of the thread with the new values and
@@ -44,7 +46,8 @@ relation to a thread
     + **requires** the thread is in the set of Threads
     + **effects** sets the deleted flag of the thread to true and sets the editedAt to
     current timestamp
-  + makeReply(thread: Thread, author: User, anchor: Anchor, body: String, parentReply?: Reply) : (newReply: Reply)
+  + makeReply(thread: Thread, author: User, anchor: Anchor, body: String,
+  parentReply?: Reply) : (newReply: Reply)
     + **requires** the thread is in the set of Threads; the parentReply, if provided,
     should be in the set of Replies and the thread of the parentReply should be the
     same as the thread.
@@ -64,7 +67,8 @@ relation to a thread
   + _getPubIdByPaper(paperId: String) : (result: Pub | null)
     + **requires** nothing
     + **effects** returns an array of dictionaries, each containing the Pub ID for the
-    given paperId in the `result` field, or null if no pub exists. Returns an array with
+    given paperId in the `result` field, or null if no pub exists. Returns an array
+    with
     one dictionary containing `{ result: Pub | null }`.
   + _listThreads(pub: Pub, anchor?: Anchor) : (threads: Thread[])
     + **requires** nothing
