@@ -25,45 +25,28 @@
  */
 
 export const inclusions: Record<string, string> = {
-  // LikertSurvey demo routes
+  // LikertSurvey demo routes - public queries only
   "/api/LikertSurvey/_getSurveyQuestions": "public query",
   "/api/LikertSurvey/_getSurveyResponses": "public query",
-  "/api/LikertSurvey/_getRespondentAnswers": "public query",
-  "/api/LikertSurvey/submitResponse": "allow anyone to submit response",
-  "/api/LikertSurvey/updateResponse": "allow anyone to update their response",
-
-  // PaperIndex: pass-through for simple mutations that currently don't need orchestration/auth
-  "/api/PaperIndex/addAuthors": "simple mutation; no orchestration",
-  "/api/PaperIndex/removeAuthors": "simple mutation; no orchestration",
-  "/api/PaperIndex/addLink": "simple mutation; no orchestration",
-  "/api/PaperIndex/removeLink": "simple mutation; no orchestration",
-
-  // HighlightedContext
-  "/api/HighlightedContext/edit": "simple edit; currently no auth in syncs",
-  "/api/HighlightedContext/delete": "simple delete; currently no auth in syncs",
-
-  // DiscussionPub: editorial mutations currently left as passthrough
-  "/api/DiscussionPub/editThread":
-    "editorial action; currently no auth in syncs",
-  "/api/DiscussionPub/deleteThread":
-    "editorial action; currently no auth in syncs",
-  "/api/DiscussionPub/editReply":
-    "editorial action; currently no auth in syncs",
-  "/api/DiscussionPub/deleteReply":
-    "editorial action; currently no auth in syncs",
-
-  // IdentityVerification: ancillary operations not yet synced
-  "/api/IdentityVerification/addAffiliation":
-    "user self-update; no orchestration",
-  "/api/IdentityVerification/updateAffiliation":
-    "user self-update; no orchestration",
-  "/api/IdentityVerification/revokeBadge":
-    "admin-like action; currently passthrough",
-
-  // Remove direct Session endpoints; handled via exclusions and syncs
 
   // Public queries
   "/api/PaperIndex/_searchArxiv": "public search query",
+
+  // Public read queries - if paper data is public
+  "/api/PaperIndex/_get": "public query - paper data is public",
+  "/api/PaperIndex/_listRecent": "public query - paper list is public",
+
+  // Public read queries - if discussions are public
+  "/api/DiscussionPub/_getPubIdByPaper":
+    "public query - discussions are public",
+  "/api/DiscussionPub/_listThreads": "public query - discussions are public",
+  "/api/DiscussionPub/_listReplies": "public query - discussions are public",
+  "/api/DiscussionPub/_listRepliesTree":
+    "public query - discussions are public",
+
+  // Public read queries - if contexts are public
+  "/api/HighlightedContext/_getFilteredContexts":
+    "public query - contexts are public",
 };
 
 /**
@@ -79,36 +62,56 @@ export const inclusions: Record<string, string> = {
 export const exclusions: Array<string> = [
   // Drive these via Requesting + syncs (see backend/src/syncs/a4.sync.ts)
 
-  // PaperIndex
+  // PaperIndex - mutations need auth
   "/api/PaperIndex/ensure",
   "/api/PaperIndex/updateMeta",
+  "/api/PaperIndex/addAuthors",
+  "/api/PaperIndex/removeAuthors",
+  "/api/PaperIndex/addLink",
+  "/api/PaperIndex/removeLink",
+  // Legacy route names (handled via syncs)
   "/api/PaperIndex/get",
   "/api/PaperIndex/listRecent",
 
-  // HighlightedContext
+  // HighlightedContext - mutations need auth, queries handled via syncs
   "/api/HighlightedContext/create",
+  "/api/HighlightedContext/edit",
+  "/api/HighlightedContext/delete",
+  // Legacy route name
   "/api/HighlightedContext/listByPaper",
 
-  // DiscussionPub
+  // DiscussionPub - mutations need auth
   "/api/DiscussionPub/open",
   "/api/DiscussionPub/startThread",
   "/api/DiscussionPub/reply",
   "/api/DiscussionPub/replyTo",
-  "/api/DiscussionPub/_getPubIdByPaper",
-  "/api/DiscussionPub/_listThreads",
-  "/api/DiscussionPub/_listReplies",
-  "/api/DiscussionPub/_listRepliesTree",
+  "/api/DiscussionPub/makeReply",
+  "/api/DiscussionPub/editThread",
+  "/api/DiscussionPub/deleteThread",
+  "/api/DiscussionPub/editReply",
+  "/api/DiscussionPub/deleteReply",
   "/api/DiscussionPub/initIndexes",
 
-  // IdentityVerification
+  // IdentityVerification - all mutations need auth
   "/api/IdentityVerification/addORCID",
+  "/api/IdentityVerification/removeORCID",
+  "/api/IdentityVerification/addAffiliation",
+  "/api/IdentityVerification/removeAffiliation",
+  "/api/IdentityVerification/updateAffiliation",
   "/api/IdentityVerification/addBadge",
+  "/api/IdentityVerification/revokeBadge",
+  // User-specific queries need auth
   "/api/IdentityVerification/get",
+  "/api/IdentityVerification/_getByUser",
   "/api/IdentityVerification/ensureDoc",
 
-  // LikertSurvey - internal actions (not public)
+  // LikertSurvey - mutations need auth/tracking
   "/api/LikertSurvey/createSurvey",
   "/api/LikertSurvey/addQuestion",
+  "/api/LikertSurvey/submitResponse",
+  "/api/LikertSurvey/updateResponse",
+  // User-specific query needs auth
+  "/api/LikertSurvey/_getRespondentAnswers",
 
   // Auth flows - handled via syncs
   "/api/UserAuthentication/register",
@@ -128,4 +131,39 @@ export const exclusions: Array<string> = [
   "/api/Session/login",
   "/api/Session/logout",
   "/api/Session/whoami",
+
+  // AuthorRegistry - all operations need auth
+  "/api/AuthorRegistry/createAuthor",
+  "/api/AuthorRegistry/addNameVariation",
+  "/api/AuthorRegistry/removeNameVariation",
+  "/api/AuthorRegistry/updateAuthorProfile",
+  "/api/AuthorRegistry/claimAuthor",
+  "/api/AuthorRegistry/unclaimAuthor",
+  "/api/AuthorRegistry/mergeAuthors",
+  "/api/AuthorRegistry/_getAuthor",
+  "/api/AuthorRegistry/_getAuthorByUser",
+  "/api/AuthorRegistry/_findAuthorsByName",
+  "/api/AuthorRegistry/_resolveAuthor",
+
+  // AccessControl - security-critical, all operations need auth
+  "/api/AccessControl/createGroup",
+  "/api/AccessControl/updateGroup",
+  "/api/AccessControl/addUser",
+  "/api/AccessControl/revokeMembership",
+  "/api/AccessControl/promoteUser",
+  "/api/AccessControl/demoteUser",
+  "/api/AccessControl/givePrivateAccess",
+  "/api/AccessControl/revokePrivateAccess",
+  "/api/AccessControl/giveUniversalAccess",
+  "/api/AccessControl/revokeUniversalAccess",
+  "/api/AccessControl/removeGroup",
+  "/api/AccessControl/_getGroup",
+  "/api/AccessControl/_getMembershipsByGroup",
+  "/api/AccessControl/_getMembershipsByUser",
+  "/api/AccessControl/_hasAccess",
+
+  // PdfHighlighter - mutations need auth
+  "/api/PdfHighlighter/createHighlight",
+  "/api/PdfHighlighter/_get",
+  "/api/PdfHighlighter/_listByPaper",
 ];
