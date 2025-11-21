@@ -121,11 +121,6 @@ export const exclusions: Array<string> = [
   "/api/Sessioning/delete",
   "/api/Sessioning/_getUser",
 
-  // Block old Session concept (use UserAuthentication + Sessioning instead)
-  "/api/Session/login",
-  "/api/Session/logout",
-  "/api/Session/whoami",
-
   // AuthorRegistry - all operations need auth
   "/api/AuthorRegistry/createAuthor",
   "/api/AuthorRegistry/addNameVariation",
