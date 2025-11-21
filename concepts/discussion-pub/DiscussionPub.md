@@ -63,19 +63,26 @@ relation to a thread
 + **queries**
   + _getPubIdByPaper(paperId: String) : (result: Pub | null)
     + **requires** nothing
-    + **effects** returns the Pub ID for the given paperId, or null if no pub exists
+    + **effects** returns an array of dictionaries, each containing the Pub ID for the
+    given paperId in the `result` field, or null if no pub exists. Returns an array with
+    one dictionary containing `{ result: Pub | null }`.
   + _listThreads(pub: Pub, anchor?: Anchor) : (threads: Thread[])
     + **requires** nothing
-    + **effects** returns all non-deleted threads for the given pub, optionally filtered
-    by anchor. Results are ordered by createdAt. Each thread includes _id, author, title,
-    body, anchorId, createdAt, and editedAt.
+    + **effects** returns an array of dictionaries, each containing all non-deleted
+    threads for the given pub in the `threads` field, optionally filtered by anchor.
+    Results are ordered by createdAt. Each thread includes _id, author, title, body,
+    anchorId, createdAt, and editedAt. Returns an array with one dictionary containing
+    `{ threads: Thread[] }`.
   + _listReplies(thread: Thread) : (replies: Reply[])
     + **requires** nothing
-    + **effects** returns all non-deleted replies for the given thread, ordered by
-    createdAt. Each reply includes _id, author, body, anchorId, parentId, createdAt,
-    and editedAt.
+    + **effects** returns an array of dictionaries, each containing all non-deleted
+    replies for the given thread in the `replies` field, ordered by createdAt. Each
+    reply includes _id, author, body, anchorId, parentId, createdAt, and editedAt.
+    Returns an array with one dictionary containing `{ replies: Reply[] }`.
   + _listRepliesTree(thread: Thread) : (replies: ReplyTree[])
     + **requires** nothing
-    + **effects** returns all non-deleted replies for the given thread organized as a
-    tree structure, where each reply has a children array containing its child replies.
-    Results are ordered by createdAt.
+    + **effects** returns an array of dictionaries, each containing all non-deleted
+    replies for the given thread organized as a tree structure in the `replies` field,
+    where each reply has a children array containing its child replies. Results are
+    ordered by createdAt. Returns an array with one dictionary containing
+    `{ replies: ReplyTree[] }`.

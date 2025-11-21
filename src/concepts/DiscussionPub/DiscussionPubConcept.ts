@@ -408,12 +408,14 @@ export default class DiscussionPubConcept {
    */
   async _getPubIdByPaper(
     { paperId }: { paperId: string },
-  ): Promise<{ result: string | null } | { error: string }> {
+  ): Promise<Array<{ result: string | null }>> {
     try {
       const doc = await this.pubs.findOne({ paperId });
-      return { result: doc?._id ? String(doc._id) : null };
-    } catch (e) {
-      return { error: e instanceof Error ? e.message : String(e) };
+      // Queries must return an array of dictionaries
+      return [{ result: doc?._id ? String(doc._id) : null }];
+    } catch {
+      // On error, return array with null result (queries should not throw)
+      return [{ result: null }];
     }
   }
 
@@ -422,26 +424,27 @@ export default class DiscussionPubConcept {
    *
    * **requires** nothing
    * **effects** returns all non-deleted threads for the given pub, optionally filtered
-   * by anchor. Results are ordered by createdAt.
+   * by anchor. Results are ordered by createdAt. Returns an array of dictionaries, each
+   * with a `threads` field containing an array of threads.
    */
   async _listThreads(
     { pubId, anchorId }: { pubId: string; anchorId?: string },
   ): Promise<
-    {
-      result: Array<
-        {
-          _id: string;
-          author: string;
-          title: string;
-          body: string;
-          anchorId?: string;
-          createdAt: number;
-          editedAt?: number;
-        }
-      >;
-    } | {
-      error: string;
-    }
+    Array<
+      {
+        threads: Array<
+          {
+            _id: string;
+            author: string;
+            title: string;
+            body: string;
+            anchorId?: string;
+            createdAt: number;
+            editedAt?: number;
+          }
+        >;
+      }
+    >
   > {
     try {
       const filter: Record<string, unknown> = {
@@ -451,7 +454,7 @@ export default class DiscussionPubConcept {
       if (anchorId) filter.anchorId = anchorId;
       const cur = this.threads.find(filter).sort({ createdAt: 1 });
       const items = await cur.toArray();
-      const result = items.map((t) => ({
+      const threads = items.map((t) => ({
         _id: String(t._id),
         author: t.author,
         title: t.title ?? "", // Default for backward compatibility
@@ -460,9 +463,11 @@ export default class DiscussionPubConcept {
         createdAt: t.createdAt,
         editedAt: t.editedAt,
       }));
-      return { result };
-    } catch (e) {
-      return { error: e instanceof Error ? e.message : String(e) };
+      // Queries must return an array of dictionaries
+      return [{ threads }];
+    } catch {
+      // On error, return empty array (queries should not throw)
+      return [{ threads: [] }];
     }
   }
 
@@ -472,26 +477,27 @@ export default class DiscussionPubConcept {
    * **requires** nothing
    * **effects** returns all non-deleted replies for the given thread, ordered by
    * createdAt. Each reply includes _id, author, body, anchorId, parentId, createdAt,
-   * and editedAt.
+   * and editedAt. Returns an array of dictionaries, each with a `replies` field
+   * containing an array of replies.
    */
   async _listReplies(
     { threadId }: { threadId: string },
   ): Promise<
-    {
-      result: Array<
-        {
-          _id: string;
-          author: string;
-          body: string;
-          anchorId?: string;
-          parentId?: string;
-          createdAt: number;
-          editedAt?: number;
-        }
-      >;
-    } | {
-      error: string;
-    }
+    Array<
+      {
+        replies: Array<
+          {
+            _id: string;
+            author: string;
+            body: string;
+            anchorId?: string;
+            parentId?: string;
+            createdAt: number;
+            editedAt?: number;
+          }
+        >;
+      }
+    >
   > {
     try {
       const cur = this.replies.find({
@@ -499,7 +505,7 @@ export default class DiscussionPubConcept {
         $or: [{ deleted: false }, { deleted: { $exists: false } }],
       }).sort({ createdAt: 1 });
       const items = await cur.toArray();
-      const result = items.map((r) => ({
+      const replies = items.map((r) => ({
         _id: String(r._id),
         author: r.author,
         body: r.body,
@@ -508,9 +514,11 @@ export default class DiscussionPubConcept {
         createdAt: r.createdAt,
         editedAt: r.editedAt,
       }));
-      return { result };
-    } catch (e) {
-      return { error: e instanceof Error ? e.message : String(e) };
+      // Queries must return an array of dictionaries
+      return [{ replies }];
+    } catch {
+      // On error, return empty array (queries should not throw)
+      return [{ replies: [] }];
     }
   }
 
@@ -520,11 +528,12 @@ export default class DiscussionPubConcept {
    * **requires** nothing
    * **effects** returns all non-deleted replies for the given thread organized as a
    * tree structure, where each reply has a children array containing its child replies.
-   * Results are ordered by createdAt.
+   * Results are ordered by createdAt. Returns an array of dictionaries, each with a
+   * `replies` field containing an array of reply tree nodes.
    */
   async _listRepliesTree(
     { threadId }: { threadId: string },
-  ): Promise<{ result: Array<ReplyTreeNode> } | { error: string }> {
+  ): Promise<Array<{ replies: Array<ReplyTreeNode> }>> {
     try {
       const cur = this.replies.find({
         threadId,
@@ -553,9 +562,11 @@ export default class DiscussionPubConcept {
           roots.push(n);
         }
       }
-      return { result: roots };
-    } catch (e) {
-      return { error: e instanceof Error ? e.message : String(e) };
+      // Queries must return an array of dictionaries
+      return [{ replies: roots }];
+    } catch {
+      // On error, return empty array (queries should not throw)
+      return [{ replies: [] }];
     }
   }
 }
