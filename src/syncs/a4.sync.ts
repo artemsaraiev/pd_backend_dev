@@ -144,61 +144,61 @@ export const DiscussionReplyToResponse: Sync = ({ request, result }) => ({
 });
 
 export const DiscussionGetPubIdByPaperRequest: Sync = ({ request, paperId }) => ({
-  when: actions([Requesting.request, { path: "/DiscussionPub/getPubIdByPaper", paperId }, { request }]),
-  then: actions([DiscussionPub.getPubIdByPaper, { paperId }]),
+  when: actions([Requesting.request, { path: "/DiscussionPub/_getPubIdByPaper", paperId }, { request }]),
+  then: actions([DiscussionPub._getPubIdByPaper, { paperId }]),
 });
 
 export const DiscussionGetPubIdByPaperResponse: Sync = ({ request, result }) => ({
   when: actions(
-    [Requesting.request, { path: "/DiscussionPub/getPubIdByPaper" }, { request }],
-    [DiscussionPub.getPubIdByPaper, {}, { result }],
+    [Requesting.request, { path: "/DiscussionPub/_getPubIdByPaper" }, { request }],
+    [DiscussionPub._getPubIdByPaper, {}, { result }],
   ),
   then: actions([Requesting.respond, { request, result }]),
 });
 
-// listThreads with anchorId filter
+// _listThreads with anchorId filter
 export const DiscussionListThreadsWithAnchorRequest: Sync = ({ request, pubId, anchorId }) => ({
-  when: actions([Requesting.request, { path: "/DiscussionPub/listThreads", pubId, anchorId }, { request }]),
-  then: actions([DiscussionPub.listThreads, { pubId, anchorId }]),
+  when: actions([Requesting.request, { path: "/DiscussionPub/_listThreads", pubId, anchorId }, { request }]),
+  then: actions([DiscussionPub._listThreads, { pubId, anchorId }]),
 });
 
-// listThreads without anchorId filter
+// _listThreads without anchorId filter
 export const DiscussionListThreadsRequest: Sync = ({ request, pubId }) => ({
-  when: actions([Requesting.request, { path: "/DiscussionPub/listThreads", pubId }, { request }]),
-  then: actions([DiscussionPub.listThreads, { pubId }]),
+  when: actions([Requesting.request, { path: "/DiscussionPub/_listThreads", pubId }, { request }]),
+  then: actions([DiscussionPub._listThreads, { pubId }]),
 });
 
 export const DiscussionListThreadsResponse: Sync = ({ request, result }) => ({
   when: actions(
-    [Requesting.request, { path: "/DiscussionPub/listThreads" }, { request }],
-    [DiscussionPub.listThreads, {}, { result }],
+    [Requesting.request, { path: "/DiscussionPub/_listThreads" }, { request }],
+    [DiscussionPub._listThreads, {}, { result }],
   ),
   then: actions([Requesting.respond, { request, result }]),
 });
 
 export const DiscussionListRepliesRequest: Sync = ({ request, threadId }) => ({
-  when: actions([Requesting.request, { path: "/DiscussionPub/listReplies", threadId }, { request }]),
-  then: actions([DiscussionPub.listReplies, { threadId }]),
+  when: actions([Requesting.request, { path: "/DiscussionPub/_listReplies", threadId }, { request }]),
+  then: actions([DiscussionPub._listReplies, { threadId }]),
 });
 
 export const DiscussionListRepliesResponse: Sync = ({ request, result }) => ({
   when: actions(
-    [Requesting.request, { path: "/DiscussionPub/listReplies" }, { request }],
-    [DiscussionPub.listReplies, {}, { result }],
+    [Requesting.request, { path: "/DiscussionPub/_listReplies" }, { request }],
+    [DiscussionPub._listReplies, {}, { result }],
   ),
   then: actions([Requesting.respond, { request, result }]),
 });
 
 // Tree-structured replies
 export const DiscussionListRepliesTreeRequest: Sync = ({ request, threadId }) => ({
-  when: actions([Requesting.request, { path: "/DiscussionPub/listRepliesTree", threadId }, { request }]),
-  then: actions([DiscussionPub.listRepliesTree, { threadId }]),
+  when: actions([Requesting.request, { path: "/DiscussionPub/_listRepliesTree", threadId }, { request }]),
+  then: actions([DiscussionPub._listRepliesTree, { threadId }]),
 });
 
 export const DiscussionListRepliesTreeResponse: Sync = ({ request, result }) => ({
   when: actions(
-    [Requesting.request, { path: "/DiscussionPub/listRepliesTree" }, { request }],
-    [DiscussionPub.listRepliesTree, {}, { result }],
+    [Requesting.request, { path: "/DiscussionPub/_listRepliesTree" }, { request }],
+    [DiscussionPub._listRepliesTree, {}, { result }],
   ),
   then: actions([Requesting.respond, { request, result }]),
 });

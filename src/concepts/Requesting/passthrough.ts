@@ -94,10 +94,10 @@ export const exclusions: Array<string> = [
   "/api/DiscussionPub/startThread",
   "/api/DiscussionPub/reply",
   "/api/DiscussionPub/replyTo",
-  "/api/DiscussionPub/getPubIdByPaper",
-  "/api/DiscussionPub/listThreads",
-  "/api/DiscussionPub/listReplies",
-  "/api/DiscussionPub/listRepliesTree",
+  "/api/DiscussionPub/_getPubIdByPaper",
+  "/api/DiscussionPub/_listThreads",
+  "/api/DiscussionPub/_listReplies",
+  "/api/DiscussionPub/_listRepliesTree",
   "/api/DiscussionPub/initIndexes",
 
   // IdentityVerification

@@ -60,3 +60,22 @@ relation to a thread
     + **requires** the reply is in the set of Replies
     + **effects** sets the deleted flag of the reply to true and sets the editedAt to
     current timestamp
++ **queries**
+  + _getPubIdByPaper(paperId: String) : (result: Pub | null)
+    + **requires** nothing
+    + **effects** returns the Pub ID for the given paperId, or null if no pub exists
+  + _listThreads(pub: Pub, anchor?: Anchor) : (threads: Thread[])
+    + **requires** nothing
+    + **effects** returns all non-deleted threads for the given pub, optionally filtered
+    by anchor. Results are ordered by createdAt. Each thread includes _id, author, title,
+    body, anchorId, createdAt, and editedAt.
+  + _listReplies(thread: Thread) : (replies: Reply[])
+    + **requires** nothing
+    + **effects** returns all non-deleted replies for the given thread, ordered by
+    createdAt. Each reply includes _id, author, body, anchorId, parentId, createdAt,
+    and editedAt.
+  + _listRepliesTree(thread: Thread) : (replies: ReplyTree[])
+    + **requires** nothing
+    + **effects** returns all non-deleted replies for the given thread organized as a
+    tree structure, where each reply has a children array containing its child replies.
+    Results are ordered by createdAt.
