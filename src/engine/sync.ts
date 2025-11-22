@@ -27,10 +27,7 @@ export function actions(
   ...actions: ActionList[]
 ): ActionPattern[] {
   return actions.map(([action, input, output]) => {
-    const concept = action.concept;
-    if (concept === undefined) {
-      throw new Error(`Action ${action.name} is not instrumented.`);
-    }
+    const concept = (action as InstrumentedAction).concept ?? {};
     return {
       concept,
       action,
