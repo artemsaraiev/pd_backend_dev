@@ -208,18 +208,18 @@ export class SyncConcept {
     }
   }
   matchThen(then: ActionPattern, frame: Frame) {
-    const bound = Object.entries(then.input).map(([key, value]) => {
-      let matchedValue = value;
-      if (typeof value === "symbol") {
-        matchedValue = frame[value];
-        if (matchedValue === undefined) {
-          throw new Error(
-            `Missing binding: ${String(value)} in frame: ${frame}`,
-          );
+    const bound = Object.entries(then.input)
+      .map(([key, value]) => {
+        let matchedValue = value;
+        if (typeof value === "symbol") {
+          matchedValue = frame[value];
+          // For optional bindings, it's valid for a symbol to be unset in the frame.
+          // In that case, we simply omit this key from the input pattern.
+          if (matchedValue === undefined) return null;
         }
-      }
-      return [key, matchedValue];
-    });
+        return [key, matchedValue] as [string, unknown];
+      })
+      .filter((entry): entry is [string, unknown] => entry !== null);
     const inputPattern = Object.fromEntries(bound);
     const input = {
       ...inputPattern,

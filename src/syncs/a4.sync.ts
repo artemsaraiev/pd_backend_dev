@@ -158,8 +158,7 @@ export const DiscussionOpenResponse: Sync = ({ request, result }) => ({
   then: actions([Requesting.respond, { request, result }]),
 });
 
-// startThread with anchorId
-export const DiscussionStartThreadWithAnchorRequest: Sync = (
+export const DiscussionStartThreadRequest: Sync = (
   { request, session, pubId, body, anchorId, user },
 ) => ({
   when: actions([Requesting.request, {
@@ -167,7 +166,6 @@ export const DiscussionStartThreadWithAnchorRequest: Sync = (
     session,
     pubId,
     body,
-    anchorId,
   }, { request }]),
   where: async (frames) => {
     return await frames.query(Sessioning._getUser, { session }, { user });
@@ -178,22 +176,6 @@ export const DiscussionStartThreadWithAnchorRequest: Sync = (
     body,
     anchorId,
   }]),
-});
-
-// startThread without anchorId
-export const DiscussionStartThreadRequest: Sync = (
-  { request, session, pubId, body, user },
-) => ({
-  when: actions([Requesting.request, {
-    path: "/DiscussionPub/startThread",
-    session,
-    pubId,
-    body,
-  }, { request }]),
-  where: async (frames) => {
-    return await frames.query(Sessioning._getUser, { session }, { user });
-  },
-  then: actions([DiscussionPub.startThread, { pubId, author: user, body }]),
 });
 
 export const DiscussionStartThreadResponse: Sync = ({ request, result }) => ({
