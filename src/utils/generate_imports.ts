@@ -148,7 +148,11 @@ async function discoverSyncs(baseDir: string): Promise<SyncInfo[]> {
         .replace(/\.sync\.ts$/, "")
         .replaceAll(path.SEPARATOR, ".");
 
-      const importAlias = `sync_${prefix.replaceAll(".", "_")}`;
+      // Create a safe TypeScript identifier for the import alias by replacing
+      // any non-identifier characters (anything other than letters, digits, or `_`)
+      // with underscores. This handles filenames like `pdf-highlighter.sync.ts`.
+      const safePrefix = prefix.replaceAll(/[^a-zA-Z0-9_]/g, "_");
+      const importAlias = `sync_${safePrefix}`;
       // Ensure import path uses forward slashes for cross-platform compatibility
       const importPath = `./${relativePath.replaceAll(path.SEPARATOR, "/")}`;
 
