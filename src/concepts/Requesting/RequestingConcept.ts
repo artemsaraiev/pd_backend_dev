@@ -356,14 +356,20 @@ export function startRequestingServer(
       return c.json(response);
     } catch (e) {
       if (e instanceof Error) {
-        console.error(`[Requesting] Error processing request:`, e.message);
+        console.error(
+          `[Requesting] Error processing request for path ${c.req.path}:`,
+          e.message,
+        );
         if (e.message.includes("timed out")) {
           return c.json({ error: "Request timed out." }, 504); // Gateway Timeout
         }
         return c.json({ error: "An internal server error occurred." }, 500);
-      } else {
-        return c.json({ error: "unknown error occurred." }, 418);
       }
+      console.error(
+        `[Requesting] Unknown error processing request for path ${c.req.path}:`,
+        e,
+      );
+      return c.json({ error: "unknown error occurred." }, 418);
     }
   });
 
