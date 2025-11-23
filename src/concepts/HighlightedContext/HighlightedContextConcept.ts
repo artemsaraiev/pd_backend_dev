@@ -68,10 +68,21 @@ export default class HighlightedContextConcept {
     },
     ): Promise<{ newContext: Context } | { error: string }> {
     try {
+      console.log("[HighlightedContext.create] called with", {
+        paperId,
+        author,
+        location,
+        kind,
+        parentContext,
+      });
       // Validate parentContext exists if provided
       if (parentContext) {
         const parent = await this.contexts.findOne({ _id: parentContext });
         if (!parent) {
+          console.warn(
+            "[HighlightedContext.create] Parent context not found",
+            parentContext,
+          );
           return { error: "Parent context not found" };
         }
       }
@@ -89,8 +100,18 @@ export default class HighlightedContextConcept {
       };
 
       await this.contexts.insertOne(doc);
+      console.log(
+        "[HighlightedContext.create] Inserted context",
+        contextId,
+        "for paper",
+        paperId,
+      );
       return { newContext: contextId };
     } catch (e) {
+      console.error(
+        "[HighlightedContext.create] Error creating context",
+        e,
+      );
       return { error: e instanceof Error ? e.message : String(e) };
     }
   }

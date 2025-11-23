@@ -40,7 +40,7 @@ export const LoginResponseSuccess: Sync = ({ request, user, session }) => ({
     [UserAuthentication.login, {}, { user }],
     [Sessioning.create, { user }, { session }],
   ),
-  then: actions([Requesting.respond, { request, session }]),
+  then: actions([Requesting.respond, { request, session, user }]),
 });
 
 export const LoginResponseError: Sync = ({ request, error }) => ({

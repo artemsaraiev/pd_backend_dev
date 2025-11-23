@@ -92,7 +92,9 @@ export const HighlightedCreateRequest: Sync = (
     paperId,
     location,
     kind,
-    parentContext,
+    // Note: parentContext is optional; do not require it in the
+    // `when` pattern, or the sync will never match when callers
+    // omit it.
   }, { request }]),
   where: async (frames) => {
     return await frames.query(Sessioning._getUser, { session }, { user });
@@ -106,14 +108,28 @@ export const HighlightedCreateRequest: Sync = (
   }]),
 });
 
-export const HighlightedCreateResponse: Sync = (
-  { request, newContext, error },
+// On success, respond with the new context id
+export const HighlightedCreateResponseSuccess: Sync = (
+  { request, newContext },
 ) => ({
   when: actions(
     [Requesting.request, { path: "/HighlightedContext/create" }, { request }],
-    [HighlightedContext.create, {}, { newContext, error }],
+    // Match only when HighlightedContext.create produced a `newContext`
+    [HighlightedContext.create, {}, { newContext }],
   ),
-  then: actions([Requesting.respond, { request, newContext, error }]),
+  then: actions([Requesting.respond, { request, newContext }]),
+});
+
+// On error, propagate the error back to the HTTP caller
+export const HighlightedCreateResponseError: Sync = (
+  { request, error },
+) => ({
+  when: actions(
+    [Requesting.request, { path: "/HighlightedContext/create" }, { request }],
+    // Match only when HighlightedContext.create produced an `error`
+    [HighlightedContext.create, {}, { error }],
+  ),
+  then: actions([Requesting.respond, { request, error }]),
 });
 
 export const HighlightedGetFilteredContextsRequest: Sync = (

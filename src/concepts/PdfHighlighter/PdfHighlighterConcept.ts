@@ -112,12 +112,17 @@ export default class PdfHighlighterConcept {
    */
   async _listByPaper(
     { paper }: { paper: Paper },
-    ): Promise<Array<{ highlights: HighlightDoc[] }>> {
+    ): Promise<Array<{ highlights: HighlightDoc[]; result: HighlightDoc[] }>> {
+    console.log('[PdfHighlighter._listByPaper] Called for paper:', paper);
     try {
       const items = await this.highlights.find({ paper }).toArray();
-      return [{ highlights: items as HighlightDoc[] }];
-    } catch {
-      return [{ highlights: [] }];
+      console.log(`[PdfHighlighter._listByPaper] Found ${items.length} items`);
+      const docs = items as HighlightDoc[];
+      // Return both keys to satisfy any sync version
+      return [{ highlights: docs, result: docs }];
+    } catch (e) {
+      console.error('[PdfHighlighter._listByPaper] Error:', e);
+      return [{ highlights: [], result: [] }];
     }
   }
 }

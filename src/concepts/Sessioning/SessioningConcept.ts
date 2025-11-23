@@ -75,12 +75,23 @@ export default class SessioningConcept {
   async _getUser(
     { session }: { session: Session },
   ): Promise<Array<{ user: User }> | [{ error: string }]> {
+    console.log("[Sessioning._getUser] Looking up session", session);
     const sessionDoc = await this.sessions.findOne({ _id: session });
 
     if (!sessionDoc) {
+      console.warn(
+        "[Sessioning._getUser] Session not found, returning error",
+        session,
+      );
       return [{ error: `Session with id ${session} not found` }];
     }
 
+    console.log(
+      "[Sessioning._getUser] Found user for session",
+      session,
+      "user",
+      sessionDoc.user,
+    );
     return [{ user: sessionDoc.user }];
   }
 }

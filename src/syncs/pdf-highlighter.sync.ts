@@ -2,20 +2,31 @@ import { actions, Sync } from "@engine";
 import { PdfHighlighter, Requesting, Sessioning } from "@concepts";
 
 // PdfHighlighter Actions
-export const PdfHighlighterCreateHighlightRequest: Sync = ({ request, session, paper, page, rects, quote, user }) => ({
-  when: actions([Requesting.request, { path: "/PdfHighlighter/createHighlight", session, paper, page, rects, quote }, { request }]),
+export const PdfHighlighterCreateHighlightRequest: Sync = (
+  { request, session, paper, page, rects, quote, user },
+) => ({
+  when: actions([
+    Requesting.request,
+    { path: "/PdfHighlighter/createHighlight", session, paper, page, rects, quote },
+    { request },
+  ]),
   where: async (frames) => {
     return await frames.query(Sessioning._getUser, { session }, { user });
   },
   then: actions([PdfHighlighter.createHighlight, { paper, page, rects, quote }]),
 });
 
-export const PdfHighlighterCreateHighlightResponse: Sync = ({ request, highlightId, error }) => ({
+// Respond to the HTTP caller once the highlight has been created.
+// We only pattern-match on `highlightId` here; errors are handled by
+// the Requesting timeout / generic error path.
+export const PdfHighlighterCreateHighlightResponse: Sync = (
+  { request, highlightId },
+) => ({
   when: actions(
     [Requesting.request, { path: "/PdfHighlighter/createHighlight" }, { request }],
-    [PdfHighlighter.createHighlight, {}, { highlightId, error }],
+    [PdfHighlighter.createHighlight, {}, { highlightId }],
   ),
-  then: actions([Requesting.respond, { request, highlightId, error }]),
+  then: actions([Requesting.respond, { request, highlightId }]),
 });
 
 // PdfHighlighter Queries
@@ -33,13 +44,20 @@ export const PdfHighlighterGetResponse: Sync = ({ request, result }) => ({
 });
 
 export const PdfHighlighterListByPaperRequest: Sync = ({ request, paper }) => ({
-  when: actions([Requesting.request, { path: "/PdfHighlighter/_listByPaper", paper }, { request }]),
+  when: actions([
+    Requesting.request,
+    {
+      path: "/PdfHighlighter/_listByPaper",
+      paper,
+    },
+    { request }
+  ]),
   then: actions([PdfHighlighter._listByPaper, { paper }]),
 });
 
-export const PdfHighlighterListByPaperResponse: Sync = ({ request, result }) => ({
+export const PdfHighlighterListByPaperResponse: Sync = ({ request, result, paper }) => ({
   when: actions(
-    [Requesting.request, { path: "/PdfHighlighter/_listByPaper" }, { request }],
+    [Requesting.request, { path: "/PdfHighlighter/_listByPaper", paper }, { request }],
     [PdfHighlighter._listByPaper, {}, { result }],
   ),
   then: actions([Requesting.respond, { request, result }]),

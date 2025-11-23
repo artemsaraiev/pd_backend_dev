@@ -221,6 +221,7 @@ export function startRequestingServer(
   });
   app.get(pdfRoute, async (c) => {
     const id = c.req.param("id");
+    console.log(`[Requesting] Proxying PDF request for ID: ${id}`);
     try {
       const upstream = await fetch(
         `https://arxiv.org/pdf/${encodeURIComponent(id)}.pdf`,
@@ -343,6 +344,12 @@ export function startRequestingServer(
       };
 
       console.log(`[Requesting] Received request for path: ${inputs.path}`);
+      if (inputs.path === "/HighlightedContext/create") {
+        console.log(
+          "[Requesting] Incoming HighlightedContext/create payload",
+          inputs,
+        );
+      }
 
       // 1. Trigger the 'request' action.
       const { request } = await Requesting.request(inputs);
