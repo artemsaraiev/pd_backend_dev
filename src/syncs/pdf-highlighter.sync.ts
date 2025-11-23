@@ -1,4 +1,4 @@
-import { actions, Sync } from "@engine";
+import { actions, Frames, Sync } from "@engine";
 import { PdfHighlighter, Requesting, Sessioning } from "@concepts";
 
 // PdfHighlighter Actions
@@ -52,12 +52,14 @@ export const PdfHighlighterGetRequest: Sync = ({ request, highlight }) => ({
   then: actions([PdfHighlighter._get, { highlight }]),
 });
 
-export const PdfHighlighterGetResponse: Sync = ({ request, result }) => ({
+export const PdfHighlighterGetResponse: Sync = ({ request, highlight }) => ({
   when: actions(
     [Requesting.request, { path: "/PdfHighlighter/_get" }, { request }],
-    [PdfHighlighter._get, {}, { result }],
+    // Query returns Array<{ highlight: HighlightDoc | null }>
+    // Match on highlight field (as specified in the concept spec)
+    [PdfHighlighter._get, {}, { highlight }],
   ),
-  then: actions([Requesting.respond, { request, result }]),
+  then: actions([Requesting.respond, { request, highlight }]),
 });
 
 export const PdfHighlighterListByPaperRequest: Sync = ({ request, paper }) => ({
@@ -73,14 +75,33 @@ export const PdfHighlighterListByPaperRequest: Sync = ({ request, paper }) => ({
 });
 
 export const PdfHighlighterListByPaperResponse: Sync = (
-  { request, highlights },
+  { request, highlight, highlights },
 ) => ({
   when: actions(
     [Requesting.request, { path: "/PdfHighlighter/_listByPaper" }, { request }],
-    // Query returns Array<{ highlights: HighlightDoc[], result: HighlightDoc[] }>
-    // Match on highlights field (what the query actually returns in the first element)
-    [PdfHighlighter._listByPaper, {}, { highlights }],
+    // Query returns Array<{ highlight: HighlightDoc | null }> - one per highlight
+    // Returns [{ highlight: null }] when no highlights found
+    // Match on highlight field (as specified in the concept spec)
+    [PdfHighlighter._listByPaper, {}, { highlight }],
   ),
-  // Respond with highlights to match frontend expectations
+  where: (frames) => {
+    // Filter out null highlights and collect the rest
+    const validFrames = frames.filter((frame) => {
+      const hl = frame[highlight];
+      return hl !== null && hl !== undefined;
+    });
+
+    // Preserve the original request frame
+    const originalFrame = frames[0];
+
+    if (validFrames.length === 0) {
+      // No highlights found, return empty array
+      return new Frames({ ...originalFrame, [highlights]: [] });
+    }
+
+    // Collect all highlight values into a single array
+    return validFrames.collectAs([highlight], highlights);
+  },
+  // Respond with highlights array to match frontend expectations
   then: actions([Requesting.respond, { request, highlights }]),
 });

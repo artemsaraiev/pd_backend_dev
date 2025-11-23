@@ -67,7 +67,7 @@ export default class PdfHighlighterConcept {
       rects: Rect[];
       quote?: string;
     },
-    ): Promise<{ highlightId: Highlight } | { error: string }> {
+  ): Promise<{ highlightId: Highlight } | { error: string }> {
     try {
       const highlightId = freshID() as Highlight;
       const doc: HighlightDoc = {
@@ -94,7 +94,7 @@ export default class PdfHighlighterConcept {
    */
   async _get(
     { highlight }: { highlight: Highlight },
-    ): Promise<Array<{ highlight: HighlightDoc | null }>> {
+  ): Promise<Array<{ highlight: HighlightDoc | null }>> {
     try {
       const doc = await this.highlights.findOne({ _id: highlight });
       return [{ highlight: doc ?? null }];
@@ -104,25 +104,27 @@ export default class PdfHighlighterConcept {
   }
 
   /**
-   * _listByPaper(paper: Paper) : (highlights: HighlightDoc[])
+   * _listByPaper(paper: Paper) : (highlight: HighlightDoc)
    *
    * **requires** nothing
-   * **effects** returns an array of dictionaries, each containing all highlights
-   * for the given paper in the `highlights` field.
+   * **effects** returns an array of dictionaries, each containing one highlight
+   * document for the given paper in the `highlight` field.
    */
   async _listByPaper(
     { paper }: { paper: Paper },
-    ): Promise<Array<{ highlights: HighlightDoc[]; result: HighlightDoc[] }>> {
-    console.log('[PdfHighlighter._listByPaper] Called for paper:', paper);
+  ): Promise<Array<{ highlight: HighlightDoc | null }>> {
     try {
       const items = await this.highlights.find({ paper }).toArray();
-      console.log(`[PdfHighlighter._listByPaper] Found ${items.length} items`);
       const docs = items as HighlightDoc[];
-      // Return both keys to satisfy any sync version
-      return [{ highlights: docs, result: docs }];
-    } catch (e) {
-      console.error('[PdfHighlighter._listByPaper] Error:', e);
-      return [{ highlights: [], result: [] }];
+      // Queries must return an array of dictionaries, one per highlight
+      // If no highlights found, return one frame with null to allow sync to fire
+      if (docs.length === 0) {
+        return [{ highlight: null }];
+      }
+      return docs.map((doc) => ({ highlight: doc }));
+    } catch {
+      // On error, return one frame with null (queries should not throw)
+      return [{ highlight: null }];
     }
   }
 }
