@@ -457,7 +457,7 @@
 - nothing
 
 **Effects:**
-- returns an array of dictionaries, each containing all memberships for the given group in the `memberships` field. Each membership includes _id, groupId, user, and isAdmin. Returns an array with one dictionary containing `{ memberships: MembershipDoc[] }`.
+- returns an array of dictionaries, each containing one membership for the given group. Each membership includes _id, groupId, user, and isAdmin. Returns an empty array if no memberships exist.
 
 **Request Body:**
 ```json
@@ -468,19 +468,19 @@
 
 **Success Response Body (Query):**
 ```json
-[
-  {
-    "memberships": [
-      {
-        "_id": "string",
-        "groupId": "string",
-        "user": "string",
-        "isAdmin": "boolean"
-      }
-    ]
-  }
-]
+{
+  "memberships": [
+    {
+      "_id": "string",
+      "groupId": "string",
+      "user": "string",
+      "isAdmin": "boolean"
+    }
+  ]
+}
 ```
+
+**Note:** The sync collects all membership frames into a single `memberships` array for the response.
 
 **Error Response Body:**
 ```json
@@ -499,7 +499,7 @@
 - nothing
 
 **Effects:**
-- returns an array of dictionaries, each containing all memberships for the given user in the `memberships` field. Each membership includes _id, groupId, user, and isAdmin. Returns an array with one dictionary containing `{ memberships: MembershipDoc[] }`.
+- returns an array of dictionaries, each containing one membership for the given user. Each membership includes _id, groupId, user, and isAdmin. Returns an empty array if no memberships exist.
 
 **Request Body:**
 ```json
@@ -512,19 +512,19 @@
 
 **Success Response Body (Query):**
 ```json
-[
-  {
-    "memberships": [
-      {
-        "_id": "string",
-        "groupId": "string",
-        "user": "string",
-        "isAdmin": "boolean"
-      }
-    ]
-  }
-]
+{
+  "memberships": [
+    {
+      "_id": "string",
+      "groupId": "string",
+      "user": "string",
+      "isAdmin": "boolean"
+    }
+  ]
+}
 ```
+
+**Note:** The sync collects all membership frames into a single `memberships` array for the response.
 
 **Error Response Body:**
 ```json

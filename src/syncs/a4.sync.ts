@@ -758,23 +758,41 @@ export const IdentityUpdateAffiliationRequest: Sync = (
   }], [Requesting.respond, { request, ok: true }]),
 });
 
-export const IdentityGetByUserRequest: Sync = ({ request, session, user }) => ({
+export const IdentityGetByUserRequest: Sync = (
+  { request, session, user, orcid, affiliation, badge, orcids, affiliations, badges },
+) => ({
   when: actions([Requesting.request, {
     path: "/IdentityVerification/_getByUser",
     session,
   }, { request }]),
   where: async (frames) => {
-    return await frames.query(Sessioning._getUser, { session }, { user });
+    const originalFrame = frames[0];
+    frames = await frames.query(Sessioning._getUser, { session }, { user });
+    
+    // Query all three types - user is bound from frames
+    const [orcidFrames, affiliationFrames, badgeFrames] = await Promise.all([
+      frames.query(IdentityVerification._getORCIDsByUser, { user }, { orcid }),
+      frames.query(IdentityVerification._getAffiliationsByUser, { user }, { affiliation }),
+      frames.query(IdentityVerification._getBadgesByUser, { user }, { badge }),
+    ]);
+    
+    // Collect each type into arrays
+    const orcidsCollected = orcidFrames.length === 0 ? new Frames({ [orcids]: [] }) : orcidFrames.collectAs([orcid], orcids);
+    const affiliationsCollected = affiliationFrames.length === 0 ? new Frames({ [affiliations]: [] }) : affiliationFrames.collectAs([affiliation], affiliations);
+    const badgesCollected = badgeFrames.length === 0 ? new Frames({ [badges]: [] }) : badgeFrames.collectAs([badge], badges);
+    
+    // Extract arrays from collected frames
+    const orcidsArray = (orcidsCollected[0]?.[orcids] as Array<unknown>) ?? [];
+    const affiliationsArray = (affiliationsCollected[0]?.[affiliations] as Array<unknown>) ?? [];
+    const badgesArray = (badgesCollected[0]?.[badges] as Array<unknown>) ?? [];
+    
+    // Combine all results into a single frame
+    return new Frames({
+      ...originalFrame,
+      [orcids]: orcidsArray,
+      [affiliations]: affiliationsArray,
+      [badges]: badgesArray,
+    });
   },
-  then: actions([IdentityVerification._getByUser, { user }]),
-});
-
-export const IdentityGetByUserResponse: Sync = ({ request, result }) => ({
-  when: actions(
-    [Requesting.request, { path: "/IdentityVerification/_getByUser" }, {
-      request,
-    }],
-    [IdentityVerification._getByUser, {}, { result }],
-  ),
-  then: actions([Requesting.respond, { request, result }]),
+  then: actions([Requesting.respond, { request, orcids, affiliations, badges }]),
 });

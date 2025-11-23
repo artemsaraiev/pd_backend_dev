@@ -46,14 +46,18 @@ account, and these can be used to verify the user's identity
     + **requires** the badge is in the set of Badges
     + **effects** the badge is removed from the set of Badges
 + **queries**
-  + _getByUser(user: User) : (orcids: ORCIDDoc[], affiliations: AffiliationDoc[],
-  badges: BadgeDoc[])
+  + _getORCIDsByUser(user: User) : (orcid: ORCIDDoc)
     + **requires** nothing
-    + **effects** returns an array of dictionaries, each containing all ORCIDs,
-    Affiliations,
-    and Badges for the given user. Each ORCID includes _id, user, and orcid. Each
-    Affiliation
-    includes _id, user, and affiliation. Each Badge includes _id, user, and badge.
-    Returns an
-    array with one dictionary containing `{ orcids: ORCIDDoc[], affiliations:
-    AffiliationDoc[], badges: BadgeDoc[] }`.
+    + **effects** returns an array of dictionaries, each containing one ORCID document
+    for the given user. Each ORCID includes _id, user, and orcid. Returns an empty
+    array if no ORCIDs exist.
+  + _getAffiliationsByUser(user: User) : (affiliation: AffiliationDoc)
+    + **requires** nothing
+    + **effects** returns an array of dictionaries, each containing one Affiliation document
+    for the given user. Each Affiliation includes _id, user, and affiliation. Returns
+    an empty array if no affiliations exist.
+  + _getBadgesByUser(user: User) : (badge: BadgeDoc)
+    + **requires** nothing
+    + **effects** returns an array of dictionaries, each containing one Badge document
+    for the given user. Each Badge includes _id, user, and badge. Returns an empty
+    array if no badges exist.

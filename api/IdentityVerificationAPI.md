@@ -264,7 +264,7 @@
 - nothing
 
 **Effects:**
-- returns an array of dictionaries, each containing all ORCIDs, Affiliations, and Badges for the given user. Each ORCID includes _id, user, and orcid. Each Affiliation includes _id, user, and affiliation. Each Badge includes _id, user, and badge. Returns an array with one dictionary containing `{ orcids: ORCIDDoc[], affiliations: AffiliationDoc[], badges: BadgeDoc[] }`.
+- The sync queries three separate queries (`_getORCIDsByUser`, `_getAffiliationsByUser`, `_getBadgesByUser`) and combines their results. Each query returns an array of dictionaries in fan-out format, and the sync collects them into arrays. Returns a single dictionary containing `{ orcids: ORCIDDoc[], affiliations: AffiliationDoc[], badges: BadgeDoc[] }`.
 
 **Request Body:**
 ```json
@@ -277,16 +277,15 @@
 
 **Success Response Body (Query):**
 ```json
-[
-  {
-    "orcids": [
-      {
-        "_id": "string",
-        "user": "string",
-        "orcid": "string"
-      }
-    ],
-    "affiliations": [
+{
+  "orcids": [
+    {
+      "_id": "string",
+      "user": "string",
+      "orcid": "string"
+    }
+  ],
+  "affiliations": [
       {
         "_id": "string",
         "user": "string",
@@ -301,7 +300,10 @@
       }
     ]
   }
-]
+}
+```
+
+**Note:** The sync combines results from three separate queries (`_getORCIDsByUser`, `_getAffiliationsByUser`, `_getBadgesByUser`) into a single response.
 ```
 
 **Error Response Body:**

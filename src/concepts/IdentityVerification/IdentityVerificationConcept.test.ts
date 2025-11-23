@@ -74,19 +74,17 @@ Deno.test("Principle: User can add ORCID, affiliation, and badges to verify iden
 
     // 4. Verify all can be retrieved
     console.log("  Step 4: Verify all verification signals can be retrieved");
-    const getResult = await concept._getByUser({ user: userAlice });
-    assertEquals(
-      getResult.length,
-      1,
-      "Query should return array with one dictionary",
-    );
-    const { orcids, affiliations, badges } = getResult[0];
-    assertEquals(orcids.length, 1, "Should have one ORCID");
-    assertEquals(orcids[0].orcid, orcid1, "ORCID should match");
-    assertEquals(affiliations.length, 1, "Should have one affiliation");
-    assertEquals(affiliations[0].affiliation, affiliation1, "Affiliation should match");
-    assertEquals(badges.length, 1, "Should have one badge");
-    assertEquals(badges[0].badge, badge1, "Badge should match");
+    const [orcidsResult, affiliationsResult, badgesResult] = await Promise.all([
+      concept._getORCIDsByUser({ user: userAlice }),
+      concept._getAffiliationsByUser({ user: userAlice }),
+      concept._getBadgesByUser({ user: userAlice }),
+    ]);
+    assertEquals(orcidsResult.length, 1, "Should have one ORCID");
+    assertEquals(orcidsResult[0].orcid.orcid, orcid1, "ORCID should match");
+    assertEquals(affiliationsResult.length, 1, "Should have one affiliation");
+    assertEquals(affiliationsResult[0].affiliation.affiliation, affiliation1, "Affiliation should match");
+    assertEquals(badgesResult.length, 1, "Should have one badge");
+    assertEquals(badgesResult[0].badge.badge, badge1, "Badge should match");
     console.log("    All verification signals verified");
   } finally {
     await client.close();
@@ -121,10 +119,10 @@ Deno.test("Action: addORCID requires no existing ORCID, returns new ORCID", asyn
 
     // Test: addORCID returns new ORCID ID
     console.log("  Testing effects: returns new ORCID ID");
-    const getResult = await concept._getByUser({ user: userAlice });
-    assertEquals(getResult[0].orcids.length, 1, "Should have one ORCID");
-    assertEquals(getResult[0].orcids[0]._id, orcidId1, "ORCID ID should match");
-    assertEquals(getResult[0].orcids[0].orcid, orcid1, "ORCID value should match");
+    const orcidsResult = await concept._getORCIDsByUser({ user: userAlice });
+    assertEquals(orcidsResult.length, 1, "Should have one ORCID");
+    assertEquals(orcidsResult[0].orcid._id, orcidId1, "ORCID ID should match");
+    assertEquals(orcidsResult[0].orcid.orcid, orcid1, "ORCID value should match");
     console.log("    ORCID added and returned correctly");
   } finally {
     await client.close();
@@ -156,8 +154,8 @@ Deno.test("Action: removeORCID requires ORCID exists, removes it", async () => {
     const removeResult = await concept.removeORCID({ orcid: orcidId });
     assertNotEquals("error" in removeResult, true, "Should succeed");
 
-    const getResult = await concept._getByUser({ user: userAlice });
-    assertEquals(getResult[0].orcids.length, 0, "ORCID should be removed");
+    const orcidsResult = await concept._getORCIDsByUser({ user: userAlice });
+    assertEquals(orcidsResult.length, 0, "ORCID should be removed");
     console.log("    ORCID removed correctly");
   } finally {
     await client.close();
@@ -200,9 +198,9 @@ Deno.test("Action: addAffiliation requires no duplicate, returns new Affiliation
 
     // Test: addAffiliation returns new Affiliation ID
     console.log("  Testing effects: returns new Affiliation ID");
-    const getResult = await concept._getByUser({ user: userAlice });
-    assertEquals(getResult[0].affiliations.length, 2, "Should have two affiliations");
-    const affIds = getResult[0].affiliations.map((a) => a._id);
+    const affiliationsResult = await concept._getAffiliationsByUser({ user: userAlice });
+    assertEquals(affiliationsResult.length, 2, "Should have two affiliations");
+    const affIds = affiliationsResult.map((a) => a.affiliation._id);
     assertEquals(affIds.includes(affId1), true, "Should include first affiliation");
     console.log("    Affiliations added and returned correctly");
   } finally {
@@ -235,8 +233,8 @@ Deno.test("Action: removeAffiliation requires Affiliation exists, removes it", a
     const removeResult = await concept.removeAffiliation({ affiliation: affId });
     assertNotEquals("error" in removeResult, true, "Should succeed");
 
-    const getResult = await concept._getByUser({ user: userAlice });
-    assertEquals(getResult[0].affiliations.length, 0, "Affiliation should be removed");
+    const affiliationsResult = await concept._getAffiliationsByUser({ user: userAlice });
+    assertEquals(affiliationsResult.length, 0, "Affiliation should be removed");
     console.log("    Affiliation removed correctly");
   } finally {
     await client.close();
@@ -290,13 +288,13 @@ Deno.test("Action: updateAffiliation requires Affiliation exists and no duplicat
     });
     assertNotEquals("error" in updateResult, true, "Should succeed");
 
-    const getResult = await concept._getByUser({ user: userAlice });
-    assertEquals(getResult[0].affiliations.length, 2, "Should still have two affiliations");
-    const updatedAff = getResult[0].affiliations.find((a) => a._id === affId1);
+    const affiliationsResult = await concept._getAffiliationsByUser({ user: userAlice });
+    assertEquals(affiliationsResult.length, 2, "Should still have two affiliations");
+    const updatedAff = affiliationsResult.find((a) => a.affiliation._id === affId1)?.affiliation;
     assertExists(updatedAff, "Updated affiliation should exist");
     assertEquals(updatedAff.affiliation, "Stanford", "Affiliation should be updated");
     assertEquals(
-      getResult[0].affiliations.find((a) => a._id === affId2)?.affiliation,
+      affiliationsResult.find((a) => a.affiliation._id === affId2)?.affiliation.affiliation,
       affiliation2,
       "Other affiliation should be unchanged",
     );
@@ -342,9 +340,9 @@ Deno.test("Action: addBadge requires no duplicate, returns new Badge", async () 
 
     // Test: addBadge returns new Badge ID
     console.log("  Testing effects: returns new Badge ID");
-    const getResult = await concept._getByUser({ user: userAlice });
-    assertEquals(getResult[0].badges.length, 2, "Should have two badges");
-    const badgeIds = getResult[0].badges.map((b) => b._id);
+    const badgesResult = await concept._getBadgesByUser({ user: userAlice });
+    assertEquals(badgesResult.length, 2, "Should have two badges");
+    const badgeIds = badgesResult.map((b) => b.badge._id);
     assertEquals(badgeIds.includes(badgeId1), true, "Should include first badge");
     console.log("    Badges added and returned correctly");
   } finally {
@@ -377,33 +375,32 @@ Deno.test("Action: revokeBadge requires Badge exists, removes it", async () => {
     const revokeResult = await concept.revokeBadge({ badge: badgeId });
     assertNotEquals("error" in revokeResult, true, "Should succeed");
 
-    const getResult = await concept._getByUser({ user: userAlice });
-    assertEquals(getResult[0].badges.length, 0, "Badge should be removed");
+    const badgesResult = await concept._getBadgesByUser({ user: userAlice });
+    assertEquals(badgesResult.length, 0, "Badge should be removed");
     console.log("    Badge removed correctly");
   } finally {
     await client.close();
   }
 });
 
-// Query: _getByUser
-Deno.test("Query: _getByUser returns all verification signals for user", async () => {
+// Query: _getORCIDsByUser, _getAffiliationsByUser, _getBadgesByUser
+Deno.test("Query: _getORCIDsByUser, _getAffiliationsByUser, _getBadgesByUser return all verification signals for user", async () => {
   const [db, client] = await testDb();
   const concept = new IdentityVerificationConcept(db);
 
   try {
-    console.log("Testing _getByUser query");
+    console.log("Testing _getORCIDsByUser, _getAffiliationsByUser, _getBadgesByUser queries");
 
     // Test: returns empty arrays for user with no verification signals
     console.log("  Testing user with no verification signals");
-    const result1 = await concept._getByUser({ user: userAlice });
-    assertEquals(
-      result1.length,
-      1,
-      "Query should return array with one dictionary",
-    );
-    assertEquals(result1[0].orcids.length, 0, "Should return empty ORCIDs");
-    assertEquals(result1[0].affiliations.length, 0, "Should return empty affiliations");
-    assertEquals(result1[0].badges.length, 0, "Should return empty badges");
+    const [orcids1, affiliations1, badges1] = await Promise.all([
+      concept._getORCIDsByUser({ user: userAlice }),
+      concept._getAffiliationsByUser({ user: userAlice }),
+      concept._getBadgesByUser({ user: userAlice }),
+    ]);
+    assertEquals(orcids1.length, 0, "Should return empty ORCIDs");
+    assertEquals(affiliations1.length, 0, "Should return empty affiliations");
+    assertEquals(badges1.length, 0, "Should return empty badges");
     console.log("    Correctly returns empty arrays");
 
     // Test: returns all verification signals for user
@@ -427,29 +424,27 @@ Deno.test("Query: _getByUser returns all verification signals for user", async (
     const badgeResult2 = await concept.addBadge({ user: userAlice, badge: badge2 });
     const { newBadge: badgeId2 } = badgeResult2 as { newBadge: ID };
 
-    const result2 = await concept._getByUser({ user: userAlice });
-    assertEquals(
-      result2.length,
-      1,
-      "Query should return array with one dictionary",
-    );
-    const { orcids, affiliations, badges } = result2[0];
+    const [orcids2, affiliations2, badges2] = await Promise.all([
+      concept._getORCIDsByUser({ user: userAlice }),
+      concept._getAffiliationsByUser({ user: userAlice }),
+      concept._getBadgesByUser({ user: userAlice }),
+    ]);
 
     // Verify ORCIDs
-    assertEquals(orcids.length, 1, "Should have one ORCID");
-    assertEquals(orcids[0]._id, orcidId, "ORCID ID should match");
-    assertEquals(orcids[0].user, userAlice, "User should match");
-    assertEquals(orcids[0].orcid, orcid1, "ORCID value should match");
+    assertEquals(orcids2.length, 1, "Should have one ORCID");
+    assertEquals(orcids2[0].orcid._id, orcidId, "ORCID ID should match");
+    assertEquals(orcids2[0].orcid.user, userAlice, "User should match");
+    assertEquals(orcids2[0].orcid.orcid, orcid1, "ORCID value should match");
 
     // Verify Affiliations
-    assertEquals(affiliations.length, 2, "Should have two affiliations");
-    const affIds = affiliations.map((a) => a._id);
+    assertEquals(affiliations2.length, 2, "Should have two affiliations");
+    const affIds = affiliations2.map((a) => a.affiliation._id);
     assertEquals(affIds.includes(affId1), true, "Should include first affiliation");
     assertEquals(affIds.includes(affId2), true, "Should include second affiliation");
 
     // Verify Badges
-    assertEquals(badges.length, 2, "Should have two badges");
-    const badgeIds = badges.map((b) => b._id);
+    assertEquals(badges2.length, 2, "Should have two badges");
+    const badgeIds = badges2.map((b) => b.badge._id);
     assertEquals(badgeIds.includes(badgeId1), true, "Should include first badge");
     assertEquals(badgeIds.includes(badgeId2), true, "Should include second badge");
     console.log("    Correctly returns all verification signals");
@@ -458,12 +453,12 @@ Deno.test("Query: _getByUser returns all verification signals for user", async (
   }
 });
 
-Deno.test("Query: _getByUser returns separate results for different users", async () => {
+Deno.test("Query: _getORCIDsByUser, _getBadgesByUser return separate results for different users", async () => {
   const [db, client] = await testDb();
   const concept = new IdentityVerificationConcept(db);
 
   try {
-    console.log("Testing _getByUser query - user isolation");
+    console.log("Testing _getORCIDsByUser, _getBadgesByUser queries - user isolation");
 
     await concept.addORCID({ user: userAlice, orcid: orcid1 });
     await concept.addBadge({ user: userAlice, badge: badge1 });
@@ -471,18 +466,24 @@ Deno.test("Query: _getByUser returns separate results for different users", asyn
     await concept.addORCID({ user: userBob, orcid: orcid2 });
     await concept.addBadge({ user: userBob, badge: badge2 });
 
-    const aliceResult = await concept._getByUser({ user: userAlice });
-    const bobResult = await concept._getByUser({ user: userBob });
+    const [aliceOrcids, aliceBadges] = await Promise.all([
+      concept._getORCIDsByUser({ user: userAlice }),
+      concept._getBadgesByUser({ user: userAlice }),
+    ]);
+    const [bobOrcids, bobBadges] = await Promise.all([
+      concept._getORCIDsByUser({ user: userBob }),
+      concept._getBadgesByUser({ user: userBob }),
+    ]);
 
-    assertEquals(aliceResult[0].orcids.length, 1, "Alice should have one ORCID");
-    assertEquals(aliceResult[0].orcids[0].orcid, orcid1, "Alice's ORCID should match");
-    assertEquals(aliceResult[0].badges.length, 1, "Alice should have one badge");
-    assertEquals(aliceResult[0].badges[0].badge, badge1, "Alice's badge should match");
+    assertEquals(aliceOrcids.length, 1, "Alice should have one ORCID");
+    assertEquals(aliceOrcids[0].orcid.orcid, orcid1, "Alice's ORCID should match");
+    assertEquals(aliceBadges.length, 1, "Alice should have one badge");
+    assertEquals(aliceBadges[0].badge.badge, badge1, "Alice's badge should match");
 
-    assertEquals(bobResult[0].orcids.length, 1, "Bob should have one ORCID");
-    assertEquals(bobResult[0].orcids[0].orcid, orcid2, "Bob's ORCID should match");
-    assertEquals(bobResult[0].badges.length, 1, "Bob should have one badge");
-    assertEquals(bobResult[0].badges[0].badge, badge2, "Bob's badge should match");
+    assertEquals(bobOrcids.length, 1, "Bob should have one ORCID");
+    assertEquals(bobOrcids[0].orcid.orcid, orcid2, "Bob's ORCID should match");
+    assertEquals(bobBadges.length, 1, "Bob should have one badge");
+    assertEquals(bobBadges[0].badge.badge, badge2, "Bob's badge should match");
     console.log("    Users correctly isolated");
   } finally {
     await client.close();

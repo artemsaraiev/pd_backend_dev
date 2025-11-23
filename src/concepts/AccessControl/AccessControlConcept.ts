@@ -468,56 +468,58 @@ export default class AccessControlConcept {
   }
 
   /**
-   * _getMembershipsByGroup(group: Group) : (memberships: MembershipDoc[])
+   * _getMembershipsByGroup(group: Group) : (membership: MembershipDoc)
    *
    * **requires** nothing
-   * **effects** returns an array of dictionaries, each containing all memberships
-   * for the given group in the `memberships` field. Returns an array with one dictionary
-   * containing `{ memberships: MembershipDoc[] }`.
+   * **effects** returns an array of dictionaries, each containing one membership
+   * for the given group. Each membership includes _id, groupId, user, and isAdmin.
+   * Returns an empty array if no memberships exist.
    */
   async _getMembershipsByGroup(
     { group }: { group: Group },
-    ): Promise<Array<{ memberships: Array<{ _id: Membership; groupId: Group; user: User; isAdmin: boolean }> }>> {
+    ): Promise<Array<{ membership: { _id: Membership; groupId: Group; user: User; isAdmin: boolean } }>> {
     try {
       const items = await this.memberships.find({ groupId: group }).toArray();
-      const memberships = items.map((m) => ({
-        _id: m._id,
-        groupId: m.groupId,
-        user: m.user,
-        isAdmin: m.isAdmin,
+      // Queries must return an array of dictionaries, one per membership
+      return items.map((m) => ({
+        membership: {
+          _id: m._id,
+          groupId: m.groupId,
+          user: m.user,
+          isAdmin: m.isAdmin,
+        },
       }));
-      // Queries must return an array of dictionaries
-      return [{ memberships }];
     } catch {
       // On error, return empty array (queries should not throw)
-      return [{ memberships: [] }];
+      return [];
     }
   }
 
   /**
-   * _getMembershipsByUser(user: User) : (memberships: MembershipDoc[])
+   * _getMembershipsByUser(user: User) : (membership: MembershipDoc)
    *
    * **requires** nothing
-   * **effects** returns an array of dictionaries, each containing all memberships
-   * for the given user in the `memberships` field. Returns an array with one dictionary
-   * containing `{ memberships: MembershipDoc[] }`.
+   * **effects** returns an array of dictionaries, each containing one membership
+   * for the given user. Each membership includes _id, groupId, user, and isAdmin.
+   * Returns an empty array if no memberships exist.
    */
   async _getMembershipsByUser(
     { user }: { user: User },
-    ): Promise<Array<{ memberships: Array<{ _id: Membership; groupId: Group; user: User; isAdmin: boolean }> }>> {
+    ): Promise<Array<{ membership: { _id: Membership; groupId: Group; user: User; isAdmin: boolean } }>> {
     try {
       const items = await this.memberships.find({ user }).toArray();
-      const memberships = items.map((m) => ({
-        _id: m._id,
-        groupId: m.groupId,
-        user: m.user,
-        isAdmin: m.isAdmin,
+      // Queries must return an array of dictionaries, one per membership
+      return items.map((m) => ({
+        membership: {
+          _id: m._id,
+          groupId: m.groupId,
+          user: m.user,
+          isAdmin: m.isAdmin,
+        },
       }));
-      // Queries must return an array of dictionaries
-      return [{ memberships }];
     } catch {
       // On error, return empty array (queries should not throw)
-      return [{ memberships: [] }];
+      return [];
     }
   }
 

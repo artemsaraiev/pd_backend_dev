@@ -358,7 +358,7 @@
 - nothing
 
 **Effects:**
-- returns authors where the canonicalName or any NameVariation matches the query string (partial or exact).
+- returns an array of dictionaries, each containing one author and its match type where the canonicalName or any NameVariation matches the query string (partial or exact). Returns an empty array if no matches are found.
 
 **Request Body:**
 ```json
@@ -369,22 +369,24 @@
 
 **Success Response Body (Query):**
 ```json
-[
-  {
-    "matches": [
-      {
-        "author": {
-          "_id": "string",
-          "canonicalName": "string",
-          "affiliations": ["string"],
-          "externalIds": ["string"],
-          "website": "string"
-        },
-        "matchType": "Canonical" | "Variation"
+{
+  "matches": [
+    {
+      "author": {
+        "_id": "string",
+        "canonicalName": "string",
+        "affiliations": ["string"],
+        "externalIds": ["string"],
+        "website": "string"
+      },
+      "matchType": "Canonical" | "Variation"
       }
     ]
   }
-]
+}
+```
+
+**Note:** The sync collects all match frames into a single `matches` array for the response.
 ```
 
 **Error Response Body:**

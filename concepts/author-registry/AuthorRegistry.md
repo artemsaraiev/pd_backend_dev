@@ -56,11 +56,11 @@ works as their own.
   + _getAuthorByUser(user: User) : (author: AuthorDoc | null)
     + **requires** nothing
     + **effects** returns the author linked to this user, or null if none
-  + _findAuthorsByName(nameQuery: String) : (matches: { author: AuthorDoc, matchType:
-  String }[])
+  + _findAuthorsByName(nameQuery: String) : (author: AuthorDoc, matchType: String)
     + **requires** nothing
-    + **effects** returns authors where the canonicalName or any NameVariation matches
-    the query string (partial or exact).
+    + **effects** returns an array of dictionaries, each containing one author and its
+    match type where the canonicalName or any NameVariation matches the query string
+    (partial or exact). Returns an empty array if no matches are found.
   + _resolveAuthor(exactName: String) : (author: AuthorDoc | null)
     + **requires** nothing
     + **effects** returns the author that owns this specific name string variation, if

@@ -348,14 +348,16 @@ export default class AuthorRegistryConcept {
   }
 
   /**
-   * _findAuthorsByName(nameQuery: String) : (matches: { author: AuthorDoc, matchType: String }[])
+   * _findAuthorsByName(nameQuery: String) : (author: AuthorDoc, matchType: String)
    *
    * **requires** nothing
-   * **effects** returns authors where the canonicalName or any NameVariation matches the query string (partial or exact).
+   * **effects** returns an array of dictionaries, each containing one author and its
+   * match type where the canonicalName or any NameVariation matches the query string
+   * (partial or exact). Returns an empty array if no matches are found.
    */
   async _findAuthorsByName(
     { nameQuery }: { nameQuery: string },
-    ): Promise<Array<{ matches: Array<{ author: AuthorDoc; matchType: string }> }>> {
+    ): Promise<Array<{ author: AuthorDoc; matchType: string }>> {
     try {
       // Find matching name variations
       const regex = new RegExp(nameQuery, "i");
@@ -366,7 +368,8 @@ export default class AuthorRegistryConcept {
         _id: { $in: authorIds } 
       }).toArray();
 
-      const matches = authors.map(author => {
+      // Queries must return an array of dictionaries, one per match
+      return authors.map(author => {
         // Find best match type (Canonical or Variation)
         const isCanonical = regex.test(author.canonicalName);
         return {
@@ -374,10 +377,8 @@ export default class AuthorRegistryConcept {
           matchType: isCanonical ? "Canonical" : "Variation"
         };
       });
-
-      return [{ matches }];
     } catch {
-      return [{ matches: [] }];
+      return [];
     }
   }
 

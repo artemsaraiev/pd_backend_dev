@@ -253,51 +253,80 @@ export default class IdentityVerificationConcept {
   }
 
   /**
-   * _getByUser(user: User) : (orcids: ORCIDDoc[], affiliations: AffiliationDoc[], badges: BadgeDoc[])
+   * _getORCIDsByUser(user: User) : (orcid: ORCIDDoc)
    *
    * **requires** nothing
-   * **effects** returns an array of dictionaries, each containing all ORCIDs, Affiliations,
-   * and Badges for the given user. Returns an array with one dictionary containing
-   * `{ orcids: ORCIDDoc[], affiliations: AffiliationDoc[], badges: BadgeDoc[] }`.
+   * **effects** returns an array of dictionaries, each containing one ORCID document
+   * for the given user. Returns an empty array if no ORCIDs exist.
    */
-  async _getByUser(
+  async _getORCIDsByUser(
     { user }: { user: User },
-  ): Promise<
-    Array<{
-      orcids: Array<{ _id: ORCID; user: User; orcid: string }>;
-      affiliations: Array<
-        { _id: Affiliation; user: User; affiliation: string }
-      >;
-      badges: Array<{ _id: Badge; user: User; badge: string }>;
-    }>
-  > {
+  ): Promise<Array<{ orcid: { _id: ORCID; user: User; orcid: string } }>> {
     try {
-      const [orcids, affiliations, badges] = await Promise.all([
-        this.orcids.find({ user }).toArray(),
-        this.affiliations.find({ user }).toArray(),
-        this.badges.find({ user }).toArray(),
-      ]);
-      // Queries must return an array of dictionaries
-      return [{
-        orcids: orcids.map((o) => ({
+      const items = await this.orcids.find({ user }).toArray();
+      // Queries must return an array of dictionaries, one per ORCID
+      return items.map((o) => ({
+        orcid: {
           _id: o._id,
           user: o.user,
           orcid: o.orcid,
-        })),
-        affiliations: affiliations.map((a) => ({
+        },
+      }));
+    } catch {
+      // On error, return empty array (queries should not throw)
+      return [];
+    }
+  }
+
+  /**
+   * _getAffiliationsByUser(user: User) : (affiliation: AffiliationDoc)
+   *
+   * **requires** nothing
+   * **effects** returns an array of dictionaries, each containing one Affiliation document
+   * for the given user. Returns an empty array if no affiliations exist.
+   */
+  async _getAffiliationsByUser(
+    { user }: { user: User },
+  ): Promise<Array<{ affiliation: { _id: Affiliation; user: User; affiliation: string } }>> {
+    try {
+      const items = await this.affiliations.find({ user }).toArray();
+      // Queries must return an array of dictionaries, one per affiliation
+      return items.map((a) => ({
+        affiliation: {
           _id: a._id,
           user: a.user,
           affiliation: a.affiliation,
-        })),
-        badges: badges.map((b) => ({
+        },
+      }));
+    } catch {
+      // On error, return empty array (queries should not throw)
+      return [];
+    }
+  }
+
+  /**
+   * _getBadgesByUser(user: User) : (badge: BadgeDoc)
+   *
+   * **requires** nothing
+   * **effects** returns an array of dictionaries, each containing one Badge document
+   * for the given user. Returns an empty array if no badges exist.
+   */
+  async _getBadgesByUser(
+    { user }: { user: User },
+  ): Promise<Array<{ badge: { _id: Badge; user: User; badge: string } }>> {
+    try {
+      const items = await this.badges.find({ user }).toArray();
+      // Queries must return an array of dictionaries, one per badge
+      return items.map((b) => ({
+        badge: {
           _id: b._id,
           user: b.user,
           badge: b.badge,
-        })),
-      }];
+        },
+      }));
     } catch {
-      // On error, return empty arrays (queries should not throw)
-      return [{ orcids: [], affiliations: [], badges: [] }];
+      // On error, return empty array (queries should not throw)
+      return [];
     }
   }
 }
