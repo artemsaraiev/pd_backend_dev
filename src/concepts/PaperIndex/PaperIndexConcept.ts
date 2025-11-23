@@ -300,6 +300,7 @@ export default class PaperIndexConcept {
         papers: Array<
           {
             _id: Paper;
+            paperId: string;
             title?: string;
             createdAt?: number;
             authors: Author[];
@@ -312,7 +313,14 @@ export default class PaperIndexConcept {
     try {
       const cur = this.papers
         .find({}, {
-          projection: { _id: 1, title: 1, createdAt: 1, authors: 1, links: 1 },
+          projection: {
+            _id: 1,
+            paperId: 1,
+            title: 1,
+            createdAt: 1,
+            authors: 1,
+            links: 1,
+          },
         })
         .sort({ createdAt: -1 })
         .limit(limit ?? 20);
