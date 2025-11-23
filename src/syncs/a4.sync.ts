@@ -311,70 +311,78 @@ export const DiscussionGetPubIdByPaperResponse: Sync = (
 
 // _listThreads with anchorId filter
 export const DiscussionListThreadsWithAnchorRequest: Sync = (
-  { request, pubId, anchorId },
+  { request, pubId, anchorId, thread, threads },
 ) => ({
   when: actions([Requesting.request, {
     path: "/DiscussionPub/_listThreads",
     pubId,
     anchorId,
   }, { request }]),
-  then: actions([DiscussionPub._listThreads, { pubId, anchorId }]),
+  where: async (frames) => {
+    const originalFrame = frames[0];
+    frames = await frames.query(DiscussionPub._listThreads, { pubId, anchorId }, { thread });
+    if (frames.length === 0) {
+      return new Frames({ ...originalFrame, [threads]: [] });
+    }
+    return frames.collectAs([thread], threads);
+  },
+  then: actions([Requesting.respond, { request, threads }]),
 });
 
 // _listThreads without anchorId filter
-export const DiscussionListThreadsRequest: Sync = ({ request, pubId }) => ({
+export const DiscussionListThreadsRequest: Sync = (
+  { request, pubId, thread, threads },
+) => ({
   when: actions([Requesting.request, {
     path: "/DiscussionPub/_listThreads",
     pubId,
   }, { request }]),
-  then: actions([DiscussionPub._listThreads, { pubId }]),
+  where: async (frames) => {
+    const originalFrame = frames[0];
+    frames = await frames.query(DiscussionPub._listThreads, { pubId }, { thread });
+    if (frames.length === 0) {
+      return new Frames({ ...originalFrame, [threads]: [] });
+    }
+    return frames.collectAs([thread], threads);
+  },
+  then: actions([Requesting.respond, { request, threads }]),
 });
 
-export const DiscussionListThreadsResponse: Sync = ({ request, result }) => ({
-  when: actions(
-    [Requesting.request, { path: "/DiscussionPub/_listThreads" }, { request }],
-    [DiscussionPub._listThreads, {}, { result }],
-  ),
-  then: actions([Requesting.respond, { request, result }]),
-});
-
-export const DiscussionListRepliesRequest: Sync = ({ request, threadId }) => ({
+export const DiscussionListRepliesRequest: Sync = (
+  { request, threadId, reply, replies },
+) => ({
   when: actions([Requesting.request, {
     path: "/DiscussionPub/_listReplies",
     threadId,
   }, { request }]),
-  then: actions([DiscussionPub._listReplies, { threadId }]),
-});
-
-export const DiscussionListRepliesResponse: Sync = ({ request, result }) => ({
-  when: actions(
-    [Requesting.request, { path: "/DiscussionPub/_listReplies" }, { request }],
-    [DiscussionPub._listReplies, {}, { result }],
-  ),
-  then: actions([Requesting.respond, { request, result }]),
+  where: async (frames) => {
+    const originalFrame = frames[0];
+    frames = await frames.query(DiscussionPub._listReplies, { threadId }, { reply });
+    if (frames.length === 0) {
+      return new Frames({ ...originalFrame, [replies]: [] });
+    }
+    return frames.collectAs([reply], replies);
+  },
+  then: actions([Requesting.respond, { request, replies }]),
 });
 
 // Tree-structured replies
 export const DiscussionListRepliesTreeRequest: Sync = (
-  { request, threadId },
+  { request, threadId, reply, replies },
 ) => ({
   when: actions([Requesting.request, {
     path: "/DiscussionPub/_listRepliesTree",
     threadId,
   }, { request }]),
-  then: actions([DiscussionPub._listRepliesTree, { threadId }]),
-});
-
-export const DiscussionListRepliesTreeResponse: Sync = (
-  { request, result },
-) => ({
-  when: actions(
-    [Requesting.request, { path: "/DiscussionPub/_listRepliesTree" }, {
-      request,
-    }],
-    [DiscussionPub._listRepliesTree, {}, { result }],
-  ),
-  then: actions([Requesting.respond, { request, result }]),
+  where: async (frames) => {
+    const originalFrame = frames[0];
+    frames = await frames.query(DiscussionPub._listRepliesTree, { threadId }, { reply });
+    if (frames.length === 0) {
+      return new Frames({ ...originalFrame, [replies]: [] });
+    }
+    return frames.collectAs([reply], replies);
+  },
+  then: actions([Requesting.respond, { request, replies }]),
 });
 
 // IdentityVerification

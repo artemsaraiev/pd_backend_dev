@@ -448,31 +448,28 @@ export default class DiscussionPubConcept {
   }
 
   /**
-   * _listThreads(pub: Pub, anchor?: Anchor) : (threads: Thread[])
+   * _listThreads(pub: Pub, anchor?: Anchor) : (thread: Thread)
    *
    * **requires** nothing
-   * **effects** returns all non-deleted threads for the given pub, optionally filtered
-   * by anchor. Results are ordered by createdAt. Returns an array of dictionaries, each
-   * with a `threads` field containing an array of threads.
+   * **effects** returns an array of dictionaries, each containing one non-deleted
+   * thread for the given pub, optionally filtered by anchor. Results are ordered by
+   * createdAt. Each thread includes _id, author, title, body, anchorId, createdAt, and
+   * editedAt. Returns an empty array if no threads exist.
    */
   async _listThreads(
     { pubId, anchorId }: { pubId: Pub; anchorId?: Anchor },
   ): Promise<
-    Array<
-      {
-        threads: Array<
-          {
-            _id: Thread;
-            author: User;
-            title: string;
-            body: string;
-            anchorId?: Anchor;
-            createdAt: number;
-            editedAt?: number;
-          }
-        >;
-      }
-    >
+    Array<{
+      thread: {
+        _id: Thread;
+        author: User;
+        title: string;
+        body: string;
+        anchorId?: Anchor;
+        createdAt: number;
+        editedAt?: number;
+      };
+    }>
   > {
     try {
       const filter: Record<string, unknown> = {
@@ -482,50 +479,47 @@ export default class DiscussionPubConcept {
       if (anchorId !== undefined) filter.anchorId = anchorId;
       const cur = this.threads.find(filter).sort({ createdAt: 1 });
       const items = await cur.toArray();
-      const threads = items.map((t) => ({
-        _id: t._id,
-        author: t.author,
-        title: t.title ?? "", // Default for backward compatibility
-        body: t.body,
-        anchorId: t.anchorId,
-        createdAt: t.createdAt,
-        editedAt: t.editedAt,
+      // Queries must return an array of dictionaries, one per thread
+      return items.map((t) => ({
+        thread: {
+          _id: t._id,
+          author: t.author,
+          title: t.title ?? "", // Default for backward compatibility
+          body: t.body,
+          anchorId: t.anchorId,
+          createdAt: t.createdAt,
+          editedAt: t.editedAt,
+        },
       }));
-      // Queries must return an array of dictionaries
-      return [{ threads }];
     } catch {
       // On error, return empty array (queries should not throw)
-      return [{ threads: [] }];
+      return [];
     }
   }
 
   /**
-   * _listReplies(thread: Thread) : (replies: Reply[])
+   * _listReplies(thread: Thread) : (reply: Reply)
    *
    * **requires** nothing
-   * **effects** returns all non-deleted replies for the given thread, ordered by
-   * createdAt. Each reply includes _id, author, body, anchorId, parentId, createdAt,
-   * and editedAt. Returns an array of dictionaries, each with a `replies` field
-   * containing an array of replies.
+   * **effects** returns an array of dictionaries, each containing one non-deleted
+   * reply for the given thread, ordered by createdAt. Each reply includes _id, author,
+   * body, anchorId, parentId, createdAt, and editedAt. Returns an empty array if no
+   * replies exist.
    */
   async _listReplies(
     { threadId }: { threadId: Thread },
   ): Promise<
-    Array<
-      {
-        replies: Array<
-          {
-            _id: Reply;
-            author: User;
-            body: string;
-            anchorId?: Anchor;
-            parentId?: Reply;
-            createdAt: number;
-            editedAt?: number;
-          }
-        >;
-      }
-    >
+    Array<{
+      reply: {
+        _id: Reply;
+        author: User;
+        body: string;
+        anchorId?: Anchor;
+        parentId?: Reply;
+        createdAt: number;
+        editedAt?: number;
+      };
+    }>
   > {
     try {
       const cur = this.replies.find({
@@ -533,35 +527,36 @@ export default class DiscussionPubConcept {
         $or: [{ deleted: false }, { deleted: { $exists: false } }],
       }).sort({ createdAt: 1 });
       const items = await cur.toArray();
-      const replies = items.map((r) => ({
-        _id: r._id,
-        author: r.author,
-        body: r.body,
-        anchorId: r.anchorId,
-        parentId: r.parentId,
-        createdAt: r.createdAt,
-        editedAt: r.editedAt,
+      // Queries must return an array of dictionaries, one per reply
+      return items.map((r) => ({
+        reply: {
+          _id: r._id,
+          author: r.author,
+          body: r.body,
+          anchorId: r.anchorId,
+          parentId: r.parentId,
+          createdAt: r.createdAt,
+          editedAt: r.editedAt,
+        },
       }));
-      // Queries must return an array of dictionaries
-      return [{ replies }];
     } catch {
       // On error, return empty array (queries should not throw)
-      return [{ replies: [] }];
+      return [];
     }
   }
 
   /**
-   * _listRepliesTree(thread: Thread) : (replies: ReplyTree[])
+   * _listRepliesTree(thread: Thread) : (reply: ReplyTree)
    *
    * **requires** nothing
-   * **effects** returns all non-deleted replies for the given thread organized as a
-   * tree structure, where each reply has a children array containing its child replies.
-   * Results are ordered by createdAt. Returns an array of dictionaries, each with a
-   * `replies` field containing an array of reply tree nodes.
+   * **effects** returns an array of dictionaries, each containing one root reply node
+   * for the given thread organized as a tree structure, where each reply has a children
+   * array containing its child replies. Results are ordered by createdAt. Returns an
+   * empty array if no replies exist.
    */
   async _listRepliesTree(
     { threadId }: { threadId: Thread },
-  ): Promise<Array<{ replies: Array<ReplyTreeNode> }>> {
+  ): Promise<Array<{ reply: ReplyTreeNode }>> {
     try {
       const cur = this.replies.find({
         threadId,
@@ -591,11 +586,11 @@ export default class DiscussionPubConcept {
           roots.push(n);
         }
       }
-      // Queries must return an array of dictionaries
-      return [{ replies: roots }];
+      // Queries must return an array of dictionaries, one per root reply
+      return roots.map((reply) => ({ reply }));
     } catch {
       // On error, return empty array (queries should not throw)
-      return [{ replies: [] }];
+      return [];
     }
   }
 }

@@ -89,13 +89,11 @@ Deno.test("Principle: Pub created, threads created in relation to context, repli
     assertEquals(
       threadsResult.length,
       1,
-      "Query should return array with one dictionary",
+      "Query should return array with one dictionary per thread",
     );
-    const { threads } = threadsResult[0];
-    assertEquals(threads.length, 1, "Should find one thread");
-    assertEquals(threads[0]._id, newThread, "Should be the created thread");
+    assertEquals(threadsResult[0].thread._id, newThread, "Should be the created thread");
     assertEquals(
-      threads[0].anchorId,
+      threadsResult[0].thread.anchorId,
       anchor1,
       "Thread should have correct anchor",
     );
@@ -104,13 +102,11 @@ Deno.test("Principle: Pub created, threads created in relation to context, repli
     assertEquals(
       repliesResult.length,
       1,
-      "Query should return array with one dictionary",
+      "Query should return array with one dictionary per reply",
     );
-    const { replies } = repliesResult[0];
-    assertEquals(replies.length, 1, "Should find one reply");
-    assertEquals(replies[0]._id, newReply, "Should be the created reply");
+    assertEquals(repliesResult[0].reply._id, newReply, "Should be the created reply");
     assertEquals(
-      replies[0].anchorId,
+      repliesResult[0].reply.anchorId,
       anchor2,
       "Reply should have correct anchor",
     );
@@ -223,10 +219,9 @@ Deno.test("Action: startThread successfully creates thread with all fields", asy
     assertEquals(
       threadsResult.length,
       1,
-      "Query should return array with one dictionary",
+      "Query should return array with one dictionary per thread",
     );
-    const { threads } = threadsResult[0];
-    const thread = threads.find((t) => t._id === newThread);
+    const thread = threadsResult.find((t) => t.thread._id === newThread)?.thread;
     assertExists(thread, "Thread should exist");
     assertEquals(thread.author, userAlice, "author should be stored correctly");
     assertEquals(
@@ -328,10 +323,9 @@ Deno.test("Action: editThread successfully updates title and body", async () => 
     assertEquals(
       threadsResult.length,
       1,
-      "Query should return array with one dictionary",
+      "Query should return array with one dictionary per thread",
     );
-    const { threads } = threadsResult[0];
-    const thread = threads.find((t) => t._id === newThread);
+    const thread = threadsResult.find((t) => t.thread._id === newThread)?.thread;
     assertExists(thread, "Thread should exist");
     assertEquals(thread.title, "Updated Title", "title should be updated");
     assertEquals(thread.body, "Updated body", "body should be updated");
@@ -405,11 +399,9 @@ Deno.test("Action: deleteThread sets deleted flag (soft delete)", async () => {
     const threadsResult = await concept._listThreads({ pubId: newPub });
     assertEquals(
       threadsResult.length,
-      1,
-      "Query should return array with one dictionary",
+      0,
+      "Deleted thread should not appear in list",
     );
-    const { threads } = threadsResult[0];
-    assertEquals(threads.length, 0, "Deleted thread should not appear in list");
 
     // Verify in database that deleted flag is set
     const threadDoc = await db.collection("threads").findOne({
@@ -467,12 +459,6 @@ Deno.test("Action: deleteThread cascades to replies (soft delete)", async () => 
     const repliesResult = await concept._listReplies({ threadId: newThread });
     assertEquals(
       repliesResult.length,
-      1,
-      "Query should return array with one dictionary",
-    );
-    const { replies } = repliesResult[0];
-    assertEquals(
-      replies.length,
       0,
       "Deleted replies should not appear in list",
     );
@@ -529,10 +515,9 @@ Deno.test("Action: makeReply successfully creates reply", async () => {
     assertEquals(
       repliesResult.length,
       1,
-      "Query should return array with one dictionary",
+      "Query should return array with one dictionary per reply",
     );
-    const { replies } = repliesResult[0];
-    const reply = replies.find((r) => r._id === newReply);
+    const reply = repliesResult.find((r) => r.reply._id === newReply)?.reply;
     assertExists(reply, "Reply should exist");
     assertEquals(reply.author, userBob, "author should be stored correctly");
     assertEquals(
@@ -604,11 +589,10 @@ Deno.test("Action: makeReply with parentReply creates nested reply", async () =>
     const repliesResult = await concept._listReplies({ threadId: newThread });
     assertEquals(
       repliesResult.length,
-      1,
-      "Query should return array with one dictionary",
+      2,
+      "Query should return array with one dictionary per reply",
     );
-    const { replies } = repliesResult[0];
-    const child = replies.find((r) => r._id === childReply);
+    const child = repliesResult.find((r) => r.reply._id === childReply)?.reply;
     assertExists(child, "Child reply should exist");
     assertEquals(
       child.parentId,
@@ -764,10 +748,9 @@ Deno.test("Action: editReply successfully updates body", async () => {
     assertEquals(
       repliesResult.length,
       1,
-      "Query should return array with one dictionary",
+      "Query should return array with one dictionary per reply",
     );
-    const { replies } = repliesResult[0];
-    const reply = replies.find((r) => r._id === newReply);
+    const reply = repliesResult.find((r) => r.reply._id === newReply)?.reply;
     assertExists(reply, "Reply should exist");
     assertEquals(reply.body, "Updated reply body", "body should be updated");
     assertExists(reply.editedAt, "editedAt should be set");
@@ -816,11 +799,9 @@ Deno.test("Action: deleteReply sets deleted flag (soft delete)", async () => {
     const repliesResult = await concept._listReplies({ threadId: newThread });
     assertEquals(
       repliesResult.length,
-      1,
-      "Query should return array with one dictionary",
+      0,
+      "Deleted reply should not appear in list",
     );
-    const { replies } = repliesResult[0];
-    assertEquals(replies.length, 0, "Deleted reply should not appear in list");
 
     // Verify in database that deleted flag is set
     const replyDoc = await db.collection("replies").findOne({
@@ -919,11 +900,9 @@ Deno.test("Query: _listThreads filters by pub and optionally by anchor", async (
     const allResult = await concept._listThreads({ pubId: newPub });
     assertEquals(
       allResult.length,
-      1,
-      "Query should return array with one dictionary",
+      3,
+      "Query should return array with one dictionary per thread",
     );
-    const { threads: allThreads } = allResult[0];
-    assertEquals(allThreads.length, 3, "Should find all 3 threads");
 
     // Filter by anchorId
     const filteredResult = await concept._listThreads({
@@ -932,27 +911,21 @@ Deno.test("Query: _listThreads filters by pub and optionally by anchor", async (
     });
     assertEquals(
       filteredResult.length,
-      1,
-      "Query should return array with one dictionary",
-    );
-    const { threads: filteredThreads } = filteredResult[0];
-    assertEquals(
-      filteredThreads.length,
       2,
-      "Should find 2 threads with anchor1",
+      "Query should return array with one dictionary per thread",
     );
     assertEquals(
-      filteredThreads.every((t) => t.anchorId === anchor1),
+      filteredResult.every((t) => t.thread.anchorId === anchor1),
       true,
       "All results should have anchor1",
     );
     assertEquals(
-      filteredThreads.some((t) => t._id === thread1),
+      filteredResult.some((t) => t.thread._id === thread1),
       true,
       "Should include thread1",
     );
     assertEquals(
-      filteredThreads.some((t) => t._id === thread3),
+      filteredResult.some((t) => t.thread._id === thread3),
       true,
       "Should include thread3",
     );
@@ -995,11 +968,9 @@ Deno.test("Query: _listThreads excludes deleted threads", async () => {
     assertEquals(
       result.length,
       1,
-      "Query should return array with one dictionary",
+      "Query should return array with one dictionary per thread",
     );
-    const { threads } = result[0];
-    assertEquals(threads.length, 1, "Should find only non-deleted thread");
-    assertEquals(threads[0]._id, thread2, "Should be thread2");
+    assertEquals(result[0].thread._id, thread2, "Should be thread2");
 
     console.log("  ✓ Deleted threads excluded from results");
   } finally {
@@ -1043,15 +1014,14 @@ Deno.test("Query: _listThreads results are ordered by createdAt", async () => {
     const result = await concept._listThreads({ pubId: newPub });
     assertEquals(
       result.length,
-      1,
-      "Query should return array with one dictionary",
+      3,
+      "Query should return array with one dictionary per thread",
     );
-    const { threads } = result[0];
 
     // Verify ordering: createdAt should be ascending
-    for (let i = 1; i < threads.length; i++) {
+    for (let i = 1; i < result.length; i++) {
       assertEquals(
-        threads[i].createdAt >= threads[i - 1].createdAt,
+        result[i].thread.createdAt >= result[i - 1].thread.createdAt,
         true,
         `Thread at index ${i} should have createdAt >= previous thread`,
       );
@@ -1059,7 +1029,7 @@ Deno.test("Query: _listThreads results are ordered by createdAt", async () => {
 
     // Verify first thread is the one created first
     assertEquals(
-      threads[0]._id,
+      result[0].thread._id,
       thread1,
       "First result should be the first created thread",
     );
@@ -1110,24 +1080,22 @@ Deno.test("Query: _listReplies returns all replies for thread", async () => {
     const result = await concept._listReplies({ threadId: newThread });
     assertEquals(
       result.length,
-      1,
-      "Query should return array with one dictionary",
+      3,
+      "Query should return array with one dictionary per reply",
     );
-    const { replies } = result[0];
-    assertEquals(replies.length, 3, "Should find all 3 replies");
 
     // Verify all replies are present
-    const replyIds = replies.map((r) => r._id);
+    const replyIds = result.map((r) => r.reply._id);
     assertEquals(replyIds.includes(reply1), true, "Should include reply1");
     assertEquals(replyIds.includes(reply2), true, "Should include reply2");
     assertEquals(replyIds.includes(reply3), true, "Should include reply3");
 
     // Verify reply2 has anchorId
-    const reply2Data = replies.find((r) => r._id === reply2);
+    const reply2Data = result.find((r) => r.reply._id === reply2)?.reply;
     assertEquals(reply2Data?.anchorId, anchor1, "Reply2 should have anchorId");
 
     // Verify reply3 has parentId
-    const reply3Data = replies.find((r) => r._id === reply3);
+    const reply3Data = result.find((r) => r.reply._id === reply3)?.reply;
     assertEquals(reply3Data?.parentId, reply1, "Reply3 should have parentId");
 
     console.log("  ✓ All replies returned with correct fields");
@@ -1173,11 +1141,9 @@ Deno.test("Query: _listReplies excludes deleted replies", async () => {
     assertEquals(
       result.length,
       1,
-      "Query should return array with one dictionary",
+      "Query should return array with one dictionary per reply",
     );
-    const { replies } = result[0];
-    assertEquals(replies.length, 1, "Should find only non-deleted reply");
-    assertEquals(replies[0]._id, reply2, "Should be reply2");
+    assertEquals(result[0].reply._id, reply2, "Should be reply2");
 
     console.log("  ✓ Deleted replies excluded from results");
   } finally {
@@ -1237,15 +1203,12 @@ Deno.test("Query: _listRepliesTree returns tree structure", async () => {
     const result = await concept._listRepliesTree({ threadId: newThread });
     assertEquals(
       result.length,
-      1,
-      "Query should return array with one dictionary",
+      2,
+      "Query should return array with one dictionary per root reply",
     );
-    const { replies: tree } = result[0];
-
-    assertEquals(tree.length, 2, "Should have 2 root replies");
 
     // Find reply1 in tree
-    const root1 = tree.find((r) => r._id === reply1);
+    const root1 = result.find((r) => r.reply._id === reply1)?.reply;
     assertExists(root1, "Reply1 should be a root");
     assertEquals(root1.children.length, 1, "Reply1 should have 1 child");
     assertEquals(
@@ -1265,7 +1228,7 @@ Deno.test("Query: _listRepliesTree returns tree structure", async () => {
     );
 
     // Find reply3 in tree
-    const root2 = tree.find((r) => r._id === reply3);
+    const root2 = result.find((r) => r.reply._id === reply3)?.reply;
     assertExists(root2, "Reply3 should be a root");
     assertEquals(root2.children.length, 0, "Reply3 should have no children");
 
