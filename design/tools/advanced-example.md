@@ -1,3 +1,42 @@
+# Advanced Concept Implementation and Sync Example
+
+## Concept: FileUploading \[User, File]
+
+*   **purpose**: To manage the lifecycle and metadata of user-owned files stored in an external cloud service.
+*   **principle**: If a user requests to upload a file, they receive a unique, temporary URL. After they upload their file directly to that URL and confirm the upload with the system, the file is officially recorded as theirs and can be retrieved later via another temporary download URL.
+*   **state**:
+    *   a set of `File`s with
+        *   an `owner` User
+        *   a `filename` String
+        *   a `storagePath` String (e.g., the path/key of the object in the GCS bucket)
+        *   a `status` String (values: "pending", "uploaded")
+*   **actions**:
+    *   `requestUploadURL (owner: User, filename: String): (file: File, uploadURL: String)`
+        *   **requires**: true.
+        *   **effects**: creates a new File `f` with status `pending`, owner `owner`, and filename `filename`; generates a unique `storagePath` for `f`; generates a presigned GCS upload URL corresponding to that path; returns the new file's ID and the URL.
+    *   `confirmUpload (file: File): ()`
+        *   **requires**: a File `f` exists and its status is "pending".
+        *   **effects**: sets the status of `f` to "uploaded".
+    *   `confirmUpload (file: File): (error: String)`
+        *   **requires**: no File `f` exists or its status is not "pending".
+        *   **effects**: returns an error message.
+    *   `delete (file: File): ()`
+        *   **requires**: the given `file` exists.
+        *   **effects**: removes the file record `f` from the state. *Additionally, it triggers the deletion of the corresponding object from the external GCS bucket.*
+*   **queries**:
+    *   `_getOwner (file: File): (owner: User)`
+        *   **requires**: the given `file` exists.
+        *   **effects**: returns the owner of the file.
+    *   `_getDownloadURL (file: File): (downloadURL: String)`
+        *   **requires**: the given `file` exists and its status is "uploaded".
+        *   **effects**: generates a short-lived, presigned GCS download URL for the file `f` and returns it.
+    *   `_getFilesByOwner (owner: User): (file: File, filename: String)`
+        *   **requires**: the given `owner` exists.
+        *   **effects**: returns all files owned by the user with status "uploaded", along with their filenames.
+
+## Implementation
+
+```typescript
 import { Collection, Db } from "npm:mongodb";
 import { Storage } from "npm:@google-cloud/storage";
 import { Empty, ID } from "@utils/types.ts";
@@ -259,3 +298,119 @@ export default class FileUploadingConcept {
     }));
   }
 }
+```
+
+## Syncs
+
+```typescript
+import { actions, Frames, Sync } from "@engine";
+import { Requesting, Sessioning, FileUploading, Sharing, UserAuthentication } from "@concepts";
+
+//-- Phase 1: Request Upload URL --//
+export const RequestUploadURL: Sync = ({ request, session, filename, user }) => ({
+  when: actions([Requesting.request, { path: "/FileUploading/requestUploadURL", session, filename }, { request }]),
+  where: async (frames) => {
+    frames = await frames.query(Sessioning._getUser, { session }, { user })
+    return frames
+  },
+  then: actions([FileUploading.requestUploadURL, { owner: user, filename }]),
+});
+
+export const RequestUploadURLResponse: Sync = ({ request, file, uploadURL }) => ({
+  when: actions(
+    [Requesting.request, { path: "/FileUploading/requestUploadURL" }, { request }],
+    [FileUploading.requestUploadURL, {}, { file, uploadURL }],
+  ),
+  then: actions([Requesting.respond, { request, file, uploadURL }]),
+});
+
+//-- Phase 2: Confirm Upload --//
+export const ConfirmUploadRequest: Sync = ({ request, session, file, user, owner }) => ({
+  when: actions([Requesting.request, { path: "/FileUploading/confirmUpload", session, file }, { request }]),
+  where: async (frames) => {
+    frames = await frames.query(Sessioning._getUser, { session }, { user });
+    frames = await frames.query(FileUploading._getOwner, { file }, { owner });
+    return frames.filter(($) => $[user] === $[owner]);
+  },
+  then: actions([FileUploading.confirmUpload, { file }]),
+});
+
+export const ConfirmUploadResponseSuccess: Sync = ({ request, file }) => ({
+  when: actions(
+    [Requesting.request, { path: "/FileUploading/confirmUpload" }, { request }],
+    [FileUploading.confirmUpload, {}, { file }],
+  ),
+  then: actions([Requesting.respond, { request, status: "confirmed" }]),
+});
+
+export const ConfirmUploadResponseError: Sync = ({ request, error }) => ({
+  when: actions(
+    [Requesting.request, { path: "/FileUploading/confirmUpload" }, { request }],
+    [FileUploading.confirmUpload, {}, { error }],
+  ),
+  then: actions([Requesting.respond, { request, error }]),
+});
+
+//-- List User's Files --//
+export const ListMyFilesRequest: Sync = ({ request, session, user, file, filename, results }) => ({
+  when: actions([Requesting.request, { path: "/my-files", session }, { request }]),
+  where: async (frames) => {
+    const originalFrame = frames[0];
+    frames = await frames.query(Sessioning._getUser, { session }, { user });
+    frames = await frames.query(FileUploading._getFilesByOwner, { owner: user }, { file, filename });
+    if (frames.length === 0) {
+      const response = {...originalFrame, [results]: []}
+      return new Frames(response)
+    }
+    return frames.collectAs([file, filename], results);
+  },
+  then: actions([Requesting.respond, { request, results }]),
+});
+
+export const ListSharedFilesRequest: Sync = ({ request, session, user, file, filename, owner, ownerUsername, results }) => ({
+  when: actions([Requesting.request, { path: "/my-shares", session }, { request }]),
+  where: async (frames) => {
+    const originalFrame = frames[0];
+    
+    // 1. Authenticate user
+    frames = await frames.query(Sessioning._getUser, { session }, { user });
+    
+    // If the session is invalid, return an empty list immediately.
+    if (frames.length === 0) {
+      return new Frames({...originalFrame, [results]: []});
+    }
+    
+    // 2. Find files shared with the user
+    frames = await frames.query(Sharing._getFilesSharedWithUser, { user }, { file });
+    
+    // If no files are shared, return an empty list.
+    if (frames.length === 0) {
+      return new Frames({...originalFrame, [results]: []});
+    }
+
+    // 3. & 4. Enrich each file with its details
+    frames = await frames.query(FileUploading._getFilename, { file }, { filename });
+    frames = await frames.query(FileUploading._getOwner, { file }, { owner });
+    frames = await frames.query(UserAuthentication._getUsername, { user: owner }, { username: ownerUsername });
+
+    // 5. Collect into final response structure
+    return frames.collectAs([file, filename, ownerUsername], results);
+  },
+  then: actions([Requesting.respond, { request, results }]),
+});
+
+//-- Download a File --//
+export const DownloadFileRequest: Sync = ({ request, session, file, user, owner, isShared, downloadURL }) => ({
+  when: actions([Requesting.request, { path: "/download", session, file }, { request }]),
+  where: async (frames) => {
+    frames = await frames.query(Sessioning._getUser, { session }, { user });
+    frames = await frames.query(FileUploading._getOwner, { file }, { owner });
+    frames = await frames.query(Sharing._isSharedWith, { file, user }, { access: isShared });
+    // Authorization Logic: Keep frames where the user is the owner OR the file is shared.
+    frames = frames.filter(($) => $[user] === $[owner] || $[isShared] === true);
+    // If any authorized frames remain, get the download URL for them.
+    return await frames.query(FileUploading._getDownloadURL, { file }, { downloadURL });
+  },
+  then: actions([Requesting.respond, { request, downloadURL }]),
+});
+```
