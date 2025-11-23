@@ -21,18 +21,17 @@
 **Request Body:**
 ```json
 {
-  "session": "string",
-  "paperId": "string",
-  "title": "string"
+  "id": "string",
+  "title": "string (optional)"
 }
 ```
 
-**Note:** This endpoint requires authentication. The `session` parameter is required.
+**Note:** This endpoint does not require authentication. The `id` parameter is the external unique identifier (DOI, arXiv, etc.) for the paper.
 
 **Success Response Body (Action):**
 ```json
 {
-  "paper": "string"
+  "result": "string"
 }
 ```
 
@@ -250,6 +249,7 @@
   {
     "paper": {
       "_id": "string",
+      "paperId": "string",
       "title": "string",
       "authors": ["string"],
       "links": ["string"],
@@ -258,6 +258,8 @@
   }
 ]
 ```
+
+**Note:** The `_id` field is MongoDB's document identifier (set to the paperId for this concept). The `paperId` field explicitly stores the external unique identifier (DOI, arXiv, etc.) to match the spec.
 
 **Error Response Body:**
 ```json
@@ -292,6 +294,7 @@
     "papers": [
       {
         "_id": "string",
+        "paperId": "string",
         "title": "string",
         "authors": ["string"],
         "links": ["string"],
@@ -301,6 +304,8 @@
   }
 ]
 ```
+
+**Note:** The `_id` field is MongoDB's document identifier (set to the paperId for this concept). The `paperId` field explicitly stores the external unique identifier (DOI, arXiv, etc.) to match the spec.
 
 **Error Response Body:**
 ```json
