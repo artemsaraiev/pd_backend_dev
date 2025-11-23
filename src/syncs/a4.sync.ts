@@ -9,27 +9,37 @@ import {
 } from "@concepts";
 
 // PaperIndex
+// ensure is available without session - frontend sends { id, title? }
 export const PaperIndexEnsureRequest: Sync = (
-  { request, session, paperId, title, user },
+  { request, id, title },
 ) => ({
   when: actions([Requesting.request, {
     path: "/PaperIndex/ensure",
-    session,
-    paperId,
+    id,
     title,
   }, { request }]),
-  where: async (frames) => {
-    return await frames.query(Sessioning._getUser, { session }, { user });
-  },
-  then: actions([PaperIndex.ensure, { paperId, title }]),
+  // Map frontend's 'id' to concept's 'paperId'
+  then: actions([PaperIndex.ensure, { paperId: id, title }]),
 });
 
-export const PaperIndexEnsureResponse: Sync = ({ request, paper, error }) => ({
+// On success, respond with result (frontend expects { result: string })
+export const PaperIndexEnsureResponseSuccess: Sync = ({ request, paper }) => ({
   when: actions(
     [Requesting.request, { path: "/PaperIndex/ensure" }, { request }],
-    [PaperIndex.ensure, {}, { paper, error }],
+    // Match only when PaperIndex.ensure produced a `paper`
+    [PaperIndex.ensure, {}, { paper }],
   ),
-  then: actions([Requesting.respond, { request, paper, error }]),
+  then: actions([Requesting.respond, { request, result: paper }]),
+});
+
+// On error, propagate the error back to the HTTP caller
+export const PaperIndexEnsureResponseError: Sync = ({ request, error }) => ({
+  when: actions(
+    [Requesting.request, { path: "/PaperIndex/ensure" }, { request }],
+    // Match only when PaperIndex.ensure produced an `error`
+    [PaperIndex.ensure, {}, { error }],
+  ),
+  then: actions([Requesting.respond, { request, error }]),
 });
 
 export const PaperIndexUpdateMeta: Sync = (

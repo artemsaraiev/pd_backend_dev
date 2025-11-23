@@ -15,13 +15,21 @@ type Author = ID;
 
 /**
  * a set of Papers with
- *   a paperId String
+ *   a paperId String (external unique identifier: DOI, arXiv, etc.)
  *   an authors Author[]
  *   a links String[]
  *   a title String?
+ *   a createdAt Date
+ *
+ * Note: In this implementation, we use the external paperId as the MongoDB _id
+ * for efficiency. The paperId field explicitly stores the external identifier
+ * to match the spec and clarify the distinction:
+ * - _id: MongoDB's document identifier (in this case, same as paperId)
+ * - paperId: External unique identifier (DOI, arXiv, etc.)
  */
 interface PaperDoc {
-  _id: Paper; // paperId (external unique identifier)
+  _id: Paper; // MongoDB document ID (set to paperId for this concept)
+  paperId: string; // External unique identifier (DOI, arXiv, etc.)
   title?: string;
   authors: Author[]; // Author IDs
   links: string[];
@@ -92,8 +100,10 @@ export default class PaperIndexConcept {
     { paperId, title }: { paperId: string; title?: string },
   ): Promise<{ paper: Paper } | { error: string }> {
     try {
+      // Use paperId as _id for MongoDB efficiency, but also store it explicitly
       const setOnInsert: Record<string, unknown> = {
-        _id: paperId,
+        _id: paperId as Paper,
+        paperId: paperId, // Explicit field for spec compliance and clarity
         authors: [],
         links: [],
         createdAt: Date.now(),

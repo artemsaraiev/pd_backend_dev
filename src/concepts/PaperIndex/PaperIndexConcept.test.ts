@@ -86,6 +86,7 @@ Deno.test("Principle: Papers can be added to index and metadata can be updated",
     const { paper: paperDoc } = getResult[0];
     assertExists(paperDoc, "Paper should exist");
     assertEquals(paperDoc!._id, paper1, "Paper ID should match");
+    assertEquals(paperDoc!.paperId, paper1, "Paper paperId should match external identifier");
     assertEquals(paperDoc!.title, "Updated Title", "Title should be updated");
     assertEquals(
       paperDoc!.authors.length,
@@ -131,6 +132,7 @@ Deno.test("Action: ensure creates paper if not exists, returns existing if exist
     // Verify paper was created
     const getResult1 = await concept._get({ paper: paperId1 });
     assertEquals(getResult1[0].paper?._id, paper1, "Paper should exist");
+    assertEquals(getResult1[0].paper?.paperId, paper1, "Paper paperId should match external identifier");
     assertEquals(
       getResult1[0].paper?.title,
       "First Paper",
@@ -172,6 +174,7 @@ Deno.test("Action: ensure creates paper if not exists, returns existing if exist
 
     const getResult3 = await concept._get({ paper: paperId3 });
     assertEquals(getResult3[0].paper?._id, paper2, "Paper should exist");
+    assertEquals(getResult3[0].paper?.paperId, paper2, "Paper paperId should match external identifier");
     assertEquals(
       getResult3[0].paper?.title,
       undefined,
@@ -415,6 +418,7 @@ Deno.test("Query: _get returns paper document or null", async () => {
     const { paper: paperDoc } = result2[0];
     assertExists(paperDoc, "Paper should exist");
     assertEquals(paperDoc!._id, paper1, "Paper ID should match");
+    assertEquals(paperDoc!.paperId, paper1, "Paper paperId should match external identifier");
     assertEquals(paperDoc!.title, "Test Paper", "Title should match");
     assertEquals(paperDoc!.authors.length, 1, "Should have one author");
     assertEquals(paperDoc!.authors[0], author1, "Author should match");
