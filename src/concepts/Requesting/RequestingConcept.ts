@@ -195,9 +195,22 @@ export function startRequestingServer(
   app.use(
     "/*",
     cors({
-      origin: REQUESTING_ALLOWED_DOMAIN,
-      allowHeaders: ["Content-Type", "Range"],
+      origin: (origin) => {
+        // If configured to allow all, mirror the origin to support credentials/remote access
+        if (REQUESTING_ALLOWED_DOMAIN === "*") return origin || "*";
+        return REQUESTING_ALLOWED_DOMAIN;
+      },
+      allowHeaders: [
+        "Content-Type",
+        "Range",
+        "Authorization",
+        "Accept",
+        "Origin",
+        "X-Requested-With",
+      ],
       exposeHeaders: ["Accept-Ranges", "Content-Length", "Content-Range"],
+      allowMethods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+      credentials: true,
     }),
   );
 
@@ -219,6 +232,67 @@ export function startRequestingServer(
       "Vary": "Origin",
     });
   });
+
+  // --- Image Upload & Serving ---
+  const UPLOADS_DIR = "uploads";
+  // Ensure uploads directory exists
+  try {
+    Deno.mkdirSync(UPLOADS_DIR, { recursive: true });
+  } catch (e) {
+    if (!(e instanceof Deno.errors.AlreadyExists)) throw e;
+  }
+
+  const uploadRoute = `${REQUESTING_BASE_URL}/upload`;
+  app.post(uploadRoute, async (c) => {
+    try {
+      const body = await c.req.parseBody();
+      const file = body["file"];
+      if (file && file instanceof File) {
+        const ext = file.name.split(".").pop() || "bin";
+        const filename = `${crypto.randomUUID()}.${ext}`;
+        const path = `${UPLOADS_DIR}/${filename}`;
+        
+        await Deno.writeFile(path, new Uint8Array(await file.arrayBuffer()));
+        
+        // Build an absolute URL so the frontend can use it directly in <img src="">
+        const proto = c.req.header("x-forwarded-proto") ?? "http";
+        const host = c.req.header("host") ?? `localhost:${PORT}`;
+        const url = `${proto}://${host}${REQUESTING_BASE_URL}/uploads/${filename}`;
+        return c.json({ url });
+      }
+      return c.json({ error: "No file uploaded" }, 400);
+    } catch (e) {
+      console.error("Upload error:", e);
+      return c.json({ error: "Upload failed" }, 500);
+    }
+  });
+
+  const filesRoute = `${REQUESTING_BASE_URL}/uploads/:filename`;
+  app.get(filesRoute, async (c) => {
+    const filename = c.req.param("filename");
+    // Basic sanitization to prevent directory traversal
+    if (filename.includes("..") || filename.includes("/")) {
+        return c.text("Invalid filename", 400);
+    }
+    const path = `${UPLOADS_DIR}/${filename}`;
+    try {
+      const file = await Deno.readFile(path);
+      const mimeType = filename.endsWith(".png") ? "image/png" :
+                       filename.endsWith(".jpg") || filename.endsWith(".jpeg") ? "image/jpeg" :
+                       filename.endsWith(".gif") ? "image/gif" :
+                       "application/octet-stream";
+                       
+      return new Response(file, {
+        headers: {
+            "Content-Type": mimeType,
+            "Access-Control-Allow-Origin": REQUESTING_ALLOWED_DOMAIN,
+        }
+      });
+    } catch {
+      return c.text("File not found", 404);
+    }
+  });
+
   app.get(pdfRoute, async (c) => {
     const id = c.req.param("id");
     console.log(`[Requesting] Proxying PDF request for ID: ${id}`);
