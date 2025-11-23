@@ -110,7 +110,7 @@
 - nothing
 
 **Effects:**
-- returns an array of dictionaries, each containing all highlights for the given paper in the `highlights` field.
+- returns an array of dictionaries, each containing one highlight document for the given paper in the `highlight` field. The sync collects all highlights and responds with a single `highlights` array.
 
 **Request Body:**
 ```json
@@ -119,29 +119,29 @@
 }
 ```
 
-**Success Response Body (Query):**
+**Success Response Body (HTTP Response via Sync):**
 ```json
-[
-  {
-    "highlights": [
-      {
-        "_id": "string",
-        "paper": "string",
-        "page": "number",
-        "rects": [
-          {
-            "x": "number",
-            "y": "number",
-            "w": "number",
-            "h": "number"
-          }
-        ],
-        "quote": "string"
-      }
-    ]
-  }
-]
+{
+  "highlights": [
+    {
+      "_id": "string",
+      "paper": "string",
+      "page": "number",
+      "rects": [
+        {
+          "x": "number",
+          "y": "number",
+          "w": "number",
+          "h": "number"
+        }
+      ],
+      "quote": "string"
+    }
+  ]
+}
 ```
+
+**Note:** The query itself returns `Array<{ highlight: HighlightDoc }>` (one highlight per dictionary element), but the sync collects them and responds with a single object containing a `highlights` array for convenience.
 
 **Error Response Body:**
 ```json

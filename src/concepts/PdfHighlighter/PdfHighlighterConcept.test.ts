@@ -103,10 +103,25 @@ Deno.test("Query: _listByPaper returns all highlights for a paper", async () => 
     });
 
     const result = await concept._listByPaper({ paper: paper1 });
-    const { highlights } = result[0];
 
-    assertEquals(highlights.length, 2, "Should return 2 highlights for paper1");
-    assertEquals(highlights.every((h) => h.paper === paper1), true, "All highlights should belong to paper1");
+    assertEquals(result.length, 2, "Should return 2 highlights for paper1");
+    assertEquals(
+      result.every((r) => r.highlight.paper === paper1),
+      true,
+      "All highlights should belong to paper1",
+    );
+
+    // Verify each result has a highlight field
+    for (const item of result) {
+      assertExists(item.highlight, "Each result should have a highlight");
+      assertEquals(item.highlight.paper, paper1, "Highlight should belong to paper1");
+    }
+
+    // Test empty case - query for paper with no highlights
+    const emptyResult = await concept._listByPaper({
+      paper: "nonexistent:paper" as ID,
+    });
+    assertEquals(emptyResult.length, 0, "Should return empty array when no highlights found");
 
     console.log("  ✓ Correctly lists highlights by paper");
   } finally {

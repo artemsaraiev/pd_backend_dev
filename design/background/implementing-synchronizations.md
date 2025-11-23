@@ -274,7 +274,21 @@ then
   LikertSurvey.createSurvey (author: user, title, scaleMin, scaleMax)
 ```
 
-The code pattern for the then would be `[LikertSurvey.createSurvey, { author: user, title, scaleMin, scaleMax }]` as TypeScript uses the same shorthand. 
+The code pattern for the then would be `[LikertSurvey.createSurvey, { author: user, title, scaleMin, scaleMax }]` as TypeScript uses the same shorthand.
+
+**Parameter mapping between frontend and backend:** Sometimes the frontend may use different parameter names than the concept expects. In the `when` clause, you match on what the frontend sends, and in the `then` clause, you map to what the concept expects. For example:
+
+```typescript
+// Frontend sends { id }, concept expects { paperId }
+export const PaperIndexEnsureRequest: Sync = ({ request, id, title }) => ({
+  when: actions([Requesting.request, {
+    path: "/PaperIndex/ensure",
+    id,  // Match frontend's 'id'
+    title,
+  }, { request }]),
+  then: actions([PaperIndex.ensure, { paperId: id, title }]), // Map to concept's 'paperId'
+});
+``` 
 
 **Debugging:** ALWAYS CHECK that your patterns match your concept specifications! When synchronizations don't fire, the highest probability of error lies with an incorrect pattern looking for a parameter that doesn't exist on a concept action.
 

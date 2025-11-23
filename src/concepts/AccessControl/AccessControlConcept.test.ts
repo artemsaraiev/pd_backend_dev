@@ -159,13 +159,12 @@ Deno.test("Action: createGroup creates group and membership for creator", async 
     console.log("  Testing effects: membership created for creator");
     const membershipsResult = await concept._getMembershipsByGroup({ group: groupId });
     assertEquals(
-      membershipsResult[0].memberships.length,
+      membershipsResult.length,
       1,
       "Should have one membership",
     );
-    const membership = membershipsResult[0].memberships[0];
-    assertEquals(membership.user, userAlice, "User should be creator");
-    assertEquals(membership.isAdmin, true, "Creator should be admin");
+    assertEquals(membershipsResult[0].membership.user, userAlice, "User should be creator");
+    assertEquals(membershipsResult[0].membership.isAdmin, true, "Creator should be admin");
     console.log("    Creator membership created correctly");
   } finally {
     await client.close();
@@ -317,13 +316,13 @@ Deno.test("Action: addUser requires group exists and no duplicate, creates membe
     console.log("  Testing effects: creates membership with isAdmin=false");
     const membershipsResult = await concept._getMembershipsByGroup({ group: groupId });
     assertEquals(
-      membershipsResult[0].memberships.length,
+      membershipsResult.length,
       2,
       "Should have two memberships",
     );
-    const bobMembership = membershipsResult[0].memberships.find(
-      (m) => m._id === membershipId1,
-    );
+    const bobMembership = membershipsResult.find(
+      (m) => m.membership._id === membershipId1,
+    )?.membership;
     assertExists(bobMembership, "Bob's membership should exist");
     assertEquals(bobMembership.isAdmin, false, "Bob should not be admin");
     console.log("    Membership created correctly");
@@ -363,7 +362,7 @@ Deno.test("Action: revokeMembership requires membership exists and not last, rem
 
     // Try to revoke the last membership (should fail)
     const membershipsResult = await concept._getMembershipsByGroup({ group: groupId });
-    const lastMembershipId = membershipsResult[0].memberships[0]._id;
+    const lastMembershipId = membershipsResult[0].membership._id;
     const lastErrorResult = await concept.revokeMembership({
       membership: lastMembershipId,
     });
@@ -385,7 +384,7 @@ Deno.test("Action: revokeMembership requires membership exists and not last, rem
 
     const membershipsResult2 = await concept._getMembershipsByGroup({ group: groupId });
     assertEquals(
-      membershipsResult2[0].memberships.length,
+      membershipsResult2.length,
       1,
       "Should have one membership remaining",
     );
@@ -425,9 +424,9 @@ Deno.test("Action: promoteUser requires membership exists, sets isAdmin to true"
     assertNotEquals("error" in promoteResult, true, "Should succeed");
 
     const membershipsResult = await concept._getMembershipsByGroup({ group: groupId });
-    const bobMembership = membershipsResult[0].memberships.find(
-      (m) => m._id === membershipId,
-    );
+    const bobMembership = membershipsResult.find(
+      (m) => m.membership._id === membershipId,
+    )?.membership;
     assertExists(bobMembership, "Bob's membership should exist");
     assertEquals(bobMembership.isAdmin, true, "Bob should be admin");
     console.log("    User promoted correctly");
@@ -468,10 +467,10 @@ Deno.test("Action: demoteUser requires membership exists and not last admin, set
 
     // Try to demote the last admin (should fail)
     const membershipsResult = await concept._getMembershipsByGroup({ group: groupId });
-    const lastAdminMembership = membershipsResult[0].memberships.find((m) => m.isAdmin);
+    const lastAdminMembership = membershipsResult.find((m) => m.membership.isAdmin)?.membership;
     assertExists(lastAdminMembership, "Last admin membership should exist");
     const lastAdminErrorResult = await concept.demoteUser({
-      membership: lastAdminMembership._id,
+      membership: lastAdminMembership!._id,
     });
     assertEquals(
       "error" in lastAdminErrorResult,
@@ -488,9 +487,9 @@ Deno.test("Action: demoteUser requires membership exists and not last admin, set
     assertNotEquals("error" in demoteResult, true, "Should succeed");
 
     const membershipsResult2 = await concept._getMembershipsByGroup({ group: groupId });
-    const bobMembership = membershipsResult2[0].memberships.find(
-      (m) => m._id === membershipId,
-    );
+    const bobMembership = membershipsResult2.find(
+      (m) => m.membership._id === membershipId,
+    )?.membership;
     assertExists(bobMembership, "Bob's membership should exist");
     assertEquals(bobMembership.isAdmin, false, "Bob should not be admin");
     console.log("    User demoted correctly");
@@ -712,7 +711,7 @@ Deno.test("Action: removeGroup requires group exists, removes group and associat
     // Verify memberships are removed
     const membershipsResult = await concept._getMembershipsByGroup({ group: groupId });
     assertEquals(
-      membershipsResult[0].memberships.length,
+      membershipsResult.length,
       0,
       "Memberships should be removed",
     );
@@ -798,19 +797,17 @@ Deno.test("Query: _getMembershipsByGroup returns all memberships for group", asy
     const result = await concept._getMembershipsByGroup({ group: groupId });
     assertEquals(
       result.length,
-      1,
-      "Query should return array with one dictionary",
+      3,
+      "Query should return array with one dictionary per membership",
     );
-    const { memberships } = result[0];
-    assertEquals(memberships.length, 3, "Should have three memberships");
-    const membershipIds = memberships.map((m) => m._id);
+    const membershipIds = result.map((m) => m.membership._id);
     assertEquals(membershipIds.includes(membershipId1), true, "Should include Bob's membership");
     assertEquals(
       membershipIds.includes(membershipId2),
       true,
       "Should include Charlie's membership",
     );
-    const aliceMembership = memberships.find((m) => m.user === userAlice);
+    const aliceMembership = result.find((m) => m.membership.user === userAlice)?.membership;
     assertExists(aliceMembership, "Should include Alice's membership");
     assertEquals(aliceMembership.isAdmin, true, "Alice should be admin");
     console.log("    Correctly returns all memberships");
@@ -845,12 +842,10 @@ Deno.test("Query: _getMembershipsByUser returns all memberships for user", async
     const result = await concept._getMembershipsByUser({ user: userAlice });
     assertEquals(
       result.length,
-      1,
-      "Query should return array with one dictionary",
+      2,
+      "Query should return array with one dictionary per membership",
     );
-    const { memberships } = result[0];
-    assertEquals(memberships.length, 2, "Should have two memberships");
-    const groupIds = memberships.map((m) => m.groupId);
+    const groupIds = result.map((m) => m.membership.groupId);
     assertEquals(groupIds.includes(groupId1), true, "Should include Group 1");
     assertEquals(groupIds.includes(groupId2), true, "Should include Group 2");
     console.log("    Correctly returns all memberships for user");

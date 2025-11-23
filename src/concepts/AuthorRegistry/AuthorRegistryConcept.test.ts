@@ -393,11 +393,11 @@ Deno.test("Query: _findAuthorsByName matches canonical and variations", async ()
 
     // Partial match on canonical
     const res1 = await concept._findAuthorsByName({ nameQuery: "Jon" });
-    assertEquals(res1[0].matches.some((m) => m.author._id.toString() === newAuthor), true);
+    assertEquals(res1.some((m) => m.author._id.toString() === newAuthor), true);
 
     // Partial match on variation
     const res2 = await concept._findAuthorsByName({ nameQuery: "nny" });
-    assertEquals(res2[0].matches.some((m) => m.author._id.toString() === newAuthor), true);
+    assertEquals(res2.some((m) => m.author._id.toString() === newAuthor), true);
 
     console.log("    Search finds matches correctly");
   } finally {

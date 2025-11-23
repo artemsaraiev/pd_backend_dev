@@ -1,5 +1,6 @@
 import { Collection, Db } from "npm:mongodb";
 import { ID } from "@utils/types.ts";
+import { freshID } from "@utils/database.ts";
 
 // Generic types of this concept
 type Paper = ID;
@@ -15,13 +16,19 @@ type Author = ID;
 
 /**
  * a set of Papers with
- *   a paperId String
+ *   a paperId String (external unique identifier: DOI, arXiv, etc.)
  *   an authors Author[]
  *   a links String[]
  *   a title String?
+ *   a createdAt Date
+ *
+ * Note: Both _id and paperId are stored separately:
+ * - _id: MongoDB's internal document identifier (generated with freshID())
+ * - paperId: External unique identifier (DOI, arXiv, etc.) from outside the system
  */
 interface PaperDoc {
-  _id: Paper; // paperId (external unique identifier)
+  _id: Paper; // MongoDB internal document ID (generated with freshID())
+  paperId: string; // External unique identifier (DOI, arXiv, etc.)
   title?: string;
   authors: Author[]; // Author IDs
   links: string[];
@@ -37,20 +44,19 @@ export default class PaperIndexConcept {
   }
 
   /**
-   * _searchArxiv(q: String) : (result: Array<{id: String, title?: String}>)
+   * _searchArxiv(q: String) : (result: {id: String, title?: String})
    *
    * **requires** nothing
-   * **effects** returns an array of dictionaries, each containing search results from
-   * the arXiv API matching the query string. Each result includes an id (arXiv identifier)
-   * and optionally a title. Returns an array with one dictionary containing
-   * `{ result: Array<{id: String, title?: String}> }`.
+   * **effects** returns an array of dictionaries, each containing one search result
+   * from the arXiv API matching the query string. Each result includes an id (arXiv identifier)
+   * and optionally a title. Returns an empty array if no results are found.
    */
   async _searchArxiv(
     { q }: { q: string },
-  ): Promise<Array<{ result: Array<{ id: string; title?: string }> }>> {
+  ): Promise<Array<{ result: { id: string; title?: string } }>> {
     try {
       const query = q.trim();
-      if (!query) return [{ result: [] }];
+      if (!query) return [];
       const url = `http://export.arxiv.org/api/query?search_query=all:${
         encodeURIComponent(query)
       }&start=0&max_results=10`;
@@ -72,11 +78,11 @@ export default class PaperIndexConcept {
           : undefined;
         items.push({ id, title });
       }
-      // Queries must return an array of dictionaries
-      return [{ result: items }];
+      // Queries must return an array of dictionaries, one per result
+      return items.map((result) => ({ result }));
     } catch {
       // On error, return empty array (queries should not throw)
-      return [{ result: [] }];
+      return [];
     }
   }
 
@@ -92,19 +98,25 @@ export default class PaperIndexConcept {
     { paperId, title }: { paperId: string; title?: string },
   ): Promise<{ paper: Paper } | { error: string }> {
     try {
-      const setOnInsert: Record<string, unknown> = {
-        _id: paperId,
+      // Check if paper with this paperId already exists
+      const existing = await this.papers.findOne({ paperId });
+      if (existing) {
+        return { paper: existing._id };
+      }
+
+      // Create new paper with fresh internal ID
+      const internalId = freshID() as Paper;
+      const doc: PaperDoc = {
+        _id: internalId,
+        paperId: paperId,
         authors: [],
         links: [],
         createdAt: Date.now(),
       };
-      if (title !== undefined) setOnInsert.title = title;
-      await this.papers.updateOne(
-        { _id: paperId as Paper },
-        { $setOnInsert: setOnInsert },
-        { upsert: true },
-      );
-      return { paper: paperId as Paper };
+      if (title !== undefined) doc.title = title;
+
+      await this.papers.insertOne(doc);
+      return { paper: internalId };
     } catch (e) {
       return { error: e instanceof Error ? e.message : String(e) };
     }
@@ -233,7 +245,7 @@ export default class PaperIndexConcept {
    *
    * **requires** nothing
    * **effects** returns an array of dictionaries, each containing the paper document
-   * for the given paper in the `paper` field, or null if the paper does not exist.
+   * for the given paper (by internal _id) in the `paper` field, or null if the paper does not exist.
    * Returns an array with one dictionary containing `{ paper: PaperDoc | null }`.
    */
   async _get(
@@ -250,45 +262,70 @@ export default class PaperIndexConcept {
   }
 
   /**
-   * _listRecent(limit?: Number) : (papers: PaperDoc[])
+   * _getByPaperId(paperId: String) : (paper: PaperDoc | null)
    *
    * **requires** nothing
-   * **effects** returns an array of dictionaries, each containing the most recently
-   * created papers in the `papers` field, limited by the provided limit (default 20).
+   * **effects** returns an array of dictionaries, each containing the paper document
+   * for the given external paperId in the `paper` field, or null if the paper does not exist.
+   * Returns an array with one dictionary containing `{ paper: PaperDoc | null }`.
+   */
+  async _getByPaperId(
+    { paperId }: { paperId: string },
+  ): Promise<Array<{ paper: PaperDoc | null }>> {
+    try {
+      const result = await this.papers.findOne({ paperId });
+      // Queries must return an array of dictionaries
+      return [{ paper: result ?? null }];
+    } catch {
+      // On error, return array with null (queries should not throw)
+      return [{ paper: null }];
+    }
+  }
+
+  /**
+   * _listRecent(limit?: Number) : (paper: PaperDoc)
+   *
+   * **requires** nothing
+   * **effects** returns an array of dictionaries, each containing one paper document
+   * for the most recently created papers, limited by the provided limit (default 20).
    * Results are ordered by createdAt descending. Each paper includes _id, title, and
-   * createdAt. Returns an array with one dictionary containing `{ papers: PaperDoc[] }`.
+   * createdAt. Returns an empty array if no papers exist.
    */
   async _listRecent(
     { limit }: { limit?: number },
   ): Promise<
-    Array<
-      {
-        papers: Array<
-          {
-            _id: Paper;
-            title?: string;
-            createdAt?: number;
-            authors: Author[];
-            links: string[];
-          }
-        >;
-      }
-    >
+    Array<{
+      paper: {
+        _id: Paper;
+        paperId: string;
+        title?: string;
+        createdAt?: number;
+        authors: Author[];
+        links: string[];
+      };
+    }>
   > {
     try {
       const cur = this.papers
         .find({}, {
-          projection: { _id: 1, title: 1, createdAt: 1, authors: 1, links: 1 },
+          projection: {
+            _id: 1,
+            paperId: 1,
+            title: 1,
+            createdAt: 1,
+            authors: 1,
+            links: 1,
+          },
         })
         .sort({ createdAt: -1 })
         .limit(limit ?? 20);
       const items = await cur.toArray();
       const papers = items as Array<PaperDoc>;
-      // Queries must return an array of dictionaries
-      return [{ papers }];
+      // Queries must return an array of dictionaries, one per paper
+      return papers.map((paper) => ({ paper }));
     } catch {
       // On error, return empty array (queries should not throw)
-      return [{ papers: [] }];
+      return [];
     }
   }
 }

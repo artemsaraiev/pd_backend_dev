@@ -1,4 +1,4 @@
-import { actions, Sync } from "@engine";
+import { actions, Frames, Sync } from "@engine";
 import { AuthorRegistry, Requesting, Sessioning } from "@concepts";
 
 // AuthorRegistry Actions
@@ -178,25 +178,21 @@ export const AuthorRegistryGetAuthorByUserResponse: Sync = (
 });
 
 export const AuthorRegistryFindAuthorsByNameRequest: Sync = (
-  { request, nameQuery },
+  { request, nameQuery, author, matchType, matches },
 ) => ({
   when: actions([Requesting.request, {
     path: "/AuthorRegistry/_findAuthorsByName",
     nameQuery,
   }, { request }]),
-  then: actions([AuthorRegistry._findAuthorsByName, { nameQuery }]),
-});
-
-export const AuthorRegistryFindAuthorsByNameResponse: Sync = (
-  { request, result },
-) => ({
-  when: actions(
-    [Requesting.request, { path: "/AuthorRegistry/_findAuthorsByName" }, {
-      request,
-    }],
-    [AuthorRegistry._findAuthorsByName, {}, { result }],
-  ),
-  then: actions([Requesting.respond, { request, result }]),
+  where: async (frames) => {
+    const originalFrame = frames[0];
+    frames = await frames.query(AuthorRegistry._findAuthorsByName, { nameQuery }, { author, matchType });
+    if (frames.length === 0) {
+      return new Frames({ ...originalFrame, [matches]: [] });
+    }
+    return frames.collectAs([author, matchType], matches);
+  },
+  then: actions([Requesting.respond, { request, matches }]),
 });
 
 export const AuthorRegistryResolveAuthorRequest: Sync = (

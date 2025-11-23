@@ -1,4 +1,4 @@
-import { actions, Sync } from "@engine";
+import { actions, Frames, Sync } from "@engine";
 import { AccessControl, Requesting, Sessioning } from "@concepts";
 
 // AccessControl Actions
@@ -248,50 +248,40 @@ export const AccessControlGetGroupResponse: Sync = ({ request, result }) => ({
 });
 
 export const AccessControlGetMembershipsByGroupRequest: Sync = (
-  { request, group },
+  { request, group, membership, memberships },
 ) => ({
   when: actions([Requesting.request, {
     path: "/AccessControl/_getMembershipsByGroup",
     group,
   }, { request }]),
-  then: actions([AccessControl._getMembershipsByGroup, { group }]),
-});
-
-export const AccessControlGetMembershipsByGroupResponse: Sync = (
-  { request, result },
-) => ({
-  when: actions(
-    [Requesting.request, { path: "/AccessControl/_getMembershipsByGroup" }, {
-      request,
-    }],
-    [AccessControl._getMembershipsByGroup, {}, { result }],
-  ),
-  then: actions([Requesting.respond, { request, result }]),
+  where: async (frames) => {
+    const originalFrame = frames[0];
+    frames = await frames.query(AccessControl._getMembershipsByGroup, { group }, { membership });
+    if (frames.length === 0) {
+      return new Frames({ ...originalFrame, [memberships]: [] });
+    }
+    return frames.collectAs([membership], memberships);
+  },
+  then: actions([Requesting.respond, { request, memberships }]),
 });
 
 export const AccessControlGetMembershipsByUserRequest: Sync = (
-  { request, session, user },
+  { request, session, user, membership, memberships },
 ) => ({
   when: actions([Requesting.request, {
     path: "/AccessControl/_getMembershipsByUser",
     session,
   }, { request }]),
   where: async (frames) => {
-    return await frames.query(Sessioning._getUser, { session }, { user });
+    const originalFrame = frames[0];
+    frames = await frames.query(Sessioning._getUser, { session }, { user });
+    frames = await frames.query(AccessControl._getMembershipsByUser, { user }, { membership });
+    if (frames.length === 0) {
+      return new Frames({ ...originalFrame, [memberships]: [] });
+    }
+    return frames.collectAs([membership], memberships);
   },
-  then: actions([AccessControl._getMembershipsByUser, { user }]),
-});
-
-export const AccessControlGetMembershipsByUserResponse: Sync = (
-  { request, result },
-) => ({
-  when: actions(
-    [Requesting.request, { path: "/AccessControl/_getMembershipsByUser" }, {
-      request,
-    }],
-    [AccessControl._getMembershipsByUser, {}, { result }],
-  ),
-  then: actions([Requesting.respond, { request, result }]),
+  then: actions([Requesting.respond, { request, memberships }]),
 });
 
 export const AccessControlHasAccessRequest: Sync = (

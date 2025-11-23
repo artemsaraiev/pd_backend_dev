@@ -311,7 +311,7 @@
 - nothing
 
 **Effects:**
-- returns an array of dictionaries, each containing all non-deleted threads for the given pub in the `threads` field, optionally filtered by anchor. Results are ordered by createdAt. Each thread includes _id, author, title, body, anchorId, createdAt, and editedAt. Returns an array with one dictionary containing `{ threads: Thread[] }`.
+- returns an array of dictionaries, each containing one non-deleted thread for the given pub, optionally filtered by anchor. Results are ordered by createdAt. Each thread includes _id, author, title, body, anchorId, createdAt, and editedAt. Returns an empty array if no threads exist.
 
 **Request Body:**
 ```json
@@ -323,22 +323,22 @@
 
 **Success Response Body (Query):**
 ```json
-[
-  {
-    "threads": [
-      {
-        "_id": "string",
-        "author": "string",
-        "title": "string",
-        "body": "string",
-        "anchorId": "string",
-        "createdAt": "number",
-        "editedAt": "number"
-      }
-    ]
-  }
-]
+{
+  "threads": [
+    {
+      "_id": "string",
+      "author": "string",
+      "title": "string",
+      "body": "string",
+      "anchorId": "string",
+      "createdAt": "number",
+      "editedAt": "number"
+    }
+  ]
+}
 ```
+
+**Note:** The sync collects all thread frames into a single `threads` array for the response.
 
 **Error Response Body:**
 ```json
@@ -357,7 +357,7 @@
 - nothing
 
 **Effects:**
-- returns an array of dictionaries, each containing all non-deleted replies for the given thread in the `replies` field, ordered by createdAt. Each reply includes _id, author, body, anchorId, parentId, createdAt, and editedAt. Returns an array with one dictionary containing `{ replies: Reply[] }`.
+- returns an array of dictionaries, each containing one non-deleted reply for the given thread, ordered by createdAt. Each reply includes _id, author, body, anchorId, parentId, createdAt, and editedAt. Returns an empty array if no replies exist.
 
 **Request Body:**
 ```json
@@ -368,22 +368,22 @@
 
 **Success Response Body (Query):**
 ```json
-[
-  {
-    "replies": [
-      {
-        "_id": "string",
-        "author": "string",
-        "body": "string",
-        "anchorId": "string",
-        "parentId": "string",
-        "createdAt": "number",
-        "editedAt": "number"
-      }
-    ]
-  }
-]
+{
+  "replies": [
+    {
+      "_id": "string",
+      "author": "string",
+      "body": "string",
+      "anchorId": "string",
+      "parentId": "string",
+      "createdAt": "number",
+      "editedAt": "number"
+    }
+  ]
+}
 ```
+
+**Note:** The sync collects all reply frames into a single `replies` array for the response.
 
 **Error Response Body:**
 ```json
@@ -402,7 +402,7 @@
 - nothing
 
 **Effects:**
-- returns an array of dictionaries, each containing all non-deleted replies for the given thread organized as a tree structure in the `replies` field, where each reply has a children array containing its child replies. Results are ordered by createdAt. Returns an array with one dictionary containing `{ replies: ReplyTree[] }`.
+- returns an array of dictionaries, each containing one root reply node for the given thread organized as a tree structure, where each reply has a children array containing its child replies. Results are ordered by createdAt. Returns an empty array if no replies exist.
 
 **Request Body:**
 ```json
@@ -413,18 +413,17 @@
 
 **Success Response Body (Query):**
 ```json
-[
-  {
-    "replies": [
-      {
-        "_id": "string",
-        "author": "string",
-        "body": "string",
-        "anchorId": "string",
-        "createdAt": "number",
-        "editedAt": "number",
-        "parentId": "string",
-        "children": []
+{
+  "replies": [
+    {
+      "_id": "string",
+      "author": "string",
+      "body": "string",
+      "anchorId": "string",
+      "createdAt": "number",
+      "editedAt": "number",
+      "parentId": "string",
+      "children": []
       }
     ]
   }

@@ -34,6 +34,7 @@ export const inclusions: Record<string, string> = {
 
   // Public read queries - if paper data is public
   "/api/PaperIndex/_get": "public query - paper data is public",
+  "/api/PaperIndex/_getByPaperId": "public query - paper data is public",
   "/api/PaperIndex/_listRecent": "public query - paper list is public",
 
   // Public read queries - if discussions are public
@@ -43,6 +44,8 @@ export const inclusions: Record<string, string> = {
   "/api/DiscussionPub/_listReplies": "public query - discussions are public",
   "/api/DiscussionPub/_listRepliesTree":
     "public query - discussions are public",
+  "/api/DiscussionPub/_getThread": "public query - discussions are public",
+  "/api/DiscussionPub/_getReply": "public query - discussions are public",
 
   // Public read queries - if contexts are public
   "/api/HighlightedContext/_getFilteredContexts":
@@ -88,6 +91,12 @@ export const exclusions: Array<string> = [
   "/api/DiscussionPub/deleteReply",
   "/api/DiscussionPub/initIndexes",
 
+  // Internal initialization methods - not public endpoints
+  "/api/AccessControl/initIndexes",
+  "/api/AuthorRegistry/initIndexes",
+  "/api/IdentityVerification/initIndexes",
+  "/api/PdfHighlighter/initIndexes",
+
   // IdentityVerification - all mutations need auth
   "/api/IdentityVerification/addORCID",
   "/api/IdentityVerification/removeORCID",
@@ -96,8 +105,11 @@ export const exclusions: Array<string> = [
   "/api/IdentityVerification/updateAffiliation",
   "/api/IdentityVerification/addBadge",
   "/api/IdentityVerification/revokeBadge",
-  // User-specific queries need auth
+  // User-specific queries need auth - used internally by syncs
   "/api/IdentityVerification/_getByUser",
+  "/api/IdentityVerification/_getORCIDsByUser",
+  "/api/IdentityVerification/_getAffiliationsByUser",
+  "/api/IdentityVerification/_getBadgesByUser",
 
   // LikertSurvey - mutations need auth/tracking
   "/api/LikertSurvey/createSurvey",

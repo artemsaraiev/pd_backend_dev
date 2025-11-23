@@ -66,7 +66,7 @@ export default class HighlightedContextConcept {
       kind?: AnchorKind;
       parentContext?: Context;
     },
-    ): Promise<{ newContext: Context } | { error: string }> {
+  ): Promise<{ newContext: Context } | { error: string }> {
     try {
       console.log("[HighlightedContext.create] called with", {
         paperId,
@@ -128,7 +128,7 @@ export default class HighlightedContextConcept {
    */
   async _getFilteredContexts(
     { paperIds, authors }: { paperIds?: string[]; authors?: User[] },
-    ): Promise<
+  ): Promise<
     Array<
       {
         filteredContexts: Array<
@@ -167,10 +167,10 @@ export default class HighlightedContextConcept {
         parentContext: c.parentContext,
         createdAt: c.createdAt,
       }));
-
       // Queries must return an array of dictionaries
       return [{ filteredContexts }];
-    } catch {
+    } catch (e) {
+      console.error("[HighlightedContext._getFilteredContexts] Error:", e);
       // On error, return empty array (queries should not throw)
       return [{ filteredContexts: [] }];
     }

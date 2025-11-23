@@ -1,4 +1,4 @@
-import { actions, Sync } from "@engine";
+import { actions, Frames, Sync } from "@engine";
 import {
   DiscussionPub,
   HighlightedContext,
@@ -9,27 +9,39 @@ import {
 } from "@concepts";
 
 // PaperIndex
+// ensure is available without session - frontend sends { id, title? }
 export const PaperIndexEnsureRequest: Sync = (
-  { request, session, paperId, title, user },
+  { request, id, title },
 ) => ({
   when: actions([Requesting.request, {
     path: "/PaperIndex/ensure",
-    session,
-    paperId,
-    title,
+    id,
+    // Note: title is optional; do not require it in the `when` pattern,
+    // or the sync will never match when callers omit it.
   }, { request }]),
-  where: async (frames) => {
-    return await frames.query(Sessioning._getUser, { session }, { user });
-  },
-  then: actions([PaperIndex.ensure, { paperId, title }]),
+  // Map frontend's 'id' to concept's 'paperId'
+  // title can be undefined, which is fine for the concept action
+  then: actions([PaperIndex.ensure, { paperId: id, title }]),
 });
 
-export const PaperIndexEnsureResponse: Sync = ({ request, paper, error }) => ({
+// On success, respond with result (frontend expects { result: string })
+export const PaperIndexEnsureResponseSuccess: Sync = ({ request, paper }) => ({
   when: actions(
     [Requesting.request, { path: "/PaperIndex/ensure" }, { request }],
-    [PaperIndex.ensure, {}, { paper, error }],
+    // Match only when PaperIndex.ensure produced a `paper`
+    [PaperIndex.ensure, {}, { paper }],
   ),
-  then: actions([Requesting.respond, { request, paper, error }]),
+  then: actions([Requesting.respond, { request, result: paper }]),
+});
+
+// On error, propagate the error back to the HTTP caller
+export const PaperIndexEnsureResponseError: Sync = ({ request, error }) => ({
+  when: actions(
+    [Requesting.request, { path: "/PaperIndex/ensure" }, { request }],
+    // Match only when PaperIndex.ensure produced an `error`
+    [PaperIndex.ensure, {}, { error }],
+  ),
+  then: actions([Requesting.respond, { request, error }]),
 });
 
 export const PaperIndexUpdateMeta: Sync = (
@@ -65,21 +77,40 @@ export const PaperIndexGetResponse: Sync = ({ request, result }) => ({
   then: actions([Requesting.respond, { request, result }]),
 });
 
-export const PaperIndexListRecentRequest: Sync = ({ request, limit }) => ({
+export const PaperIndexGetByPaperIdRequest: Sync = ({ request, paperId }) => ({
+  when: actions([
+    Requesting.request,
+    { path: "/PaperIndex/_getByPaperId", paperId },
+    { request },
+  ]),
+  then: actions([PaperIndex._getByPaperId, { paperId }]),
+});
+
+export const PaperIndexGetByPaperIdResponse: Sync = ({ request, result }) => ({
+  when: actions(
+    [Requesting.request, { path: "/PaperIndex/_getByPaperId" }, { request }],
+    [PaperIndex._getByPaperId, {}, { result }],
+  ),
+  then: actions([Requesting.respond, { request, result }]),
+});
+
+export const PaperIndexListRecentRequest: Sync = (
+  { request, limit, paper, papers },
+) => ({
   when: actions([
     Requesting.request,
     { path: "/PaperIndex/listRecent", limit },
     { request },
   ]),
-  then: actions([PaperIndex._listRecent, { limit }]),
-});
-
-export const PaperIndexListRecentResponse: Sync = ({ request, result }) => ({
-  when: actions(
-    [Requesting.request, { path: "/PaperIndex/listRecent" }, { request }],
-    [PaperIndex._listRecent, {}, { result }],
-  ),
-  then: actions([Requesting.respond, { request, result }]),
+  where: async (frames) => {
+    const originalFrame = frames[0];
+    frames = await frames.query(PaperIndex._listRecent, { limit }, { paper });
+    if (frames.length === 0) {
+      return new Frames({ ...originalFrame, [papers]: [] });
+    }
+    return frames.collectAs([paper], papers);
+  },
+  then: actions([Requesting.respond, { request, papers }]),
 });
 
 // HighlightedContext
@@ -280,70 +311,78 @@ export const DiscussionGetPubIdByPaperResponse: Sync = (
 
 // _listThreads with anchorId filter
 export const DiscussionListThreadsWithAnchorRequest: Sync = (
-  { request, pubId, anchorId },
+  { request, pubId, anchorId, thread, threads },
 ) => ({
   when: actions([Requesting.request, {
     path: "/DiscussionPub/_listThreads",
     pubId,
     anchorId,
   }, { request }]),
-  then: actions([DiscussionPub._listThreads, { pubId, anchorId }]),
+  where: async (frames) => {
+    const originalFrame = frames[0];
+    frames = await frames.query(DiscussionPub._listThreads, { pubId, anchorId }, { thread });
+    if (frames.length === 0) {
+      return new Frames({ ...originalFrame, [threads]: [] });
+    }
+    return frames.collectAs([thread], threads);
+  },
+  then: actions([Requesting.respond, { request, threads }]),
 });
 
 // _listThreads without anchorId filter
-export const DiscussionListThreadsRequest: Sync = ({ request, pubId }) => ({
+export const DiscussionListThreadsRequest: Sync = (
+  { request, pubId, thread, threads },
+) => ({
   when: actions([Requesting.request, {
     path: "/DiscussionPub/_listThreads",
     pubId,
   }, { request }]),
-  then: actions([DiscussionPub._listThreads, { pubId }]),
+  where: async (frames) => {
+    const originalFrame = frames[0];
+    frames = await frames.query(DiscussionPub._listThreads, { pubId }, { thread });
+    if (frames.length === 0) {
+      return new Frames({ ...originalFrame, [threads]: [] });
+    }
+    return frames.collectAs([thread], threads);
+  },
+  then: actions([Requesting.respond, { request, threads }]),
 });
 
-export const DiscussionListThreadsResponse: Sync = ({ request, result }) => ({
-  when: actions(
-    [Requesting.request, { path: "/DiscussionPub/_listThreads" }, { request }],
-    [DiscussionPub._listThreads, {}, { result }],
-  ),
-  then: actions([Requesting.respond, { request, result }]),
-});
-
-export const DiscussionListRepliesRequest: Sync = ({ request, threadId }) => ({
+export const DiscussionListRepliesRequest: Sync = (
+  { request, threadId, reply, replies },
+) => ({
   when: actions([Requesting.request, {
     path: "/DiscussionPub/_listReplies",
     threadId,
   }, { request }]),
-  then: actions([DiscussionPub._listReplies, { threadId }]),
-});
-
-export const DiscussionListRepliesResponse: Sync = ({ request, result }) => ({
-  when: actions(
-    [Requesting.request, { path: "/DiscussionPub/_listReplies" }, { request }],
-    [DiscussionPub._listReplies, {}, { result }],
-  ),
-  then: actions([Requesting.respond, { request, result }]),
+  where: async (frames) => {
+    const originalFrame = frames[0];
+    frames = await frames.query(DiscussionPub._listReplies, { threadId }, { reply });
+    if (frames.length === 0) {
+      return new Frames({ ...originalFrame, [replies]: [] });
+    }
+    return frames.collectAs([reply], replies);
+  },
+  then: actions([Requesting.respond, { request, replies }]),
 });
 
 // Tree-structured replies
 export const DiscussionListRepliesTreeRequest: Sync = (
-  { request, threadId },
+  { request, threadId, reply, replies },
 ) => ({
   when: actions([Requesting.request, {
     path: "/DiscussionPub/_listRepliesTree",
     threadId,
   }, { request }]),
-  then: actions([DiscussionPub._listRepliesTree, { threadId }]),
-});
-
-export const DiscussionListRepliesTreeResponse: Sync = (
-  { request, result },
-) => ({
-  when: actions(
-    [Requesting.request, { path: "/DiscussionPub/_listRepliesTree" }, {
-      request,
-    }],
-    [DiscussionPub._listRepliesTree, {}, { result }],
-  ),
-  then: actions([Requesting.respond, { request, result }]),
+  where: async (frames) => {
+    const originalFrame = frames[0];
+    frames = await frames.query(DiscussionPub._listRepliesTree, { threadId }, { reply });
+    if (frames.length === 0) {
+      return new Frames({ ...originalFrame, [replies]: [] });
+    }
+    return frames.collectAs([reply], replies);
+  },
+  then: actions([Requesting.respond, { request, replies }]),
 });
 
 // IdentityVerification
@@ -719,23 +758,41 @@ export const IdentityUpdateAffiliationRequest: Sync = (
   }], [Requesting.respond, { request, ok: true }]),
 });
 
-export const IdentityGetByUserRequest: Sync = ({ request, session, user }) => ({
+export const IdentityGetByUserRequest: Sync = (
+  { request, session, user, orcid, affiliation, badge, orcids, affiliations, badges },
+) => ({
   when: actions([Requesting.request, {
     path: "/IdentityVerification/_getByUser",
     session,
   }, { request }]),
   where: async (frames) => {
-    return await frames.query(Sessioning._getUser, { session }, { user });
+    const originalFrame = frames[0];
+    frames = await frames.query(Sessioning._getUser, { session }, { user });
+    
+    // Query all three types - user is bound from frames
+    const [orcidFrames, affiliationFrames, badgeFrames] = await Promise.all([
+      frames.query(IdentityVerification._getORCIDsByUser, { user }, { orcid }),
+      frames.query(IdentityVerification._getAffiliationsByUser, { user }, { affiliation }),
+      frames.query(IdentityVerification._getBadgesByUser, { user }, { badge }),
+    ]);
+    
+    // Collect each type into arrays
+    const orcidsCollected = orcidFrames.length === 0 ? new Frames({ [orcids]: [] }) : orcidFrames.collectAs([orcid], orcids);
+    const affiliationsCollected = affiliationFrames.length === 0 ? new Frames({ [affiliations]: [] }) : affiliationFrames.collectAs([affiliation], affiliations);
+    const badgesCollected = badgeFrames.length === 0 ? new Frames({ [badges]: [] }) : badgeFrames.collectAs([badge], badges);
+    
+    // Extract arrays from collected frames
+    const orcidsArray = (orcidsCollected[0]?.[orcids] as Array<unknown>) ?? [];
+    const affiliationsArray = (affiliationsCollected[0]?.[affiliations] as Array<unknown>) ?? [];
+    const badgesArray = (badgesCollected[0]?.[badges] as Array<unknown>) ?? [];
+    
+    // Combine all results into a single frame
+    return new Frames({
+      ...originalFrame,
+      [orcids]: orcidsArray,
+      [affiliations]: affiliationsArray,
+      [badges]: badgesArray,
+    });
   },
-  then: actions([IdentityVerification._getByUser, { user }]),
-});
-
-export const IdentityGetByUserResponse: Sync = ({ request, result }) => ({
-  when: actions(
-    [Requesting.request, { path: "/IdentityVerification/_getByUser" }, {
-      request,
-    }],
-    [IdentityVerification._getByUser, {}, { result }],
-  ),
-  then: actions([Requesting.respond, { request, result }]),
+  then: actions([Requesting.respond, { request, orcids, affiliations, badges }]),
 });
