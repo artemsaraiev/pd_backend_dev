@@ -105,8 +105,11 @@ export const exclusions: Array<string> = [
   "/api/IdentityVerification/updateAffiliation",
   "/api/IdentityVerification/addBadge",
   "/api/IdentityVerification/revokeBadge",
-  // User-specific queries need auth
+  // User-specific queries need auth - used internally by syncs
   "/api/IdentityVerification/_getByUser",
+  "/api/IdentityVerification/_getORCIDsByUser",
+  "/api/IdentityVerification/_getAffiliationsByUser",
+  "/api/IdentityVerification/_getBadgesByUser",
 
   // LikertSurvey - mutations need auth/tracking
   "/api/LikertSurvey/createSurvey",

@@ -119,7 +119,8 @@ export default class PdfHighlighterConcept {
       // Queries must return an array of dictionaries, one per highlight
       // Return empty array if no highlights found (handled in sync's where clause)
       return docs.map((doc) => ({ highlight: doc }));
-    } catch {
+    } catch (e) {
+      console.error("[PdfHighlighter._listByPaper] Error:", e);
       // On error, return empty array (queries should not throw)
       return [];
     }
