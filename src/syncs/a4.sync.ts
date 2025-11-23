@@ -77,6 +77,23 @@ export const PaperIndexGetResponse: Sync = ({ request, result }) => ({
   then: actions([Requesting.respond, { request, result }]),
 });
 
+export const PaperIndexGetByPaperIdRequest: Sync = ({ request, paperId }) => ({
+  when: actions([
+    Requesting.request,
+    { path: "/PaperIndex/_getByPaperId", paperId },
+    { request },
+  ]),
+  then: actions([PaperIndex._getByPaperId, { paperId }]),
+});
+
+export const PaperIndexGetByPaperIdResponse: Sync = ({ request, result }) => ({
+  when: actions(
+    [Requesting.request, { path: "/PaperIndex/_getByPaperId" }, { request }],
+    [PaperIndex._getByPaperId, {}, { result }],
+  ),
+  then: actions([Requesting.respond, { request, result }]),
+});
+
 export const PaperIndexListRecentRequest: Sync = ({ request, limit }) => ({
   when: actions([
     Requesting.request,

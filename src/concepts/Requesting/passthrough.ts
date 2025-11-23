@@ -34,6 +34,7 @@ export const inclusions: Record<string, string> = {
 
   // Public read queries - if paper data is public
   "/api/PaperIndex/_get": "public query - paper data is public",
+  "/api/PaperIndex/_getByPaperId": "public query - paper data is public",
   "/api/PaperIndex/_listRecent": "public query - paper list is public",
 
   // Public read queries - if discussions are public

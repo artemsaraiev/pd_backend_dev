@@ -263,6 +263,27 @@ export default class PaperIndexConcept {
   }
 
   /**
+   * _getByPaperId(paperId: String) : (paper: PaperDoc | null)
+   *
+   * **requires** nothing
+   * **effects** returns an array of dictionaries, each containing the paper document
+   * for the given external paperId in the `paper` field, or null if the paper does not exist.
+   * Returns an array with one dictionary containing `{ paper: PaperDoc | null }`.
+   */
+  async _getByPaperId(
+    { paperId }: { paperId: string },
+  ): Promise<Array<{ paper: PaperDoc | null }>> {
+    try {
+      const result = await this.papers.findOne({ paperId });
+      // Queries must return an array of dictionaries
+      return [{ paper: result ?? null }];
+    } catch {
+      // On error, return array with null (queries should not throw)
+      return [{ paper: null }];
+    }
+  }
+
+  /**
    * _listRecent(limit?: Number) : (papers: PaperDoc[])
    *
    * **requires** nothing
