@@ -6,4 +6,6 @@ ctx.exe
 .obsidian/workspace.json
 src/concepts/concepts.ts
 src/concepts/test_concepts.ts
+/uploads/
+uploads/
 src/syncs/syncs.ts
