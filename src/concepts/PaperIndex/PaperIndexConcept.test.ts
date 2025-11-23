@@ -461,10 +461,10 @@ Deno.test("Query: _listRecent returns recent papers ordered by createdAt", async
     const result = await concept._listRecent({ limit: 10 });
     assertEquals(
       result.length,
-      1,
-      "Query should return array with one dictionary",
+      3,
+      "Query should return array with one dictionary per paper",
     );
-    const { papers } = result[0];
+    const papers = result.map((r) => r.paper);
     assertEquals(papers.length, 3, "Should return three papers");
 
     // Verify ordering (most recent first) - check internal _id
@@ -476,7 +476,7 @@ Deno.test("Query: _listRecent returns recent papers ordered by createdAt", async
     // Verify limit works
     const limitedResult = await concept._listRecent({ limit: 2 });
     assertEquals(
-      limitedResult[0].papers.length,
+      limitedResult.length,
       2,
       "Should respect limit",
     );
@@ -496,10 +496,9 @@ Deno.test("Query: _listRecent returns empty array when no papers exist", async (
     const result = await concept._listRecent({ limit: 10 });
     assertEquals(
       result.length,
-      1,
-      "Query should return array with one dictionary",
+      0,
+      "Query should return empty array when no papers exist",
     );
-    assertEquals(result[0].papers.length, 0, "Should return empty array");
     console.log("    Correctly returns empty array");
   } finally {
     await client.close();

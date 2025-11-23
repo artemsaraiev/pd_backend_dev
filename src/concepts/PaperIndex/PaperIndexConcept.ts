@@ -44,20 +44,19 @@ export default class PaperIndexConcept {
   }
 
   /**
-   * _searchArxiv(q: String) : (result: Array<{id: String, title?: String}>)
+   * _searchArxiv(q: String) : (result: {id: String, title?: String})
    *
    * **requires** nothing
-   * **effects** returns an array of dictionaries, each containing search results from
-   * the arXiv API matching the query string. Each result includes an id (arXiv identifier)
-   * and optionally a title. Returns an array with one dictionary containing
-   * `{ result: Array<{id: String, title?: String}> }`.
+   * **effects** returns an array of dictionaries, each containing one search result
+   * from the arXiv API matching the query string. Each result includes an id (arXiv identifier)
+   * and optionally a title. Returns an empty array if no results are found.
    */
   async _searchArxiv(
     { q }: { q: string },
-  ): Promise<Array<{ result: Array<{ id: string; title?: string }> }>> {
+  ): Promise<Array<{ result: { id: string; title?: string } }>> {
     try {
       const query = q.trim();
-      if (!query) return [{ result: [] }];
+      if (!query) return [];
       const url = `http://export.arxiv.org/api/query?search_query=all:${
         encodeURIComponent(query)
       }&start=0&max_results=10`;
@@ -79,11 +78,11 @@ export default class PaperIndexConcept {
           : undefined;
         items.push({ id, title });
       }
-      // Queries must return an array of dictionaries
-      return [{ result: items }];
+      // Queries must return an array of dictionaries, one per result
+      return items.map((result) => ({ result }));
     } catch {
       // On error, return empty array (queries should not throw)
-      return [{ result: [] }];
+      return [];
     }
   }
 
@@ -284,31 +283,27 @@ export default class PaperIndexConcept {
   }
 
   /**
-   * _listRecent(limit?: Number) : (papers: PaperDoc[])
+   * _listRecent(limit?: Number) : (paper: PaperDoc)
    *
    * **requires** nothing
-   * **effects** returns an array of dictionaries, each containing the most recently
-   * created papers in the `papers` field, limited by the provided limit (default 20).
+   * **effects** returns an array of dictionaries, each containing one paper document
+   * for the most recently created papers, limited by the provided limit (default 20).
    * Results are ordered by createdAt descending. Each paper includes _id, title, and
-   * createdAt. Returns an array with one dictionary containing `{ papers: PaperDoc[] }`.
+   * createdAt. Returns an empty array if no papers exist.
    */
   async _listRecent(
     { limit }: { limit?: number },
   ): Promise<
-    Array<
-      {
-        papers: Array<
-          {
-            _id: Paper;
-            paperId: string;
-            title?: string;
-            createdAt?: number;
-            authors: Author[];
-            links: string[];
-          }
-        >;
-      }
-    >
+    Array<{
+      paper: {
+        _id: Paper;
+        paperId: string;
+        title?: string;
+        createdAt?: number;
+        authors: Author[];
+        links: string[];
+      };
+    }>
   > {
     try {
       const cur = this.papers
@@ -326,11 +321,11 @@ export default class PaperIndexConcept {
         .limit(limit ?? 20);
       const items = await cur.toArray();
       const papers = items as Array<PaperDoc>;
-      // Queries must return an array of dictionaries
-      return [{ papers }];
+      // Queries must return an array of dictionaries, one per paper
+      return papers.map((paper) => ({ paper }));
     } catch {
       // On error, return empty array (queries should not throw)
-      return [{ papers: [] }];
+      return [];
     }
   }
 }

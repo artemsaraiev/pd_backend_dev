@@ -45,18 +45,17 @@ us can be updated
     + **effects** returns an array of dictionaries, each containing the paper document
     for the given paper in the `paper` field, or null if the paper does not exist.
     Returns an array with one dictionary containing `{ paper: PaperDoc | null }`.
-  + _listRecent(limit?: Number) : (papers: PaperDoc[])
+  + _listRecent(limit?: Number) : (paper: PaperDoc)
     + **requires** nothing
-    + **effects** returns an array of dictionaries, each containing the most recently
-    created papers in the `papers` field, limited by the provided limit (default 20).
+    + **effects** returns an array of dictionaries, each containing one paper document
+    for the most recently created papers, limited by the provided limit (default 20).
     Results are ordered by createdAt descending. Each paper includes _id, title, and
-    createdAt. Returns an array with one dictionary containing `{ papers: PaperDoc[] }`.
-  + _searchArxiv(q: String) : (result: Array<{id: String, title?: String}>)
+    createdAt. Returns an empty array if no papers exist.
+  + _searchArxiv(q: String) : (result: {id: String, title?: String})
     + **requires** nothing
-    + **effects** returns an array of dictionaries, each containing search results from
-    the arXiv API matching the query string. Each result includes an id (arXiv identifier)
-    and optionally a title. Returns an array with one dictionary containing
-    `{ result: Array<{id: String, title?: String}> }`.
+    + **effects** returns an array of dictionaries, each containing one search result
+    from the arXiv API matching the query string. Each result includes an id (arXiv identifier)
+    and optionally a title. Returns an empty array if no results are found.
 
 **Notes:**
 

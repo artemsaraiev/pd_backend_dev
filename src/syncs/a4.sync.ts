@@ -1,4 +1,4 @@
-import { actions, Sync } from "@engine";
+import { actions, Frames, Sync } from "@engine";
 import {
   DiscussionPub,
   HighlightedContext,
@@ -94,21 +94,23 @@ export const PaperIndexGetByPaperIdResponse: Sync = ({ request, result }) => ({
   then: actions([Requesting.respond, { request, result }]),
 });
 
-export const PaperIndexListRecentRequest: Sync = ({ request, limit }) => ({
+export const PaperIndexListRecentRequest: Sync = (
+  { request, limit, paper, papers },
+) => ({
   when: actions([
     Requesting.request,
     { path: "/PaperIndex/listRecent", limit },
     { request },
   ]),
-  then: actions([PaperIndex._listRecent, { limit }]),
-});
-
-export const PaperIndexListRecentResponse: Sync = ({ request, result }) => ({
-  when: actions(
-    [Requesting.request, { path: "/PaperIndex/listRecent" }, { request }],
-    [PaperIndex._listRecent, {}, { result }],
-  ),
-  then: actions([Requesting.respond, { request, result }]),
+  where: async (frames) => {
+    const originalFrame = frames[0];
+    frames = await frames.query(PaperIndex._listRecent, { limit }, { paper });
+    if (frames.length === 0) {
+      return new Frames({ ...originalFrame, [papers]: [] });
+    }
+    return frames.collectAs([paper], papers);
+  },
+  then: actions([Requesting.respond, { request, papers }]),
 });
 
 // HighlightedContext
