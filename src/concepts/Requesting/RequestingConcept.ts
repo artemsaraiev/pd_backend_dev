@@ -195,9 +195,22 @@ export function startRequestingServer(
   app.use(
     "/*",
     cors({
-      origin: REQUESTING_ALLOWED_DOMAIN,
-      allowHeaders: ["Content-Type", "Range"],
+      origin: (origin) => {
+        // If configured to allow all, mirror the origin to support credentials/remote access
+        if (REQUESTING_ALLOWED_DOMAIN === "*") return origin || "*";
+        return REQUESTING_ALLOWED_DOMAIN;
+      },
+      allowHeaders: [
+        "Content-Type",
+        "Range",
+        "Authorization",
+        "Accept",
+        "Origin",
+        "X-Requested-With",
+      ],
       exposeHeaders: ["Accept-Ranges", "Content-Length", "Content-Range"],
+      allowMethods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+      credentials: true,
     }),
   );
 

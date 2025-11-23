@@ -1,4 +1,5 @@
 import { Hono } from "jsr:@hono/hono";
+import { cors } from "jsr:@hono/hono/cors";
 import { getDb } from "@utils/database.ts";
 import { walk } from "jsr:@std/fs";
 import { parseArgs } from "jsr:@std/cli/parse-args";
@@ -23,6 +24,24 @@ const CONCEPTS_DIR = "src/concepts";
 async function main() {
   const [db] = await getDb();
   const app = new Hono();
+
+  app.use(
+    "/*",
+    cors({
+      origin: (origin) => origin || "*",
+      allowHeaders: [
+        "Content-Type",
+        "Range",
+        "Authorization",
+        "Accept",
+        "Origin",
+        "X-Requested-With",
+      ],
+      exposeHeaders: ["Accept-Ranges", "Content-Length", "Content-Range"],
+      allowMethods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+      credentials: true,
+    }),
+  );
 
   app.get("/", (c) => c.text("Concept Server is running."));
 
