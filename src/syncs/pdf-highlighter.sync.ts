@@ -62,7 +62,9 @@ export const PdfHighlighterGetResponse: Sync = ({ request, highlight }) => ({
   then: actions([Requesting.respond, { request, highlight }]),
 });
 
-export const PdfHighlighterListByPaperRequest: Sync = ({ request, paper }) => ({
+export const PdfHighlighterListByPaperRequest: Sync = (
+  { request, paper, highlight, highlights },
+) => ({
   when: actions([
     Requesting.request,
     {
@@ -71,37 +73,23 @@ export const PdfHighlighterListByPaperRequest: Sync = ({ request, paper }) => ({
     },
     { request },
   ]),
-  then: actions([PdfHighlighter._listByPaper, { paper }]),
-});
-
-export const PdfHighlighterListByPaperResponse: Sync = (
-  { request, highlight, highlights },
-) => ({
-  when: actions(
-    [Requesting.request, { path: "/PdfHighlighter/_listByPaper" }, { request }],
-    // Query returns Array<{ highlight: HighlightDoc | null }> - one per highlight
-    // Returns [{ highlight: null }] when no highlights found
-    // Match on highlight field (as specified in the concept spec)
-    [PdfHighlighter._listByPaper, {}, { highlight }],
-  ),
-  where: (frames) => {
-    // Filter out null highlights and collect the rest
-    const validFrames = frames.filter((frame) => {
-      const hl = frame[highlight];
-      return hl !== null && hl !== undefined;
-    });
-
+  where: async (frames) => {
     // Preserve the original request frame
     const originalFrame = frames[0];
 
-    if (validFrames.length === 0) {
-      // No highlights found, return empty array
+    // Query for all highlights for this paper
+    // Query returns Array<{ highlight: HighlightDoc }> - one per highlight
+    frames = await frames.query(PdfHighlighter._listByPaper, { paper }, {
+      highlight,
+    });
+
+    // Handle empty case (no highlights found)
+    if (frames.length === 0) {
       return new Frames({ ...originalFrame, [highlights]: [] });
     }
 
     // Collect all highlight values into a single array
-    return validFrames.collectAs([highlight], highlights);
+    return frames.collectAs([highlight], highlights);
   },
-  // Respond with highlights array to match frontend expectations
   then: actions([Requesting.respond, { request, highlights }]),
 });

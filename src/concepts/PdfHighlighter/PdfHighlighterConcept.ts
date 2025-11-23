@@ -112,19 +112,16 @@ export default class PdfHighlighterConcept {
    */
   async _listByPaper(
     { paper }: { paper: Paper },
-  ): Promise<Array<{ highlight: HighlightDoc | null }>> {
+  ): Promise<Array<{ highlight: HighlightDoc }>> {
     try {
       const items = await this.highlights.find({ paper }).toArray();
       const docs = items as HighlightDoc[];
       // Queries must return an array of dictionaries, one per highlight
-      // If no highlights found, return one frame with null to allow sync to fire
-      if (docs.length === 0) {
-        return [{ highlight: null }];
-      }
+      // Return empty array if no highlights found (handled in sync's where clause)
       return docs.map((doc) => ({ highlight: doc }));
     } catch {
-      // On error, return one frame with null (queries should not throw)
-      return [{ highlight: null }];
+      // On error, return empty array (queries should not throw)
+      return [];
     }
   }
 }

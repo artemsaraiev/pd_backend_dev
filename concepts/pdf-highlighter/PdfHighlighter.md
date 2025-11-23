@@ -23,8 +23,8 @@ page of a paper, optionally capturing the text contained within those rectangles
     + **effects** returns an array of dictionaries, each containing the highlight
     document for the given highlight ID in the `highlight` field, or null if it does
     not exist.
-  + _listByPaper(paper: Paper) : (highlight: HighlightDoc | null)
+  + _listByPaper(paper: Paper) : (highlight: HighlightDoc)
     + **requires** nothing
     + **effects** returns an array of dictionaries, each containing one highlight
-    document for the given paper in the `highlight` field. Returns one dictionary
-    with `{ highlight: null }` if no highlights are found for the paper.
+    document for the given paper in the `highlight` field. Returns an empty array
+    if no highlights are found for the paper.
