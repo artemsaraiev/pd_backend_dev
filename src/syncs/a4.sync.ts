@@ -16,9 +16,11 @@ export const PaperIndexEnsureRequest: Sync = (
   when: actions([Requesting.request, {
     path: "/PaperIndex/ensure",
     id,
-    title,
+    // Note: title is optional; do not require it in the `when` pattern,
+    // or the sync will never match when callers omit it.
   }, { request }]),
   // Map frontend's 'id' to concept's 'paperId'
+  // title can be undefined, which is fine for the concept action
   then: actions([PaperIndex.ensure, { paperId: id, title }]),
 });
 
