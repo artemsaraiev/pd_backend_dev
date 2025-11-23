@@ -41,7 +41,8 @@ Deno.test("Principle: Papers can be added to index and metadata can be updated",
     );
     const { paper } = ensureResult as { paper: ID };
     assertExists(paper, "Paper ID should be returned");
-    assertEquals(paper, paper1, "Paper ID should match");
+    // paper is the internal _id, which should be different from paperId
+    assertNotEquals(paper, paper1, "Internal _id should be different from external paperId");
     console.log(`    Added paper: ${paper}`);
 
     // 2. Paper metadata can be updated
@@ -85,8 +86,9 @@ Deno.test("Principle: Papers can be added to index and metadata can be updated",
     );
     const { paper: paperDoc } = getResult[0];
     assertExists(paperDoc, "Paper should exist");
-    assertEquals(paperDoc!._id, paper1, "Paper ID should match");
+    assertEquals(paperDoc!._id, paper, "Paper _id should match returned internal ID");
     assertEquals(paperDoc!.paperId, paper1, "Paper paperId should match external identifier");
+    assertNotEquals(paperDoc!._id, paperDoc!.paperId, "_id and paperId should be different");
     assertEquals(paperDoc!.title, "Updated Title", "Title should be updated");
     assertEquals(
       paperDoc!.authors.length,
@@ -127,11 +129,12 @@ Deno.test("Action: ensure creates paper if not exists, returns existing if exist
     });
     assertNotEquals("error" in result1, true, "Should succeed");
     const { paper: paperId1 } = result1 as { paper: ID };
-    assertEquals(paperId1, paper1, "Should return the paperId");
+    // paperId1 is the internal _id, which should be different from paper1 (external paperId)
+    assertNotEquals(paperId1, paper1, "Internal _id should be different from external paperId");
 
     // Verify paper was created
     const getResult1 = await concept._get({ paper: paperId1 });
-    assertEquals(getResult1[0].paper?._id, paper1, "Paper should exist");
+    assertEquals(getResult1[0].paper?._id, paperId1, "Paper _id should match returned internal ID");
     assertEquals(getResult1[0].paper?.paperId, paper1, "Paper paperId should match external identifier");
     assertEquals(
       getResult1[0].paper?.title,
@@ -154,7 +157,7 @@ Deno.test("Action: ensure creates paper if not exists, returns existing if exist
     });
     assertNotEquals("error" in result2, true, "Should succeed");
     const { paper: paperId2 } = result2 as { paper: ID };
-    assertEquals(paperId2, paper1, "Should return same paperId");
+    assertEquals(paperId2, paperId1, "Should return same internal _id for same paperId");
 
     // Verify paper was not updated (idempotent)
     const getResult2 = await concept._get({ paper: paperId2 });
@@ -170,10 +173,11 @@ Deno.test("Action: ensure creates paper if not exists, returns existing if exist
     const result3 = await concept.ensure({ paperId: paper2 });
     assertNotEquals("error" in result3, true, "Should succeed");
     const { paper: paperId3 } = result3 as { paper: ID };
-    assertEquals(paperId3, paper2, "Should return the paperId");
+    // paperId3 is the internal _id, which should be different from paper2 (external paperId)
+    assertNotEquals(paperId3, paper2, "Internal _id should be different from external paperId");
 
     const getResult3 = await concept._get({ paper: paperId3 });
-    assertEquals(getResult3[0].paper?._id, paper2, "Paper should exist");
+    assertEquals(getResult3[0].paper?._id, paperId3, "Paper _id should match returned internal ID");
     assertEquals(getResult3[0].paper?.paperId, paper2, "Paper paperId should match external identifier");
     assertEquals(
       getResult3[0].paper?.title,
@@ -205,14 +209,15 @@ Deno.test("Action: updateMeta requires paper exists, sets title", async () => {
 
     // Test: updateMeta sets title
     console.log("  Testing effects: sets title");
-    await concept.ensure({ paperId: paper1, title: "Original Title" });
+    const ensureResult = await concept.ensure({ paperId: paper1, title: "Original Title" });
+    const { paper: internalId } = ensureResult as { paper: ID };
     const updateResult = await concept.updateMeta({
-      paper: paper1 as ID,
+      paper: internalId,
       title: "Updated Title",
     });
     assertNotEquals("error" in updateResult, true, "Should succeed");
 
-    const getResult = await concept._get({ paper: paper1 });
+    const getResult = await concept._get({ paper: internalId });
     assertEquals(
       getResult[0].paper?.title,
       "Updated Title",
@@ -243,11 +248,12 @@ Deno.test("Action: addAuthors requires paper exists, adds unique authors", async
 
     // Test: addAuthors adds unique authors (set semantics)
     console.log("  Testing effects: adds unique authors");
-    await concept.ensure({ paperId: paper1 });
-    await concept.addAuthors({ paper: paper1, authors: [author1, author2] });
-    await concept.addAuthors({ paper: paper1, authors: [author2, author3] }); // author2 already exists
+    const ensureResult = await concept.ensure({ paperId: paper1 });
+    const { paper: internalId } = ensureResult as { paper: ID };
+    await concept.addAuthors({ paper: internalId, authors: [author1, author2] });
+    await concept.addAuthors({ paper: internalId, authors: [author2, author3] }); // author2 already exists
 
-    const getResult = await concept._get({ paper: paper1 });
+    const getResult = await concept._get({ paper: internalId });
     const authors = getResult[0].paper?.authors ?? [];
     assertEquals(authors.length, 3, "Should have three unique authors");
     assertEquals(authors.includes(author1), true, "Should include Alice");
@@ -281,11 +287,12 @@ Deno.test("Action: removeAuthors requires paper exists, removes authors if prese
 
     // Test: removeAuthors removes authors if present
     console.log("  Testing effects: removes authors if present");
-    await concept.ensure({ paperId: paper1 });
-    await concept.addAuthors({ paper: paper1, authors: [author1, author2, author3] });
-    await concept.removeAuthors({ paper: paper1, authors: [author2, "nonexistent" as ID] }); // nonexistent doesn't exist
+    const ensureResult = await concept.ensure({ paperId: paper1 });
+    const { paper: internalId } = ensureResult as { paper: ID };
+    await concept.addAuthors({ paper: internalId, authors: [author1, author2, author3] });
+    await concept.removeAuthors({ paper: internalId, authors: [author2, "nonexistent" as ID] }); // nonexistent doesn't exist
 
-    const getResult = await concept._get({ paper: paper1 });
+    const getResult = await concept._get({ paper: internalId });
     const authors = getResult[0].paper?.authors ?? [];
     assertEquals(authors.length, 2, "Should have two authors remaining");
     assertEquals(authors.includes(author1), true, "Should include Alice");
@@ -316,12 +323,13 @@ Deno.test("Action: addLink requires paper exists, adds url if not present", asyn
 
     // Test: addLink adds url if not present (set semantics)
     console.log("  Testing effects: adds url if not present");
-    await concept.ensure({ paperId: paper1 });
-    await concept.addLink({ paper: paper1, url: "https://example.com/1" });
-    await concept.addLink({ paper: paper1, url: "https://example.com/2" });
-    await concept.addLink({ paper: paper1, url: "https://example.com/1" }); // Duplicate
+    const ensureResult = await concept.ensure({ paperId: paper1 });
+    const { paper: internalId } = ensureResult as { paper: ID };
+    await concept.addLink({ paper: internalId, url: "https://example.com/1" });
+    await concept.addLink({ paper: internalId, url: "https://example.com/2" });
+    await concept.addLink({ paper: internalId, url: "https://example.com/1" }); // Duplicate
 
-    const getResult = await concept._get({ paper: paper1 });
+    const getResult = await concept._get({ paper: internalId });
     const links = getResult[0].paper?.links ?? [];
     assertEquals(links.length, 2, "Should have two unique links");
     assertEquals(
@@ -359,13 +367,14 @@ Deno.test("Action: removeLink requires paper exists, removes url if present", as
 
     // Test: removeLink removes url if present (no-op if not present)
     console.log("  Testing effects: removes url if present");
-    await concept.ensure({ paperId: paper1 });
-    await concept.addLink({ paper: paper1, url: "https://example.com/1" });
-    await concept.addLink({ paper: paper1, url: "https://example.com/2" });
-    await concept.removeLink({ paper: paper1, url: "https://example.com/1" });
-    await concept.removeLink({ paper: paper1, url: "https://example.com/nonexistent" }); // No-op
+    const ensureResult = await concept.ensure({ paperId: paper1 });
+    const { paper: internalId } = ensureResult as { paper: ID };
+    await concept.addLink({ paper: internalId, url: "https://example.com/1" });
+    await concept.addLink({ paper: internalId, url: "https://example.com/2" });
+    await concept.removeLink({ paper: internalId, url: "https://example.com/1" });
+    await concept.removeLink({ paper: internalId, url: "https://example.com/nonexistent" }); // No-op
 
-    const getResult = await concept._get({ paper: paper1 });
+    const getResult = await concept._get({ paper: internalId });
     const links = getResult[0].paper?.links ?? [];
     assertEquals(links.length, 1, "Should have one link remaining");
     assertEquals(
@@ -405,11 +414,12 @@ Deno.test("Query: _get returns paper document or null", async () => {
 
     // Test: returns paper document for existing paper
     console.log("  Testing existing paper");
-    await concept.ensure({ paperId: paper1, title: "Test Paper" });
-    await concept.addAuthors({ paper: paper1, authors: [author1] });
-    await concept.addLink({ paper: paper1, url: "https://example.com" });
+    const ensureResult = await concept.ensure({ paperId: paper1, title: "Test Paper" });
+    const { paper: internalId } = ensureResult as { paper: ID };
+    await concept.addAuthors({ paper: internalId, authors: [author1] });
+    await concept.addLink({ paper: internalId, url: "https://example.com" });
 
-    const result2 = await concept._get({ paper: paper1 });
+    const result2 = await concept._get({ paper: internalId });
     assertEquals(
       result2.length,
       1,
@@ -417,7 +427,7 @@ Deno.test("Query: _get returns paper document or null", async () => {
     );
     const { paper: paperDoc } = result2[0];
     assertExists(paperDoc, "Paper should exist");
-    assertEquals(paperDoc!._id, paper1, "Paper ID should match");
+    assertEquals(paperDoc!._id, internalId, "Paper _id should match internal ID");
     assertEquals(paperDoc!.paperId, paper1, "Paper paperId should match external identifier");
     assertEquals(paperDoc!.title, "Test Paper", "Title should match");
     assertEquals(paperDoc!.authors.length, 1, "Should have one author");
@@ -439,11 +449,14 @@ Deno.test("Query: _listRecent returns recent papers ordered by createdAt", async
     console.log("Testing _listRecent query - ordering");
 
     // Create papers with delays to ensure different createdAt
-    await concept.ensure({ paperId: paper1, title: "First Paper" });
+    const ensure1 = await concept.ensure({ paperId: paper1, title: "First Paper" });
+    const { paper: internalId1 } = ensure1 as { paper: ID };
     await new Promise((resolve) => setTimeout(resolve, 10)); // Small delay
-    await concept.ensure({ paperId: paper2, title: "Second Paper" });
+    const ensure2 = await concept.ensure({ paperId: paper2, title: "Second Paper" });
+    const { paper: internalId2 } = ensure2 as { paper: ID };
     await new Promise((resolve) => setTimeout(resolve, 10));
-    await concept.ensure({ paperId: paper3, title: "Third Paper" });
+    const ensure3 = await concept.ensure({ paperId: paper3, title: "Third Paper" });
+    const { paper: internalId3 } = ensure3 as { paper: ID };
 
     const result = await concept._listRecent({ limit: 10 });
     assertEquals(
@@ -454,10 +467,10 @@ Deno.test("Query: _listRecent returns recent papers ordered by createdAt", async
     const { papers } = result[0];
     assertEquals(papers.length, 3, "Should return three papers");
 
-    // Verify ordering (most recent first)
-    assertEquals(papers[0]._id, paper3, "First should be most recent");
-    assertEquals(papers[1]._id, paper2, "Second should be middle");
-    assertEquals(papers[2]._id, paper1, "Third should be oldest");
+    // Verify ordering (most recent first) - check internal _id
+    assertEquals(papers[0]._id, internalId3, "First should be most recent");
+    assertEquals(papers[1]._id, internalId2, "Second should be middle");
+    assertEquals(papers[2]._id, internalId1, "Third should be oldest");
     console.log("    Papers correctly ordered by createdAt (descending)");
 
     // Verify limit works

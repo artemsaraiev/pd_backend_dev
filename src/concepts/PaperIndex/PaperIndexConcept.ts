@@ -1,5 +1,6 @@
 import { Collection, Db } from "npm:mongodb";
 import { ID } from "@utils/types.ts";
+import { freshID } from "@utils/database.ts";
 
 // Generic types of this concept
 type Paper = ID;
@@ -21,14 +22,12 @@ type Author = ID;
  *   a title String?
  *   a createdAt Date
  *
- * Note: In this implementation, we use the external paperId as the MongoDB _id
- * for efficiency. The paperId field explicitly stores the external identifier
- * to match the spec and clarify the distinction:
- * - _id: MongoDB's document identifier (in this case, same as paperId)
- * - paperId: External unique identifier (DOI, arXiv, etc.)
+ * Note: Both _id and paperId are stored separately:
+ * - _id: MongoDB's internal document identifier (generated with freshID())
+ * - paperId: External unique identifier (DOI, arXiv, etc.) from outside the system
  */
 interface PaperDoc {
-  _id: Paper; // MongoDB document ID (set to paperId for this concept)
+  _id: Paper; // MongoDB internal document ID (generated with freshID())
   paperId: string; // External unique identifier (DOI, arXiv, etc.)
   title?: string;
   authors: Author[]; // Author IDs
@@ -100,21 +99,25 @@ export default class PaperIndexConcept {
     { paperId, title }: { paperId: string; title?: string },
   ): Promise<{ paper: Paper } | { error: string }> {
     try {
-      // Use paperId as _id for MongoDB efficiency, but also store it explicitly
-      const setOnInsert: Record<string, unknown> = {
-        _id: paperId as Paper,
-        paperId: paperId, // Explicit field for spec compliance and clarity
+      // Check if paper with this paperId already exists
+      const existing = await this.papers.findOne({ paperId });
+      if (existing) {
+        return { paper: existing._id };
+      }
+
+      // Create new paper with fresh internal ID
+      const internalId = freshID() as Paper;
+      const doc: PaperDoc = {
+        _id: internalId,
+        paperId: paperId,
         authors: [],
         links: [],
         createdAt: Date.now(),
       };
-      if (title !== undefined) setOnInsert.title = title;
-      await this.papers.updateOne(
-        { _id: paperId as Paper },
-        { $setOnInsert: setOnInsert },
-        { upsert: true },
-      );
-      return { paper: paperId as Paper };
+      if (title !== undefined) doc.title = title;
+
+      await this.papers.insertOne(doc);
+      return { paper: internalId };
     } catch (e) {
       return { error: e instanceof Error ? e.message : String(e) };
     }
@@ -243,7 +246,7 @@ export default class PaperIndexConcept {
    *
    * **requires** nothing
    * **effects** returns an array of dictionaries, each containing the paper document
-   * for the given paper in the `paper` field, or null if the paper does not exist.
+   * for the given paper (by internal _id) in the `paper` field, or null if the paper does not exist.
    * Returns an array with one dictionary containing `{ paper: PaperDoc | null }`.
    */
   async _get(
