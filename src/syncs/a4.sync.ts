@@ -737,7 +737,7 @@ export const IdentityInitiateORCIDVerificationRequest: Sync = (
   { request, session, orcid, redirectUri, user, orcidDoc },
 ) => ({
   when: actions([Requesting.request, {
-    path: "/IdentityVerification/initiateVerification",
+    path: "/IdentityVerification/initiateORCIDVerification",
     session,
     orcid,
     redirectUri,
@@ -773,7 +773,7 @@ export const IdentityInitiateORCIDVerificationResponse: Sync = (
   when: actions(
     [
       Requesting.request,
-      { path: "/IdentityVerification/initiateVerification" },
+      { path: "/IdentityVerification/initiateORCIDVerification" },
       {
         request,
       },
@@ -791,7 +791,7 @@ export const IdentityCompleteORCIDVerificationRequest: Sync = (
   { request, orcid, code, state },
 ) => ({
   when: actions([Requesting.request, {
-    path: "/IdentityVerification/completeVerification",
+    path: "/IdentityVerification/completeORCIDVerification",
     orcid,
     code,
     state,
@@ -808,7 +808,7 @@ export const IdentityCompleteORCIDVerificationResponse: Sync = (
   when: actions(
     [
       Requesting.request,
-      { path: "/IdentityVerification/completeVerification" },
+      { path: "/IdentityVerification/completeORCIDVerification" },
       {
         request,
       },
