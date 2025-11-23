@@ -43,6 +43,8 @@ export const inclusions: Record<string, string> = {
   "/api/DiscussionPub/_listReplies": "public query - discussions are public",
   "/api/DiscussionPub/_listRepliesTree":
     "public query - discussions are public",
+  "/api/DiscussionPub/_getThread": "public query - discussions are public",
+  "/api/DiscussionPub/_getReply": "public query - discussions are public",
 
   // Public read queries - if contexts are public
   "/api/HighlightedContext/_getFilteredContexts":
@@ -87,6 +89,12 @@ export const exclusions: Array<string> = [
   "/api/DiscussionPub/editReply",
   "/api/DiscussionPub/deleteReply",
   "/api/DiscussionPub/initIndexes",
+
+  // Internal initialization methods - not public endpoints
+  "/api/AccessControl/initIndexes",
+  "/api/AuthorRegistry/initIndexes",
+  "/api/IdentityVerification/initIndexes",
+  "/api/PdfHighlighter/initIndexes",
 
   // IdentityVerification - all mutations need auth
   "/api/IdentityVerification/addORCID",
