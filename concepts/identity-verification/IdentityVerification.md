@@ -7,6 +7,9 @@ account, and these can be used to verify the user's identity
   + a set of ORCIDs with
     + a user User
     + an orcid String
+    + a verified Flag
+    + an optional verifiedAt Date
+    + an optional accessToken String
   + a set of Affiliations with
     + a user User
     + an affiliation String
@@ -16,11 +19,17 @@ account, and these can be used to verify the user's identity
 + **actions**
   + addORCID(user: User, orcid: String) : (newORCID: ORCID)
     + **requires** there is no ORCID for the given user in the set of ORCIDs
-    + **effects** inserts new ORCID into the set of ORCIDs for the given user and
+    + **effects** inserts new ORCID into the set of ORCIDs for the given user with verified=false and
     returns the new ORCID
   + removeORCID(orcid: ORCID) : ()
     + **requires** the ORCID is in the set of ORCIDs
     + **effects** removes the ORCID from the set of ORCIDs
+  + initiateORCIDVerification(orcid: ORCID, redirectUri: String) : (authUrl: String, state: String)
+    + **requires** the ORCID exists in the set of ORCIDs
+    + **effects** generates an OAuth authorization URL with a state parameter, stores the state temporarily, and returns the authorization URL and state
+  + completeORCIDVerification(orcid: ORCID, code: String, state: String) : ()
+    + **requires** the ORCID exists, the state is valid and matches the stored state, and the authorization code is valid
+    + **effects** exchanges the authorization code for an access token, fetches the ORCID profile to verify ownership, updates the ORCID record with verified=true and verifiedAt=now, and removes the stored state. Returns an error if verification fails.
   + addAffiliation(user: User, affiliation: String) : (newAffiliation: Affiliation)
     + **requires** there is no Affiliation with provided user User and affiliation
     String in the set of Affiliations
@@ -49,7 +58,7 @@ account, and these can be used to verify the user's identity
   + _getORCIDsByUser(user: User) : (orcid: ORCIDDoc)
     + **requires** nothing
     + **effects** returns an array of dictionaries, each containing one ORCID document
-    for the given user. Each ORCID includes _id, user, and orcid. Returns an empty
+    for the given user. Each ORCID includes _id, user, orcid, verified, verifiedAt (if set), and accessToken (if set). Returns an empty
     array if no ORCIDs exist.
   + _getAffiliationsByUser(user: User) : (affiliation: AffiliationDoc)
     + **requires** nothing

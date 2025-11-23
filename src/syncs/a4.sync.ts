@@ -723,6 +723,67 @@ export const IdentityRemoveORCIDRequest: Sync = (
   ]),
 });
 
+export const IdentityInitiateORCIDVerificationRequest: Sync = (
+  { request, orcid, redirectUri },
+) => ({
+  when: actions([Requesting.request, {
+    path: "/IdentityVerification/initiateVerification",
+    orcid,
+    redirectUri,
+  }, { request }]),
+  then: actions([
+    IdentityVerification.initiateORCIDVerification,
+    { orcid, redirectUri },
+  ]),
+});
+
+export const IdentityInitiateORCIDVerificationResponse: Sync = (
+  { request, authUrl, state, error },
+) => ({
+  when: actions(
+    [Requesting.request, { path: "/IdentityVerification/initiateVerification" }, {
+      request,
+    }],
+    [
+      IdentityVerification.initiateORCIDVerification,
+      {},
+      { authUrl, state, error },
+    ],
+  ),
+  then: actions([Requesting.respond, { request, authUrl, state, error }]),
+});
+
+export const IdentityCompleteORCIDVerificationRequest: Sync = (
+  { request, orcid, code, state },
+) => ({
+  when: actions([Requesting.request, {
+    path: "/IdentityVerification/completeVerification",
+    orcid,
+    code,
+    state,
+  }, { request }]),
+  then: actions([
+    IdentityVerification.completeORCIDVerification,
+    { orcid, code, state },
+  ]),
+});
+
+export const IdentityCompleteORCIDVerificationResponse: Sync = (
+  { request, ok, error },
+) => ({
+  when: actions(
+    [Requesting.request, { path: "/IdentityVerification/completeVerification" }, {
+      request,
+    }],
+    [
+      IdentityVerification.completeORCIDVerification,
+      {},
+      { ok, error },
+    ],
+  ),
+  then: actions([Requesting.respond, { request, ok, error }]),
+});
+
 export const IdentityRemoveAffiliationRequest: Sync = (
   { request, session, affiliation, user },
 ) => ({

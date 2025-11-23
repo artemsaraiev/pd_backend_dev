@@ -81,6 +81,7 @@ Deno.test("Principle: User can add ORCID, affiliation, and badges to verify iden
     ]);
     assertEquals(orcidsResult.length, 1, "Should have one ORCID");
     assertEquals(orcidsResult[0].orcid.orcid, orcid1, "ORCID should match");
+    assertEquals(orcidsResult[0].orcid.verified, false, "ORCID should be unverified");
     assertEquals(affiliationsResult.length, 1, "Should have one affiliation");
     assertEquals(affiliationsResult[0].affiliation.affiliation, affiliation1, "Affiliation should match");
     assertEquals(badgesResult.length, 1, "Should have one badge");
@@ -123,6 +124,7 @@ Deno.test("Action: addORCID requires no existing ORCID, returns new ORCID", asyn
     assertEquals(orcidsResult.length, 1, "Should have one ORCID");
     assertEquals(orcidsResult[0].orcid._id, orcidId1, "ORCID ID should match");
     assertEquals(orcidsResult[0].orcid.orcid, orcid1, "ORCID value should match");
+    assertEquals(orcidsResult[0].orcid.verified, false, "ORCID should be unverified by default");
     console.log("    ORCID added and returned correctly");
   } finally {
     await client.close();
@@ -489,4 +491,123 @@ Deno.test("Query: _getORCIDsByUser, _getBadgesByUser return separate results for
     await client.close();
   }
 });
+
+// OAuth Verification Tests
+Deno.test("Action: initiateORCIDVerification generates OAuth URL and stores state", async () => {
+  const [db, client] = await testDb();
+  
+  // Set up environment variables for OAuth
+  Deno.env.set("ORCID_CLIENT_ID", "test-client-id");
+  Deno.env.set("ORCID_CLIENT_SECRET", "test-client-secret");
+  Deno.env.set("ORCID_REDIRECT_URI", "http://localhost:8000/api/IdentityVerification/completeVerification");
+  Deno.env.set("ORCID_API_BASE_URL", "https://sandbox.orcid.org");
+  
+  const concept = new IdentityVerificationConcept(db);
+
+  try {
+    console.log("Testing initiateORCIDVerification action");
+
+    // First, add an ORCID
+    const addResult = await concept.addORCID({
+      user: userAlice,
+      orcid: orcid1,
+    });
+    const { newORCID: orcidId } = addResult as { newORCID: ID };
+
+    // Test: initiateORCIDVerification generates auth URL
+    console.log("  Testing: generates OAuth URL and state");
+    const initiateResult = await concept.initiateORCIDVerification({
+      orcid: orcidId,
+      redirectUri: "http://localhost:8000/api/IdentityVerification/completeVerification",
+    });
+
+    assertNotEquals("error" in initiateResult, true, "Should succeed");
+    const { authUrl, state } = initiateResult as { authUrl: string; state: string };
+    assertExists(authUrl, "Auth URL should be returned");
+    assertExists(state, "State should be returned");
+    assertEquals(authUrl.includes("sandbox.orcid.org"), true, "Auth URL should point to ORCID");
+    assertEquals(authUrl.includes("client_id=test-client-id"), true, "Auth URL should include client ID");
+    assertEquals(authUrl.includes(`state=${state}`), true, "Auth URL should include state");
+    console.log("    OAuth URL and state generated correctly");
+  } finally {
+    await client.close();
+    // Clean up environment variables
+    Deno.env.delete("ORCID_CLIENT_ID");
+    Deno.env.delete("ORCID_CLIENT_SECRET");
+    Deno.env.delete("ORCID_REDIRECT_URI");
+    Deno.env.delete("ORCID_API_BASE_URL");
+  }
+});
+
+Deno.test("Action: initiateORCIDVerification fails for non-existent ORCID", async () => {
+  const [db, client] = await testDb();
+  
+  Deno.env.set("ORCID_CLIENT_ID", "test-client-id");
+  Deno.env.set("ORCID_CLIENT_SECRET", "test-client-secret");
+  Deno.env.set("ORCID_REDIRECT_URI", "http://localhost:8000/api/IdentityVerification/completeVerification");
+  Deno.env.set("ORCID_API_BASE_URL", "https://sandbox.orcid.org");
+  
+  const concept = new IdentityVerificationConcept(db);
+
+  try {
+    console.log("Testing initiateORCIDVerification with non-existent ORCID");
+
+    const result = await concept.initiateORCIDVerification({
+      orcid: "nonexistent-orcid" as ID,
+      redirectUri: "http://localhost:8000/api/IdentityVerification/completeVerification",
+    });
+
+    assertEquals("error" in result, true, "Should fail for non-existent ORCID");
+    console.log("    Correctly rejects non-existent ORCID");
+  } finally {
+    await client.close();
+    Deno.env.delete("ORCID_CLIENT_ID");
+    Deno.env.delete("ORCID_CLIENT_SECRET");
+    Deno.env.delete("ORCID_REDIRECT_URI");
+    Deno.env.delete("ORCID_API_BASE_URL");
+  }
+});
+
+Deno.test("Action: completeORCIDVerification fails with invalid state", async () => {
+  const [db, client] = await testDb();
+  
+  Deno.env.set("ORCID_CLIENT_ID", "test-client-id");
+  Deno.env.set("ORCID_CLIENT_SECRET", "test-client-secret");
+  Deno.env.set("ORCID_REDIRECT_URI", "http://localhost:8000/api/IdentityVerification/completeVerification");
+  Deno.env.set("ORCID_API_BASE_URL", "https://sandbox.orcid.org");
+  
+  const concept = new IdentityVerificationConcept(db);
+
+  try {
+    console.log("Testing completeORCIDVerification with invalid state");
+
+    // First, add an ORCID
+    const addResult = await concept.addORCID({
+      user: userAlice,
+      orcid: orcid1,
+    });
+    const { newORCID: orcidId } = addResult as { newORCID: ID };
+
+    const result = await concept.completeORCIDVerification({
+      orcid: orcidId,
+      code: "test-code",
+      state: "invalid-state",
+    });
+
+    assertEquals("error" in result, true, "Should fail with invalid state");
+    const { error } = result as { error: string };
+    assertEquals(error.includes("Invalid or expired"), true, "Error should mention invalid state");
+    console.log("    Correctly rejects invalid state");
+  } finally {
+    await client.close();
+    Deno.env.delete("ORCID_CLIENT_ID");
+    Deno.env.delete("ORCID_CLIENT_SECRET");
+    Deno.env.delete("ORCID_REDIRECT_URI");
+    Deno.env.delete("ORCID_API_BASE_URL");
+  }
+});
+
+// Note: Full OAuth flow test with mocked ORCID API would require mocking fetch
+// This is a more complex integration test that would be better suited for e2e testing
+// The above tests verify the state management and error handling logic
 

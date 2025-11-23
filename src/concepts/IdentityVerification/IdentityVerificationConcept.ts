@@ -20,11 +20,26 @@ type Badge = ID;
  * a set of ORCIDs with
  *   a user User
  *   an orcid String
+ *   a verified Flag
+ *   an optional verifiedAt Date
+ *   an optional accessToken String
  */
 interface ORCIDDoc {
   _id: ORCID;
   user: User;
   orcid: string;
+  verified: boolean;
+  verifiedAt?: Date;
+  accessToken?: string;
+}
+
+/**
+ * Temporary storage for OAuth state during verification flow
+ */
+interface OAuthStateDoc {
+  _id: string; // state value
+  orcid: ORCID;
+  expiresAt: Date;
 }
 
 /**
@@ -50,9 +65,22 @@ interface BadgeDoc {
 }
 
 export default class IdentityVerificationConcept {
+  private readonly orcidClientId: string;
+  private readonly orcidClientSecret: string;
+  private readonly orcidRedirectUri: string;
+  private readonly orcidApiBaseUrl: string;
+
   constructor(private readonly db: Db) {
     // Fire-and-forget index initialization
     void this.initIndexes();
+
+    // Load ORCID OAuth configuration from environment
+    this.orcidClientId = Deno.env.get("ORCID_CLIENT_ID") ?? "";
+    this.orcidClientSecret = Deno.env.get("ORCID_CLIENT_SECRET") ?? "";
+    this.orcidRedirectUri = Deno.env.get("ORCID_REDIRECT_URI") ??
+      "http://localhost:8000/api/IdentityVerification/completeVerification";
+    this.orcidApiBaseUrl = Deno.env.get("ORCID_API_BASE_URL") ??
+      "https://sandbox.orcid.org";
   }
 
   private get orcids(): Collection<ORCIDDoc> {
@@ -67,6 +95,10 @@ export default class IdentityVerificationConcept {
     return this.db.collection("badges");
   }
 
+  private get oauthStates(): Collection<OAuthStateDoc> {
+    return this.db.collection("oauth_states");
+  }
+
   private async initIndexes(): Promise<void> {
     try {
       await this.orcids.createIndex({ user: 1 }, { unique: true });
@@ -74,6 +106,11 @@ export default class IdentityVerificationConcept {
         unique: true,
       });
       await this.badges.createIndex({ user: 1, badge: 1 }, { unique: true });
+      // TTL index for OAuth states - expires after 10 minutes
+      await this.oauthStates.createIndex(
+        { expiresAt: 1 },
+        { expireAfterSeconds: 0 },
+      );
     } catch {
       // best-effort
     }
@@ -96,7 +133,12 @@ export default class IdentityVerificationConcept {
         throw new Error("ORCID already exists for this user");
       }
       const orcidId = freshID() as ORCID;
-      await this.orcids.insertOne({ _id: orcidId, user, orcid });
+      await this.orcids.insertOne({
+        _id: orcidId,
+        user,
+        orcid,
+        verified: false,
+      });
       return { newORCID: orcidId };
     } catch (e) {
       return { error: e instanceof Error ? e.message : String(e) };
@@ -115,6 +157,165 @@ export default class IdentityVerificationConcept {
     try {
       const res = await this.orcids.deleteOne({ _id: orcid });
       if (res.deletedCount === 0) throw new Error("ORCID not found");
+      return { ok: true };
+    } catch (e) {
+      return { error: e instanceof Error ? e.message : String(e) };
+    }
+  }
+
+  /**
+   * initiateORCIDVerification(orcid: ORCID, redirectUri: String) : (authUrl: String, state: String)
+   *
+   * **requires** the ORCID exists in the set of ORCIDs
+   * **effects** generates an OAuth authorization URL with a state parameter, stores the state temporarily, and returns the authorization URL and state
+   */
+  async initiateORCIDVerification(
+    { orcid, redirectUri }: { orcid: ORCID; redirectUri: string },
+  ): Promise<{ authUrl: string; state: string } | { error: string }> {
+    try {
+      // Check if ORCID exists
+      const orcidDoc = await this.orcids.findOne({ _id: orcid });
+      if (!orcidDoc) {
+        throw new Error("ORCID not found");
+      }
+
+      if (!this.orcidClientId || !this.orcidClientSecret) {
+        throw new Error(
+          "ORCID OAuth credentials not configured. Please set ORCID_CLIENT_ID and ORCID_CLIENT_SECRET environment variables.",
+        );
+      }
+
+      // Generate a random state string for CSRF protection
+      const state = crypto.randomUUID();
+      const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+
+      // Store state in database with TTL
+      await this.oauthStates.insertOne({
+        _id: state,
+        orcid,
+        expiresAt,
+      });
+
+      // Build OAuth authorization URL
+      const authUrl = new URL(`${this.orcidApiBaseUrl}/oauth/authorize`);
+      authUrl.searchParams.set("client_id", this.orcidClientId);
+      authUrl.searchParams.set("response_type", "code");
+      authUrl.searchParams.set("scope", "/authenticate");
+      authUrl.searchParams.set(
+        "redirect_uri",
+        redirectUri || this.orcidRedirectUri,
+      );
+      authUrl.searchParams.set("state", state);
+
+      return { authUrl: authUrl.toString(), state };
+    } catch (e) {
+      return { error: e instanceof Error ? e.message : String(e) };
+    }
+  }
+
+  /**
+   * completeORCIDVerification(orcid: ORCID, code: String, state: String) : ()
+   *
+   * **requires** the ORCID exists, the state is valid and matches the stored state, and the authorization code is valid
+   * **effects** exchanges the authorization code for an access token, fetches the ORCID profile to verify ownership, updates the ORCID record with verified=true and verifiedAt=now, and removes the stored state. Returns an error if verification fails.
+   */
+  async completeORCIDVerification(
+    { orcid, code, state }: { orcid: ORCID; code: string; state: string },
+  ): Promise<{ ok: true } | { error: string }> {
+    try {
+      // Verify state exists and matches
+      const stateDoc = await this.oauthStates.findOne({ _id: state });
+      if (!stateDoc) {
+        throw new Error("Invalid or expired verification state");
+      }
+
+      if (stateDoc.orcid !== orcid) {
+        throw new Error("State does not match ORCID");
+      }
+
+      // Check if ORCID exists
+      const orcidDoc = await this.orcids.findOne({ _id: orcid });
+      if (!orcidDoc) {
+        throw new Error("ORCID not found");
+      }
+
+      if (!this.orcidClientId || !this.orcidClientSecret) {
+        throw new Error(
+          "ORCID OAuth credentials not configured. Please set ORCID_CLIENT_ID and ORCID_CLIENT_SECRET environment variables.",
+        );
+      }
+
+      // Exchange authorization code for access token
+      const tokenUrl = `${this.orcidApiBaseUrl}/oauth/token`;
+      const tokenResponse = await fetch(tokenUrl, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
+          "Accept": "application/json",
+        },
+        body: new URLSearchParams({
+          client_id: this.orcidClientId,
+          client_secret: this.orcidClientSecret,
+          grant_type: "authorization_code",
+          code: code,
+          redirect_uri: this.orcidRedirectUri,
+        }),
+      });
+
+      if (!tokenResponse.ok) {
+        const errorText = await tokenResponse.text();
+        throw new Error(
+          `Failed to exchange code for token: ${tokenResponse.status} ${errorText}`,
+        );
+      }
+
+      const tokenData = await tokenResponse.json() as {
+        access_token: string;
+        orcid?: string;
+      };
+
+      const accessToken = tokenData.access_token;
+      const verifiedOrcid = tokenData.orcid;
+
+      // Fetch ORCID profile to verify ownership
+      const profileUrl =
+        `${this.orcidApiBaseUrl}/v3.0/${orcidDoc.orcid}/person`;
+      const profileResponse = await fetch(profileUrl, {
+        headers: {
+          "Authorization": `Bearer ${accessToken}`,
+          "Accept": "application/json",
+        },
+      });
+
+      if (!profileResponse.ok) {
+        throw new Error(
+          `Failed to fetch ORCID profile: ${profileResponse.status}`,
+        );
+      }
+
+      // Verify that the ORCID in the token matches the stored ORCID
+      // ORCID API returns the ORCID in the token response, so we can verify it matches
+      if (verifiedOrcid && verifiedOrcid !== orcidDoc.orcid) {
+        throw new Error(
+          "ORCID in token does not match stored ORCID",
+        );
+      }
+
+      // Update ORCID record with verified status
+      await this.orcids.updateOne(
+        { _id: orcid },
+        {
+          $set: {
+            verified: true,
+            verifiedAt: new Date(),
+            accessToken: accessToken, // Store token (consider encrypting in production)
+          },
+        },
+      );
+
+      // Remove the used state
+      await this.oauthStates.deleteOne({ _id: state });
+
       return { ok: true };
     } catch (e) {
       return { error: e instanceof Error ? e.message : String(e) };
@@ -261,7 +462,18 @@ export default class IdentityVerificationConcept {
    */
   async _getORCIDsByUser(
     { user }: { user: User },
-  ): Promise<Array<{ orcid: { _id: ORCID; user: User; orcid: string } }>> {
+  ): Promise<
+    Array<{
+      orcid: {
+        _id: ORCID;
+        user: User;
+        orcid: string;
+        verified: boolean;
+        verifiedAt?: Date;
+        accessToken?: string;
+      };
+    }>
+  > {
     try {
       const items = await this.orcids.find({ user }).toArray();
       // Queries must return an array of dictionaries, one per ORCID
@@ -270,6 +482,9 @@ export default class IdentityVerificationConcept {
           _id: o._id,
           user: o.user,
           orcid: o.orcid,
+          verified: o.verified,
+          verifiedAt: o.verifiedAt,
+          accessToken: o.accessToken,
         },
       }));
     } catch {
@@ -287,7 +502,11 @@ export default class IdentityVerificationConcept {
    */
   async _getAffiliationsByUser(
     { user }: { user: User },
-  ): Promise<Array<{ affiliation: { _id: Affiliation; user: User; affiliation: string } }>> {
+  ): Promise<
+    Array<
+      { affiliation: { _id: Affiliation; user: User; affiliation: string } }
+    >
+  > {
     try {
       const items = await this.affiliations.find({ user }).toArray();
       // Queries must return an array of dictionaries, one per affiliation

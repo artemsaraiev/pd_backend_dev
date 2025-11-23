@@ -25,5 +25,9 @@
                 "no-unversioned-import"
             ]
         }
+    },
+    "deploy": {
+      "org": "pubdiscuss",
+      "app": "backend"
     }
 }

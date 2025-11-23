@@ -100,6 +100,8 @@ export const exclusions: Array<string> = [
   // IdentityVerification - all mutations need auth
   "/api/IdentityVerification/addORCID",
   "/api/IdentityVerification/removeORCID",
+  "/api/IdentityVerification/initiateVerification",
+  "/api/IdentityVerification/completeVerification",
   "/api/IdentityVerification/addAffiliation",
   "/api/IdentityVerification/removeAffiliation",
   "/api/IdentityVerification/updateAffiliation",
