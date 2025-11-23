@@ -320,7 +320,11 @@ export const DiscussionListThreadsWithAnchorRequest: Sync = (
   }, { request }]),
   where: async (frames) => {
     const originalFrame = frames[0];
-    frames = await frames.query(DiscussionPub._listThreads, { pubId, anchorId }, { thread });
+    frames = await frames.query(
+      DiscussionPub._listThreads,
+      { pubId, anchorId },
+      { thread },
+    );
     if (frames.length === 0) {
       return new Frames({ ...originalFrame, [threads]: [] });
     }
@@ -339,7 +343,9 @@ export const DiscussionListThreadsRequest: Sync = (
   }, { request }]),
   where: async (frames) => {
     const originalFrame = frames[0];
-    frames = await frames.query(DiscussionPub._listThreads, { pubId }, { thread });
+    frames = await frames.query(DiscussionPub._listThreads, { pubId }, {
+      thread,
+    });
     if (frames.length === 0) {
       return new Frames({ ...originalFrame, [threads]: [] });
     }
@@ -357,7 +363,9 @@ export const DiscussionListRepliesRequest: Sync = (
   }, { request }]),
   where: async (frames) => {
     const originalFrame = frames[0];
-    frames = await frames.query(DiscussionPub._listReplies, { threadId }, { reply });
+    frames = await frames.query(DiscussionPub._listReplies, { threadId }, {
+      reply,
+    });
     if (frames.length === 0) {
       return new Frames({ ...originalFrame, [replies]: [] });
     }
@@ -376,7 +384,9 @@ export const DiscussionListRepliesTreeRequest: Sync = (
   }, { request }]),
   where: async (frames) => {
     const originalFrame = frames[0];
-    frames = await frames.query(DiscussionPub._listRepliesTree, { threadId }, { reply });
+    frames = await frames.query(DiscussionPub._listRepliesTree, { threadId }, {
+      reply,
+    });
     if (frames.length === 0) {
       return new Frames({ ...originalFrame, [replies]: [] });
     }
@@ -724,13 +734,33 @@ export const IdentityRemoveORCIDRequest: Sync = (
 });
 
 export const IdentityInitiateORCIDVerificationRequest: Sync = (
-  { request, orcid, redirectUri },
+  { request, session, orcid, redirectUri, user, orcidDoc },
 ) => ({
   when: actions([Requesting.request, {
     path: "/IdentityVerification/initiateVerification",
+    session,
     orcid,
     redirectUri,
   }, { request }]),
+  where: async (frames) => {
+    // Get user from session
+    frames = await frames.query(Sessioning._getUser, { session }, { user });
+
+    // Verify that the ORCID belongs to this user
+    // The query returns one frame per ORCID the user has, each with orcidDoc bound
+    frames = await frames.query(
+      IdentityVerification._getORCIDsByUser,
+      { user },
+      { orcidDoc },
+    );
+
+    // Filter to only frames where the orcid ID matches
+    // Each frame has orcidDoc = { orcid: { _id: ..., user: ..., orcid: ... } }
+    return frames.filter(($) => {
+      const doc = $[orcidDoc] as { orcid: { _id: string } } | undefined;
+      return doc?.orcid._id === $[orcid];
+    });
+  },
   then: actions([
     IdentityVerification.initiateORCIDVerification,
     { orcid, redirectUri },
@@ -741,9 +771,13 @@ export const IdentityInitiateORCIDVerificationResponse: Sync = (
   { request, authUrl, state, error },
 ) => ({
   when: actions(
-    [Requesting.request, { path: "/IdentityVerification/initiateVerification" }, {
-      request,
-    }],
+    [
+      Requesting.request,
+      { path: "/IdentityVerification/initiateVerification" },
+      {
+        request,
+      },
+    ],
     [
       IdentityVerification.initiateORCIDVerification,
       {},
@@ -772,9 +806,13 @@ export const IdentityCompleteORCIDVerificationResponse: Sync = (
   { request, ok, error },
 ) => ({
   when: actions(
-    [Requesting.request, { path: "/IdentityVerification/completeVerification" }, {
-      request,
-    }],
+    [
+      Requesting.request,
+      { path: "/IdentityVerification/completeVerification" },
+      {
+        request,
+      },
+    ],
     [
       IdentityVerification.completeORCIDVerification,
       {},
@@ -820,7 +858,17 @@ export const IdentityUpdateAffiliationRequest: Sync = (
 });
 
 export const IdentityGetByUserRequest: Sync = (
-  { request, session, user, orcid, affiliation, badge, orcids, affiliations, badges },
+  {
+    request,
+    session,
+    user,
+    orcid,
+    affiliation,
+    badge,
+    orcids,
+    affiliations,
+    badges,
+  },
 ) => ({
   when: actions([Requesting.request, {
     path: "/IdentityVerification/_getByUser",
@@ -829,24 +877,33 @@ export const IdentityGetByUserRequest: Sync = (
   where: async (frames) => {
     const originalFrame = frames[0];
     frames = await frames.query(Sessioning._getUser, { session }, { user });
-    
+
     // Query all three types - user is bound from frames
     const [orcidFrames, affiliationFrames, badgeFrames] = await Promise.all([
       frames.query(IdentityVerification._getORCIDsByUser, { user }, { orcid }),
-      frames.query(IdentityVerification._getAffiliationsByUser, { user }, { affiliation }),
+      frames.query(IdentityVerification._getAffiliationsByUser, { user }, {
+        affiliation,
+      }),
       frames.query(IdentityVerification._getBadgesByUser, { user }, { badge }),
     ]);
-    
+
     // Collect each type into arrays
-    const orcidsCollected = orcidFrames.length === 0 ? new Frames({ [orcids]: [] }) : orcidFrames.collectAs([orcid], orcids);
-    const affiliationsCollected = affiliationFrames.length === 0 ? new Frames({ [affiliations]: [] }) : affiliationFrames.collectAs([affiliation], affiliations);
-    const badgesCollected = badgeFrames.length === 0 ? new Frames({ [badges]: [] }) : badgeFrames.collectAs([badge], badges);
-    
+    const orcidsCollected = orcidFrames.length === 0
+      ? new Frames({ [orcids]: [] })
+      : orcidFrames.collectAs([orcid], orcids);
+    const affiliationsCollected = affiliationFrames.length === 0
+      ? new Frames({ [affiliations]: [] })
+      : affiliationFrames.collectAs([affiliation], affiliations);
+    const badgesCollected = badgeFrames.length === 0
+      ? new Frames({ [badges]: [] })
+      : badgeFrames.collectAs([badge], badges);
+
     // Extract arrays from collected frames
     const orcidsArray = (orcidsCollected[0]?.[orcids] as Array<unknown>) ?? [];
-    const affiliationsArray = (affiliationsCollected[0]?.[affiliations] as Array<unknown>) ?? [];
+    const affiliationsArray =
+      (affiliationsCollected[0]?.[affiliations] as Array<unknown>) ?? [];
     const badgesArray = (badgesCollected[0]?.[badges] as Array<unknown>) ?? [];
-    
+
     // Combine all results into a single frame
     return new Frames({
       ...originalFrame,
@@ -855,5 +912,10 @@ export const IdentityGetByUserRequest: Sync = (
       [badges]: badgesArray,
     });
   },
-  then: actions([Requesting.respond, { request, orcids, affiliations, badges }]),
+  then: actions([Requesting.respond, {
+    request,
+    orcids,
+    affiliations,
+    badges,
+  }]),
 });
