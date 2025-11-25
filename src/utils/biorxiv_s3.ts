@@ -80,10 +80,20 @@ async function signAwsRequest(
   headers["host"] = url.host;
   // Required for requester-pays bucket
   headers["x-amz-request-payer"] = "requester";
+  // Required for S3 - hash of empty payload for GET requests
+  const payloadHash = await sha256("");
+  headers["x-amz-content-sha256"] = payloadHash;
 
   // Create canonical request
-  const canonicalUri = url.pathname;
-  const canonicalQueryString = url.searchParams.toString();
+  // For S3, URI must be URI-encoded (but / is not encoded)
+  const canonicalUri = url.pathname || "/";
+  
+  // Query string must be sorted and properly encoded
+  const params = Array.from(url.searchParams.entries());
+  params.sort((a, b) => a[0].localeCompare(b[0]));
+  const canonicalQueryString = params
+    .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`)
+    .join("&");
 
   const signedHeaders = Object.keys(headers)
     .map((k) => k.toLowerCase())
@@ -94,8 +104,6 @@ async function signAwsRequest(
     .map((k) => `${k.toLowerCase()}:${headers[k].trim()}`)
     .sort()
     .join("\n") + "\n";
-
-  const payloadHash = await sha256("");
 
   const canonicalRequest = [
     method,
@@ -181,11 +189,12 @@ async function listS3Objects(
   secretAccessKey: string,
   region: string,
 ): Promise<string[]> {
+  // Use path-style URL for requester-pays bucket
   const url = new URL(
-    `https://${bucket}.s3.${region}.amazonaws.com/?list-type=2&prefix=${
-      encodeURIComponent(prefix)
-    }`,
+    `https://s3.${region}.amazonaws.com/${bucket}`,
   );
+  url.searchParams.set("list-type", "2");
+  url.searchParams.set("prefix", prefix);
 
   const headers = await signAwsRequest(
     "GET",
@@ -197,18 +206,26 @@ async function listS3Objects(
     "s3",
   );
 
+  console.log(`[bioRxiv S3] Listing objects with prefix: ${prefix}`);
+  console.log(`[bioRxiv S3] Request URL: ${url.toString()}`);
+
   const response = await fetch(url.toString(), { headers });
   if (!response.ok) {
-    throw new Error(`S3 list failed: ${response.status}`);
+    const errorText = await response.text();
+    console.error(`[bioRxiv S3] S3 list error response: ${errorText}`);
+    throw new Error(`S3 list failed: ${response.status} - ${errorText.substring(0, 200)}`);
   }
 
   const xml = await response.text();
+  console.log(`[bioRxiv S3] S3 response (first 500 chars): ${xml.substring(0, 500)}`);
+  
   // Simple XML parsing for Key elements
   const keys: string[] = [];
   const keyMatches = xml.matchAll(/<Key>([^<]+)<\/Key>/g);
   for (const match of keyMatches) {
     keys.push(match[1]);
   }
+  console.log(`[bioRxiv S3] Found ${keys.length} objects`);
   return keys;
 }
 
@@ -222,8 +239,10 @@ async function downloadS3Object(
   secretAccessKey: string,
   region: string,
 ): Promise<Uint8Array> {
+  // Use path-style URL - key needs proper encoding for path segments
+  const encodedKey = key.split("/").map(encodeURIComponent).join("/");
   const url = new URL(
-    `https://${bucket}.s3.${region}.amazonaws.com/${encodeURIComponent(key)}`,
+    `https://s3.${region}.amazonaws.com/${bucket}/${encodedKey}`,
   );
 
   const headers = await signAwsRequest(
@@ -236,8 +255,12 @@ async function downloadS3Object(
     "s3",
   );
 
+  console.log(`[bioRxiv S3] Downloading: ${key}`);
+
   const response = await fetch(url.toString(), { headers });
   if (!response.ok) {
+    const errorText = await response.text();
+    console.error(`[bioRxiv S3] S3 download error: ${errorText}`);
     throw new Error(`S3 download failed: ${response.status}`);
   }
 
@@ -329,16 +352,16 @@ async function extractPdfFromMeca(mecaData: Uint8Array): Promise<Uint8Array> {
  * Fetch a bioRxiv PDF from S3.
  *
  * @param doiSuffix - The DOI suffix (e.g., "2025.11.05.686879")
- * @returns The PDF data as Uint8Array, or null if not found
+ * @returns Object with PDF data or error message
  */
 export async function fetchBiorxivPdf(
   doiSuffix: string,
-): Promise<Uint8Array | null> {
+): Promise<{ data: Uint8Array } | { error: string }> {
   // Check cache first
   const cached = pdfCache.get(doiSuffix);
   if (cached && Date.now() - cached.timestamp < CACHE_TTL_MS) {
     console.log(`[bioRxiv S3] Cache hit for ${doiSuffix}`);
-    return cached.data;
+    return { data: cached.data };
   }
 
   // Get AWS credentials from environment
@@ -348,17 +371,28 @@ export async function fetchBiorxivPdf(
 
   if (!accessKeyId || !secretAccessKey) {
     console.error("[bioRxiv S3] AWS credentials not configured");
-    return null;
+    return { error: "AWS credentials not configured" };
   }
+
+  console.log(`[bioRxiv S3] Using credentials: ${accessKeyId.substring(0, 8)}...`);
 
   const parsed = parseBiorxivDoi(doiSuffix);
   if (!parsed) {
     console.error(`[bioRxiv S3] Invalid DOI suffix format: ${doiSuffix}`);
-    return null;
+    return { error: `Invalid DOI suffix format: ${doiSuffix}` };
   }
 
   const bucket = "biorxiv-src-monthly";
   const monthFolder = getMonthFolderName(parsed.year, parsed.month);
+
+  // Check if this is a recent paper that might not be in S3 yet
+  const paperDate = new Date(parsed.year, parsed.month - 1, parsed.day);
+  const now = new Date();
+  const nextMonth = new Date(parsed.year, parsed.month, 5); // ~5th of next month
+  
+  if (now < nextMonth) {
+    console.log(`[bioRxiv S3] Paper from ${monthFolder} may not be in S3 yet (deposited early next month)`);
+  }
 
   console.log(
     `[bioRxiv S3] Looking for paper in Current_Content/${monthFolder}/`,
@@ -383,8 +417,19 @@ export async function fetchBiorxivPdf(
 
     if (!mecaKey) {
       console.log(`[bioRxiv S3] MECA file not found for ${doiSuffix}`);
-      console.log(`[bioRxiv S3] Available files: ${objects.slice(0, 5).join(", ")}...`);
-      return null;
+      if (objects.length > 0) {
+        console.log(`[bioRxiv S3] Available files: ${objects.slice(0, 5).join(", ")}...`);
+      } else {
+        console.log(`[bioRxiv S3] No files found in ${prefix} - folder may not exist yet`);
+      }
+      
+      // Check if paper is too recent
+      if (now < nextMonth) {
+        return { 
+          error: `Paper from ${monthFolder} is not yet available in S3. bioRxiv deposits content monthly, typically completing in the first week of the following month.` 
+        };
+      }
+      return { error: `PDF not found in bioRxiv S3 bucket` };
     }
 
     console.log(`[bioRxiv S3] Found MECA file: ${mecaKey}`);
@@ -408,10 +453,10 @@ export async function fetchBiorxivPdf(
     // Cache it
     pdfCache.set(doiSuffix, { data: pdfData, timestamp: Date.now() });
 
-    return pdfData;
+    return { data: pdfData };
   } catch (error) {
     console.error(`[bioRxiv S3] Error fetching PDF:`, error);
-    return null;
+    return { error: error instanceof Error ? error.message : String(error) };
   }
 }
 

@@ -421,25 +421,23 @@ export function startRequestingServer(
     // Use S3 to fetch the PDF
     try {
       console.log(`[Requesting] Fetching bioRxiv PDF from S3 for: ${suffix}`);
-      const pdfData = await fetchBiorxivPdf(suffix);
+      const result = await fetchBiorxivPdf(suffix);
 
-      if (!pdfData) {
-        return c.text(
-          `PDF not found in bioRxiv S3 bucket for DOI suffix: ${suffix}`,
-          404,
-          corsHeaders,
-        );
+      if ("error" in result) {
+        console.log(`[Requesting] bioRxiv S3 error: ${result.error}`);
+        // Return 404 for not found, with informative message
+        return c.text(result.error, 404, corsHeaders);
       }
 
       console.log(
-        `[Requesting] Successfully fetched bioRxiv PDF: ${pdfData.length} bytes`,
+        `[Requesting] Successfully fetched bioRxiv PDF: ${result.data.length} bytes`,
       );
 
-      return new Response(pdfData, {
+      return new Response(result.data, {
         status: 200,
         headers: {
           "Content-Type": "application/pdf",
-          "Content-Length": String(pdfData.length),
+          "Content-Length": String(result.data.length),
           "Cache-Control": "public, max-age=86400",
           "Accept-Ranges": "bytes",
           ...corsHeaders,
