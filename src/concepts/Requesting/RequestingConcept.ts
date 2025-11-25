@@ -344,6 +344,82 @@ export function startRequestingServer(
     }
   });
 
+  // bioRxiv PDF proxy - suffix is the DOI part after 10.1101/
+  const biorxivPdfRoute = `${REQUESTING_BASE_URL}/biorxiv-pdf/:suffix`;
+  app.options(biorxivPdfRoute, (c) => {
+    return c.text("", 204, {
+      "Access-Control-Allow-Origin": REQUESTING_ALLOWED_DOMAIN,
+      "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+      "Access-Control-Allow-Headers": "Content-Type, Range",
+      "Access-Control-Expose-Headers":
+        "Accept-Ranges, Content-Length, Content-Range",
+      "Vary": "Origin",
+    });
+  });
+
+  app.get(biorxivPdfRoute, async (c) => {
+    const suffix = c.req.param("suffix");
+    console.log(`[Requesting] Proxying bioRxiv PDF request for suffix: ${suffix}`);
+    
+    if (!suffix) {
+      return c.text("Missing DOI suffix", 400);
+    }
+
+    // Construct full DOI: 10.1101/{suffix}
+    const doi = `10.1101/${suffix}`;
+
+    try {
+      const upstream = await fetch(
+        `https://www.biorxiv.org/content/${doi}.full.pdf`,
+        {
+          redirect: "follow",
+          headers: {
+            "User-Agent":
+              "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+            "Accept": "application/pdf,*/*",
+          },
+        },
+      );
+      if (!upstream.ok || !upstream.body) {
+        return c.text(`Upstream error (${upstream.status})`, upstream.status, {
+          "Access-Control-Allow-Origin": REQUESTING_ALLOWED_DOMAIN,
+          "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+          "Access-Control-Allow-Headers": "Content-Type, Range",
+          "Access-Control-Expose-Headers":
+            "Accept-Ranges, Content-Length, Content-Range",
+          "Vary": "Origin",
+        });
+      }
+      const acceptRanges = upstream.headers.get("accept-ranges") ?? "bytes";
+      const contentLength = upstream.headers.get("content-length") ?? undefined;
+      const contentRange = upstream.headers.get("content-range") ?? undefined;
+      const headers: Record<string, string> = {
+        "Content-Type": "application/pdf",
+        "Cache-Control": "public, max-age=86400",
+        "Accept-Ranges": acceptRanges,
+        "Access-Control-Allow-Origin": REQUESTING_ALLOWED_DOMAIN,
+        "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+        "Access-Control-Allow-Headers": "Content-Type, Range",
+        "Access-Control-Expose-Headers":
+          "Accept-Ranges, Content-Length, Content-Range",
+        "Vary": "Origin",
+      };
+      if (contentLength) headers["Content-Length"] = contentLength;
+      if (contentRange) headers["Content-Range"] = contentRange;
+      return new Response(upstream.body, { status: upstream.status, headers });
+    } catch (e) {
+      console.error("[Requesting] bioRxiv PDF proxy error:", e);
+      return c.text("Failed to fetch bioRxiv PDF", 502, {
+        "Access-Control-Allow-Origin": REQUESTING_ALLOWED_DOMAIN,
+        "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+        "Access-Control-Allow-Headers": "Content-Type, Range",
+        "Access-Control-Expose-Headers":
+          "Accept-Ranges, Content-Length, Content-Range",
+        "Vary": "Origin",
+      });
+    }
+  });
+
   /**
    * PASSTHROUGH ROUTES
    *
