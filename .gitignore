@@ -10,3 +10,4 @@ src/concepts/test_concepts.ts
 /uploads/
 uploads/
 src/syncs/syncs.ts
+node_modules/
