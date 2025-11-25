@@ -345,11 +345,6 @@ export default class DiscussionPubConcept {
         { $set: { deleted: true, editedAt: Date.now() } },
       );
       if (res.matchedCount === 0) throw new Error("Thread not found");
-      // Also mark all replies as deleted (cascade soft delete)
-      await this.replies.updateMany(
-        { threadId },
-        { $set: { deleted: true, editedAt: Date.now() } },
-      );
       return { ok: true };
     } catch (e) {
       return { error: e instanceof Error ? e.message : String(e) };
