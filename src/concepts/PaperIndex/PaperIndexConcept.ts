@@ -366,11 +366,11 @@ export default class PaperIndexConcept {
       if (!query) return [];
 
       // Use Europe PMC API to search for bioRxiv preprints
-      // SRC:PPR filters to preprints, we also filter by "biorxiv" in the source
+      // SRC:PPR filters to preprints; bioRxiv DOIs start with 10.1101/
       const url =
         `https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=${
           encodeURIComponent(query)
-        }%20AND%20(SRC:PPR)&format=json&pageSize=10`;
+        }%20AND%20(SRC:PPR)&format=json&pageSize=25`;
 
       const res = await fetch(url);
       if (!res.ok) throw new Error(`Europe PMC API error: ${res.status}`);
@@ -380,14 +380,13 @@ export default class PaperIndexConcept {
 
       const items: Array<{ id: string; title?: string; doi?: string }> = [];
       for (const r of results) {
-        // Filter for bioRxiv preprints only
-        if (
-          r.bookOrReportDetails?.publisher?.toLowerCase()?.includes(
-            "biorxiv",
-          ) ||
-          r.source?.toLowerCase() === "ppr" && r.doi?.includes("biorxiv")
-        ) {
-          const doi = r.doi;
+        const doi = r.doi;
+        // bioRxiv DOIs start with 10.1101/ (medRxiv uses 10.1101/ too but different pattern)
+        // Accept any preprint with a 10.1101 DOI
+        const isBiorxiv = doi?.startsWith("10.1101/") ||
+          r.bookOrReportDetails?.publisher?.toLowerCase()?.includes("biorxiv");
+
+        if (isBiorxiv) {
           // Extract bioRxiv ID from DOI (format: 10.1101/YYYY.MM.DD.XXXXXX)
           const id = doi ? doi.replace("10.1101/", "") : r.id;
           items.push({
@@ -395,21 +394,6 @@ export default class PaperIndexConcept {
             title: r.title,
             doi,
           });
-        }
-      }
-
-      // If no bioRxiv-specific results found, try a broader search
-      if (items.length === 0) {
-        for (const r of results) {
-          if (r.source === "PPR") {
-            const doi = r.doi;
-            const id = doi ? doi.replace("10.1101/", "") : r.id;
-            items.push({
-              id,
-              title: r.title,
-              doi,
-            });
-          }
         }
       }
 

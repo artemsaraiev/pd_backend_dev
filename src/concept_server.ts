@@ -119,8 +119,9 @@ async function main() {
     });
   });
   app.get(`${BASE_URL}/biorxiv-pdf/:doi{.+}`, async (c) => {
-    // Extract full DOI path (may contain slashes)
-    const doi = c.req.param("doi");
+    // Extract full DOI path (may contain slashes) and decode it
+    const doiRaw = c.req.param("doi");
+    const doi = decodeURIComponent(doiRaw);
     try {
       // bioRxiv PDF URL pattern: https://www.biorxiv.org/content/{doi}.full.pdf
       const upstream = await fetch(
