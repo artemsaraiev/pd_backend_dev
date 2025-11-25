@@ -3,7 +3,7 @@ import { PdfHighlighter, Requesting, Sessioning } from "@concepts";
 
 // PdfHighlighter Actions
 export const PdfHighlighterCreateHighlightRequest: Sync = (
-  { request, session, paper, page, rects, quote, user },
+  { request, session, paper, page, rects, quote, color, user },
 ) => ({
   when: actions([
     Requesting.request,
@@ -14,6 +14,7 @@ export const PdfHighlighterCreateHighlightRequest: Sync = (
       page,
       rects,
       quote,
+      color,
     },
     { request },
   ]),
@@ -25,6 +26,7 @@ export const PdfHighlighterCreateHighlightRequest: Sync = (
     page,
     rects,
     quote,
+    color,
   }]),
 });
 

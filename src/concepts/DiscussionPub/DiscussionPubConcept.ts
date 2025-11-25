@@ -84,6 +84,7 @@ interface ReplyTreeNode {
   editedAt?: number;
   parentId?: Reply;
   children: ReplyTreeNode[];
+  deleted?: boolean;
 }
 
 export default class DiscussionPubConcept {
@@ -344,11 +345,6 @@ export default class DiscussionPubConcept {
         { $set: { deleted: true, editedAt: Date.now() } },
       );
       if (res.matchedCount === 0) throw new Error("Thread not found");
-      // Also mark all replies as deleted (cascade soft delete)
-      await this.replies.updateMany(
-        { threadId },
-        { $set: { deleted: true, editedAt: Date.now() } },
-      );
       return { ok: true };
     } catch (e) {
       return { error: e instanceof Error ? e.message : String(e) };
@@ -457,7 +453,7 @@ export default class DiscussionPubConcept {
    * editedAt. Returns an empty array if no threads exist.
    */
   async _listThreads(
-    { pubId, anchorId }: { pubId: Pub; anchorId?: Anchor },
+    { pubId, anchorId, includeDeleted }: { pubId: Pub; anchorId?: Anchor; includeDeleted?: boolean },
   ): Promise<
     Array<{
       thread: {
@@ -468,14 +464,17 @@ export default class DiscussionPubConcept {
         anchorId?: Anchor;
         createdAt: number;
         editedAt?: number;
+        deleted?: boolean;
       };
     }>
   > {
     try {
       const filter: Record<string, unknown> = {
         pubId,
-        $or: [{ deleted: false }, { deleted: { $exists: false } }],
       };
+      if (!includeDeleted) {
+        filter.$or = [{ deleted: false }, { deleted: { $exists: false } }];
+      }
       if (anchorId !== undefined) filter.anchorId = anchorId;
       const cur = this.threads.find(filter).sort({ createdAt: 1 });
       const items = await cur.toArray();
@@ -489,6 +488,7 @@ export default class DiscussionPubConcept {
           anchorId: t.anchorId,
           createdAt: t.createdAt,
           editedAt: t.editedAt,
+          deleted: t.deleted ?? false,
         },
       }));
     } catch {
@@ -507,7 +507,7 @@ export default class DiscussionPubConcept {
    * replies exist.
    */
   async _listReplies(
-    { threadId }: { threadId: Thread },
+    { threadId, includeDeleted }: { threadId: Thread; includeDeleted?: boolean },
   ): Promise<
     Array<{
       reply: {
@@ -518,14 +518,16 @@ export default class DiscussionPubConcept {
         parentId?: Reply;
         createdAt: number;
         editedAt?: number;
+        deleted?: boolean;
       };
     }>
   > {
     try {
-      const cur = this.replies.find({
-        threadId,
-        $or: [{ deleted: false }, { deleted: { $exists: false } }],
-      }).sort({ createdAt: 1 });
+      const filter: Record<string, unknown> = { threadId };
+      if (!includeDeleted) {
+        filter.$or = [{ deleted: false }, { deleted: { $exists: false } }];
+      }
+      const cur = this.replies.find(filter).sort({ createdAt: 1 });
       const items = await cur.toArray();
       // Queries must return an array of dictionaries, one per reply
       return items.map((r) => ({
@@ -537,6 +539,7 @@ export default class DiscussionPubConcept {
           parentId: r.parentId,
           createdAt: r.createdAt,
           editedAt: r.editedAt,
+          deleted: r.deleted ?? false,
         },
       }));
     } catch {
@@ -555,13 +558,14 @@ export default class DiscussionPubConcept {
    * empty array if no replies exist.
    */
   async _listRepliesTree(
-    { threadId }: { threadId: Thread },
+    { threadId, includeDeleted }: { threadId: Thread; includeDeleted?: boolean },
   ): Promise<Array<{ reply: ReplyTreeNode }>> {
     try {
-      const cur = this.replies.find({
-        threadId,
-        $or: [{ deleted: false }, { deleted: { $exists: false } }],
-      }).sort({ createdAt: 1 });
+      const filter: Record<string, unknown> = { threadId };
+      if (!includeDeleted) {
+        filter.$or = [{ deleted: false }, { deleted: { $exists: false } }];
+      }
+      const cur = this.replies.find(filter).sort({ createdAt: 1 });
       const items = await cur.toArray();
       // Build id->node
       const nodeById: Record<string, ReplyTreeNode> = {};
@@ -576,6 +580,7 @@ export default class DiscussionPubConcept {
           editedAt: r.editedAt,
           parentId: r.parentId,
           children: [],
+          deleted: r.deleted ?? false,
         };
       }
       const roots: ReplyTreeNode[] = [];

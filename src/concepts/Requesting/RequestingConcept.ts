@@ -10,15 +10,15 @@ import "jsr:@std/dotenv/load";
  * # Requesting concept configuration
  * The following environment variables are available:
  *
- * - PORT: the port to the server binds, default 10000
+ * - PORT: the port to the server binds, default 8000 (set by environment variable in production)
  * - REQUESTING_BASE_URL: the base URL prefix for api requests, default "/api"
- * - REQUESTING_TIMEOUT: the timeout for requests, default 10000ms
+ * - REQUESTING_TIMEOUT: the timeout for requests, default 30000ms
  * - REQUESTING_SAVE_RESPONSES: whether to persist responses or not, default true
  */
 const PORT = parseInt(Deno.env.get("PORT") ?? "8000", 10);
 const REQUESTING_BASE_URL = Deno.env.get("REQUESTING_BASE_URL") ?? "/api";
 const REQUESTING_TIMEOUT = parseInt(
-  Deno.env.get("REQUESTING_TIMEOUT") ?? "10000",
+  Deno.env.get("REQUESTING_TIMEOUT") ?? "30000",
   10,
 );
 
