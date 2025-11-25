@@ -80,7 +80,7 @@ export default class IdentityVerificationConcept {
     this.orcidRedirectUri = Deno.env.get("ORCID_REDIRECT_URI") ??
       "http://localhost:8000/api/IdentityVerification/completeVerification";
     this.orcidApiBaseUrl = Deno.env.get("ORCID_API_BASE_URL") ??
-      "https://sandbox.orcid.org";
+      "https://orcid.org";
   }
 
   private get orcids(): Collection<ORCIDDoc> {
@@ -164,19 +164,26 @@ export default class IdentityVerificationConcept {
   }
 
   /**
-   * initiateORCIDVerification(orcid: ORCID, redirectUri: String) : (authUrl: String, state: String)
+   * initiateORCIDVerification(orcid: ORCID, redirectUri: String, user: User) : (authUrl: String, state: String)
    *
-   * **requires** the ORCID exists in the set of ORCIDs
+   * **requires** the ORCID exists in the set of ORCIDs and belongs to the user
    * **effects** generates an OAuth authorization URL with a state parameter, stores the state temporarily, and returns the authorization URL and state
    */
   async initiateORCIDVerification(
-    { orcid, redirectUri }: { orcid: ORCID; redirectUri: string },
+    { orcid, redirectUri, user }: {
+      orcid: ORCID;
+      redirectUri: string;
+      user: User;
+    },
   ): Promise<{ authUrl: string; state: string } | { error: string }> {
     try {
-      // Check if ORCID exists
+      // Check if ORCID exists and belongs to the user
       const orcidDoc = await this.orcids.findOne({ _id: orcid });
       if (!orcidDoc) {
         throw new Error("ORCID not found");
+      }
+      if (orcidDoc.user !== user) {
+        throw new Error("ORCID does not belong to this user");
       }
 
       if (!this.orcidClientId || !this.orcidClientSecret) {
@@ -220,7 +227,12 @@ export default class IdentityVerificationConcept {
    * **effects** exchanges the authorization code for an access token, fetches the ORCID profile to verify ownership, updates the ORCID record with verified=true and verifiedAt=now, and removes the stored state. Returns an error if verification fails.
    */
   async completeORCIDVerification(
-    { orcid, code, state }: { orcid: ORCID; code: string; state: string },
+    { orcid, code, state, redirectUri }: {
+      orcid: ORCID;
+      code: string;
+      state: string;
+      redirectUri?: string;
+    },
   ): Promise<{ ok: true } | { error: string }> {
     try {
       // Verify state exists and matches
@@ -245,6 +257,10 @@ export default class IdentityVerificationConcept {
         );
       }
 
+      // Use the redirect URI from the request, or fall back to the configured one
+      // The redirect URI must match exactly what was used in the authorization request
+      const finalRedirectUri = redirectUri || this.orcidRedirectUri;
+
       // Exchange authorization code for access token
       const tokenUrl = `${this.orcidApiBaseUrl}/oauth/token`;
       const tokenResponse = await fetch(tokenUrl, {
@@ -258,7 +274,7 @@ export default class IdentityVerificationConcept {
           client_secret: this.orcidClientSecret,
           grant_type: "authorization_code",
           code: code,
-          redirect_uri: this.orcidRedirectUri,
+          redirect_uri: finalRedirectUri,
         }),
       });
 
