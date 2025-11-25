@@ -7,6 +7,7 @@ type User = ID;
 type ORCID = ID;
 type Affiliation = ID;
 type Badge = ID;
+type OAuthState = ID;
 
 /**
  * @concept IdentityVerification [User]
@@ -37,7 +38,7 @@ interface ORCIDDoc {
  * Temporary storage for OAuth state during verification flow
  */
 interface OAuthStateDoc {
-  _id: string; // state value
+  _id: OAuthState;
   orcid: ORCID;
   expiresAt: Date;
 }
@@ -78,7 +79,7 @@ export default class IdentityVerificationConcept {
     this.orcidClientId = Deno.env.get("ORCID_CLIENT_ID") ?? "";
     this.orcidClientSecret = Deno.env.get("ORCID_CLIENT_SECRET") ?? "";
     this.orcidRedirectUri = Deno.env.get("ORCID_REDIRECT_URI") ??
-      "http://localhost:8000/api/IdentityVerification/completeVerification";
+      "https://pubdiscuss-frontend.onrender.com";
     this.orcidApiBaseUrl = Deno.env.get("ORCID_API_BASE_URL") ??
       "https://orcid.org";
   }
@@ -192,8 +193,8 @@ export default class IdentityVerificationConcept {
         );
       }
 
-      // Generate a random state string for CSRF protection
-      const state = crypto.randomUUID();
+      // Generate a fresh ID for the OAuth state (used for CSRF protection)
+      const state = freshID() as OAuthState;
       const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
 
       // Store state in database with TTL
@@ -236,7 +237,9 @@ export default class IdentityVerificationConcept {
   ): Promise<{ ok: true } | { error: string }> {
     try {
       // Verify state exists and matches
-      const stateDoc = await this.oauthStates.findOne({ _id: state });
+      const stateDoc = await this.oauthStates.findOne({
+        _id: state as OAuthState,
+      });
       if (!stateDoc) {
         throw new Error("Invalid or expired verification state");
       }
@@ -330,7 +333,7 @@ export default class IdentityVerificationConcept {
       );
 
       // Remove the used state
-      await this.oauthStates.deleteOne({ _id: state });
+      await this.oauthStates.deleteOne({ _id: state as OAuthState });
 
       return { ok: true };
     } catch (e) {
@@ -559,6 +562,34 @@ export default class IdentityVerificationConcept {
           badge: b.badge,
         },
       }));
+    } catch {
+      // On error, return empty array (queries should not throw)
+      return [];
+    }
+  }
+
+  /**
+   * _getORCIDFromState(state: String): (orcid: ORCID)
+   *
+   * **requires** the state exists and is not expired
+   * **effects** returns the ORCID ID associated with the given OAuth state
+   */
+  async _getORCIDFromState(
+    { state }: { state: string },
+  ): Promise<Array<{ orcid: ORCID }>> {
+    try {
+      const stateDoc = await this.oauthStates.findOne({
+        _id: state as OAuthState,
+      });
+      if (!stateDoc) {
+        // State not found or expired
+        return [];
+      }
+      // Check if state has expired
+      if (stateDoc.expiresAt < new Date()) {
+        return [];
+      }
+      return [{ orcid: stateDoc.orcid }];
     } catch {
       // On error, return empty array (queries should not throw)
       return [];

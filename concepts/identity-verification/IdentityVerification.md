@@ -70,3 +70,6 @@ account, and these can be used to verify the user's identity
     + **effects** returns an array of dictionaries, each containing one Badge document
     for the given user. Each Badge includes _id, user, and badge. Returns an empty
     array if no badges exist.
+  + _getORCIDFromState(state: String): (orcid: ORCID)
+    + **requires** the state exists and is not expired
+    + **effects** returns the ORCID ID associated with the given OAuth state. Returns an empty array if the state is invalid or expired.

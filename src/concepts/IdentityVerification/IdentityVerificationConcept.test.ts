@@ -765,6 +765,75 @@ Deno.test("Action: completeORCIDVerification fails with invalid state", async ()
   }
 });
 
+Deno.test("Query: _getORCIDFromState returns ORCID for valid state", async () => {
+  const [db, client] = await testDb();
+
+  Deno.env.set("ORCID_CLIENT_ID", "test-client-id");
+  Deno.env.set("ORCID_CLIENT_SECRET", "test-client-secret");
+  Deno.env.set(
+    "ORCID_REDIRECT_URI",
+    "http://localhost:8000/api/IdentityVerification/completeVerification",
+  );
+  Deno.env.set("ORCID_API_BASE_URL", "https://sandbox.orcid.org");
+
+  const concept = new IdentityVerificationConcept(db);
+
+  try {
+    console.log("Testing _getORCIDFromState query");
+
+    // First, add an ORCID
+    const addResult = await concept.addORCID({
+      user: userAlice,
+      orcid: orcid1,
+    });
+    const { newORCID: orcidId } = addResult as { newORCID: ID };
+
+    // Initiate verification to create a state
+    const initiateResult = await concept.initiateORCIDVerification({
+      orcid: orcidId,
+      redirectUri:
+        "http://localhost:8000/api/IdentityVerification/completeVerification",
+      user: userAlice,
+    });
+    assertNotEquals(
+      "error" in initiateResult,
+      true,
+      "initiateORCIDVerification should succeed",
+    );
+    const { state } = initiateResult as { state: string };
+
+    // Query the ORCID from the state
+    const result = await concept._getORCIDFromState({ state });
+    assertEquals(result.length, 1, "Should return one result");
+    assertEquals(result[0].orcid, orcidId, "Should return the correct ORCID ID");
+    console.log("    Correctly retrieves ORCID from valid state");
+  } finally {
+    await client.close();
+    Deno.env.delete("ORCID_CLIENT_ID");
+    Deno.env.delete("ORCID_CLIENT_SECRET");
+    Deno.env.delete("ORCID_REDIRECT_URI");
+    Deno.env.delete("ORCID_API_BASE_URL");
+  }
+});
+
+Deno.test("Query: _getORCIDFromState returns empty array for invalid state", async () => {
+  const [db, client] = await testDb();
+  const concept = new IdentityVerificationConcept(db);
+
+  try {
+    console.log("Testing _getORCIDFromState with invalid state");
+
+    const result = await concept._getORCIDFromState({
+      state: "invalid-state",
+    });
+
+    assertEquals(result.length, 0, "Should return empty array for invalid state");
+    console.log("    Correctly returns empty array for invalid state");
+  } finally {
+    await client.close();
+  }
+});
+
 // Note: Full OAuth flow test with mocked ORCID API would require mocking fetch
 // This is a more complex integration test that would be better suited for e2e testing
 // The above tests verify the state management and error handling logic
