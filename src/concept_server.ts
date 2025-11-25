@@ -107,8 +107,8 @@ async function main() {
   });
 
   // bioRxiv PDF proxy to avoid CORS/Range issues when fetching from bioRxiv
-  // DOI format: 10.1101/YYYY.MM.DD.XXXXXX -> URL path uses the full DOI
-  app.options(`${BASE_URL}/biorxiv-pdf/*`, (c) => {
+  // DOI suffix format: YYYY.MM.DD.XXXXXX (without the 10.1101/ prefix to avoid slash issues)
+  app.options(`${BASE_URL}/biorxiv-pdf/:suffix`, (c) => {
     return c.text("", 204, {
       "Access-Control-Allow-Origin": "*",
       "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
@@ -118,17 +118,30 @@ async function main() {
       "Vary": "Origin",
     });
   });
-  app.get(`${BASE_URL}/biorxiv-pdf/:doi{.+}`, async (c) => {
-    // Extract full DOI path (may contain slashes) and decode it
-    const doiRaw = c.req.param("doi");
-    const doi = decodeURIComponent(doiRaw);
+  // Simple :suffix parameter - frontend sends just the suffix (e.g., 2025.01.01.123456)
+  // We prepend 10.1101/ to construct the full DOI
+  app.get(`${BASE_URL}/biorxiv-pdf/:suffix`, async (c) => {
+    const suffix = c.req.param("suffix");
+
+    if (!suffix) {
+      return c.text("Missing DOI suffix", 400);
+    }
+
+    // Construct full DOI: 10.1101/{suffix}
+    const doi = `10.1101/${suffix}`;
+
     try {
       // bioRxiv PDF URL pattern: https://www.biorxiv.org/content/{doi}.full.pdf
+      // Use a browser-like User-Agent to avoid Cloudflare blocking
       const upstream = await fetch(
         `https://www.biorxiv.org/content/${doi}.full.pdf`,
         {
           redirect: "follow",
-          headers: { "User-Agent": "ConceptBox/0.1" },
+          headers: {
+            "User-Agent":
+              "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+            "Accept": "application/pdf,*/*",
+          },
         },
       );
       if (!upstream.ok || !upstream.body) {
