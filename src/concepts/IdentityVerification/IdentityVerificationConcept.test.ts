@@ -37,7 +37,11 @@ Deno.test("Principle: User can add ORCID, affiliation, and badges to verify iden
       user: userAlice,
       orcid: orcid1,
     });
-    assertNotEquals("error" in orcidResult, true, "ORCID addition should succeed");
+    assertNotEquals(
+      "error" in orcidResult,
+      true,
+      "ORCID addition should succeed",
+    );
     const { newORCID } = orcidResult as { newORCID: ID };
     assertExists(newORCID, "ORCID ID should be returned");
     console.log(`    Added ORCID: ${newORCID}`);
@@ -81,8 +85,17 @@ Deno.test("Principle: User can add ORCID, affiliation, and badges to verify iden
     ]);
     assertEquals(orcidsResult.length, 1, "Should have one ORCID");
     assertEquals(orcidsResult[0].orcid.orcid, orcid1, "ORCID should match");
+    assertEquals(
+      orcidsResult[0].orcid.verified,
+      false,
+      "ORCID should be unverified",
+    );
     assertEquals(affiliationsResult.length, 1, "Should have one affiliation");
-    assertEquals(affiliationsResult[0].affiliation.affiliation, affiliation1, "Affiliation should match");
+    assertEquals(
+      affiliationsResult[0].affiliation.affiliation,
+      affiliation1,
+      "Affiliation should match",
+    );
     assertEquals(badgesResult.length, 1, "Should have one badge");
     assertEquals(badgesResult[0].badge.badge, badge1, "Badge should match");
     console.log("    All verification signals verified");
@@ -114,7 +127,11 @@ Deno.test("Action: addORCID requires no existing ORCID, returns new ORCID", asyn
       user: userAlice,
       orcid: orcid2,
     });
-    assertEquals("error" in errorResult, true, "Should fail - ORCID already exists");
+    assertEquals(
+      "error" in errorResult,
+      true,
+      "Should fail - ORCID already exists",
+    );
     console.log("    Correctly rejects duplicate ORCID for user");
 
     // Test: addORCID returns new ORCID ID
@@ -122,7 +139,16 @@ Deno.test("Action: addORCID requires no existing ORCID, returns new ORCID", asyn
     const orcidsResult = await concept._getORCIDsByUser({ user: userAlice });
     assertEquals(orcidsResult.length, 1, "Should have one ORCID");
     assertEquals(orcidsResult[0].orcid._id, orcidId1, "ORCID ID should match");
-    assertEquals(orcidsResult[0].orcid.orcid, orcid1, "ORCID value should match");
+    assertEquals(
+      orcidsResult[0].orcid.orcid,
+      orcid1,
+      "ORCID value should match",
+    );
+    assertEquals(
+      orcidsResult[0].orcid.verified,
+      false,
+      "ORCID should be unverified by default",
+    );
     console.log("    ORCID added and returned correctly");
   } finally {
     await client.close();
@@ -139,8 +165,14 @@ Deno.test("Action: removeORCID requires ORCID exists, removes it", async () => {
 
     // Test: removeORCID requires ORCID exists
     console.log("  Testing requires: ORCID must exist");
-    const errorResult = await concept.removeORCID({ orcid: "orcid:nonexistent" as ID });
-    assertEquals("error" in errorResult, true, "Should fail for nonexistent ORCID");
+    const errorResult = await concept.removeORCID({
+      orcid: "orcid:nonexistent" as ID,
+    });
+    assertEquals(
+      "error" in errorResult,
+      true,
+      "Should fail for nonexistent ORCID",
+    );
     console.log("    Correctly rejects nonexistent ORCID");
 
     // Test: removeORCID removes ORCID
@@ -185,7 +217,11 @@ Deno.test("Action: addAffiliation requires no duplicate, returns new Affiliation
       user: userAlice,
       affiliation: affiliation1,
     });
-    assertEquals("error" in errorResult, true, "Should fail - duplicate affiliation");
+    assertEquals(
+      "error" in errorResult,
+      true,
+      "Should fail - duplicate affiliation",
+    );
     console.log("    Correctly rejects duplicate affiliation");
 
     // Test: can add different affiliation for same user
@@ -193,15 +229,25 @@ Deno.test("Action: addAffiliation requires no duplicate, returns new Affiliation
       user: userAlice,
       affiliation: affiliation2,
     });
-    assertNotEquals("error" in result2, true, "Should succeed for different affiliation");
+    assertNotEquals(
+      "error" in result2,
+      true,
+      "Should succeed for different affiliation",
+    );
     console.log("    Allows different affiliations for same user");
 
     // Test: addAffiliation returns new Affiliation ID
     console.log("  Testing effects: returns new Affiliation ID");
-    const affiliationsResult = await concept._getAffiliationsByUser({ user: userAlice });
+    const affiliationsResult = await concept._getAffiliationsByUser({
+      user: userAlice,
+    });
     assertEquals(affiliationsResult.length, 2, "Should have two affiliations");
     const affIds = affiliationsResult.map((a) => a.affiliation._id);
-    assertEquals(affIds.includes(affId1), true, "Should include first affiliation");
+    assertEquals(
+      affIds.includes(affId1),
+      true,
+      "Should include first affiliation",
+    );
     console.log("    Affiliations added and returned correctly");
   } finally {
     await client.close();
@@ -218,8 +264,14 @@ Deno.test("Action: removeAffiliation requires Affiliation exists, removes it", a
 
     // Test: removeAffiliation requires Affiliation exists
     console.log("  Testing requires: Affiliation must exist");
-    const errorResult = await concept.removeAffiliation({ affiliation: "affiliation:nonexistent" as ID });
-    assertEquals("error" in errorResult, true, "Should fail for nonexistent Affiliation");
+    const errorResult = await concept.removeAffiliation({
+      affiliation: "affiliation:nonexistent" as ID,
+    });
+    assertEquals(
+      "error" in errorResult,
+      true,
+      "Should fail for nonexistent Affiliation",
+    );
     console.log("    Correctly rejects nonexistent Affiliation");
 
     // Test: removeAffiliation removes Affiliation
@@ -230,10 +282,14 @@ Deno.test("Action: removeAffiliation requires Affiliation exists, removes it", a
     });
     const { newAffiliation: affId } = addResult as { newAffiliation: ID };
 
-    const removeResult = await concept.removeAffiliation({ affiliation: affId });
+    const removeResult = await concept.removeAffiliation({
+      affiliation: affId,
+    });
     assertNotEquals("error" in removeResult, true, "Should succeed");
 
-    const affiliationsResult = await concept._getAffiliationsByUser({ user: userAlice });
+    const affiliationsResult = await concept._getAffiliationsByUser({
+      user: userAlice,
+    });
     assertEquals(affiliationsResult.length, 0, "Affiliation should be removed");
     console.log("    Affiliation removed correctly");
   } finally {
@@ -255,7 +311,11 @@ Deno.test("Action: updateAffiliation requires Affiliation exists and no duplicat
       affiliation: "affiliation:nonexistent" as ID,
       newAffiliation: affiliation1,
     });
-    assertEquals("error" in errorResult, true, "Should fail for nonexistent Affiliation");
+    assertEquals(
+      "error" in errorResult,
+      true,
+      "Should fail for nonexistent Affiliation",
+    );
     console.log("    Correctly rejects nonexistent Affiliation");
 
     // Test: updateAffiliation requires no duplicate (user, newAffiliation) pair
@@ -277,7 +337,11 @@ Deno.test("Action: updateAffiliation requires Affiliation exists and no duplicat
       affiliation: affId1,
       newAffiliation: affiliation2,
     });
-    assertEquals("error" in duplicateError, true, "Should fail - duplicate affiliation");
+    assertEquals(
+      "error" in duplicateError,
+      true,
+      "Should fail - duplicate affiliation",
+    );
     console.log("    Correctly rejects duplicate affiliation");
 
     // Test: updateAffiliation updates the affiliation string
@@ -288,13 +352,26 @@ Deno.test("Action: updateAffiliation requires Affiliation exists and no duplicat
     });
     assertNotEquals("error" in updateResult, true, "Should succeed");
 
-    const affiliationsResult = await concept._getAffiliationsByUser({ user: userAlice });
-    assertEquals(affiliationsResult.length, 2, "Should still have two affiliations");
-    const updatedAff = affiliationsResult.find((a) => a.affiliation._id === affId1)?.affiliation;
-    assertExists(updatedAff, "Updated affiliation should exist");
-    assertEquals(updatedAff.affiliation, "Stanford", "Affiliation should be updated");
+    const affiliationsResult = await concept._getAffiliationsByUser({
+      user: userAlice,
+    });
     assertEquals(
-      affiliationsResult.find((a) => a.affiliation._id === affId2)?.affiliation.affiliation,
+      affiliationsResult.length,
+      2,
+      "Should still have two affiliations",
+    );
+    const updatedAff = affiliationsResult.find((a) =>
+      a.affiliation._id === affId1
+    )?.affiliation;
+    assertExists(updatedAff, "Updated affiliation should exist");
+    assertEquals(
+      updatedAff.affiliation,
+      "Stanford",
+      "Affiliation should be updated",
+    );
+    assertEquals(
+      affiliationsResult.find((a) => a.affiliation._id === affId2)?.affiliation
+        .affiliation,
       affiliation2,
       "Other affiliation should be unchanged",
     );
@@ -335,7 +412,11 @@ Deno.test("Action: addBadge requires no duplicate, returns new Badge", async () 
       user: userAlice,
       badge: badge2,
     });
-    assertNotEquals("error" in result2, true, "Should succeed for different badge");
+    assertNotEquals(
+      "error" in result2,
+      true,
+      "Should succeed for different badge",
+    );
     console.log("    Allows different badges for same user");
 
     // Test: addBadge returns new Badge ID
@@ -343,7 +424,11 @@ Deno.test("Action: addBadge requires no duplicate, returns new Badge", async () 
     const badgesResult = await concept._getBadgesByUser({ user: userAlice });
     assertEquals(badgesResult.length, 2, "Should have two badges");
     const badgeIds = badgesResult.map((b) => b.badge._id);
-    assertEquals(badgeIds.includes(badgeId1), true, "Should include first badge");
+    assertEquals(
+      badgeIds.includes(badgeId1),
+      true,
+      "Should include first badge",
+    );
     console.log("    Badges added and returned correctly");
   } finally {
     await client.close();
@@ -360,8 +445,14 @@ Deno.test("Action: revokeBadge requires Badge exists, removes it", async () => {
 
     // Test: revokeBadge requires Badge exists
     console.log("  Testing requires: Badge must exist");
-    const errorResult = await concept.revokeBadge({ badge: "badge:nonexistent" as ID });
-    assertEquals("error" in errorResult, true, "Should fail for nonexistent Badge");
+    const errorResult = await concept.revokeBadge({
+      badge: "badge:nonexistent" as ID,
+    });
+    assertEquals(
+      "error" in errorResult,
+      true,
+      "Should fail for nonexistent Badge",
+    );
     console.log("    Correctly rejects nonexistent Badge");
 
     // Test: revokeBadge removes Badge
@@ -389,7 +480,9 @@ Deno.test("Query: _getORCIDsByUser, _getAffiliationsByUser, _getBadgesByUser ret
   const concept = new IdentityVerificationConcept(db);
 
   try {
-    console.log("Testing _getORCIDsByUser, _getAffiliationsByUser, _getBadgesByUser queries");
+    console.log(
+      "Testing _getORCIDsByUser, _getAffiliationsByUser, _getBadgesByUser queries",
+    );
 
     // Test: returns empty arrays for user with no verification signals
     console.log("  Testing user with no verification signals");
@@ -405,7 +498,10 @@ Deno.test("Query: _getORCIDsByUser, _getAffiliationsByUser, _getBadgesByUser ret
 
     // Test: returns all verification signals for user
     console.log("  Testing user with verification signals");
-    const orcidResult = await concept.addORCID({ user: userAlice, orcid: orcid1 });
+    const orcidResult = await concept.addORCID({
+      user: userAlice,
+      orcid: orcid1,
+    });
     const { newORCID: orcidId } = orcidResult as { newORCID: ID };
 
     const affResult1 = await concept.addAffiliation({
@@ -419,9 +515,15 @@ Deno.test("Query: _getORCIDsByUser, _getAffiliationsByUser, _getBadgesByUser ret
     });
     const { newAffiliation: affId2 } = affResult2 as { newAffiliation: ID };
 
-    const badgeResult1 = await concept.addBadge({ user: userAlice, badge: badge1 });
+    const badgeResult1 = await concept.addBadge({
+      user: userAlice,
+      badge: badge1,
+    });
     const { newBadge: badgeId1 } = badgeResult1 as { newBadge: ID };
-    const badgeResult2 = await concept.addBadge({ user: userAlice, badge: badge2 });
+    const badgeResult2 = await concept.addBadge({
+      user: userAlice,
+      badge: badge2,
+    });
     const { newBadge: badgeId2 } = badgeResult2 as { newBadge: ID };
 
     const [orcids2, affiliations2, badges2] = await Promise.all([
@@ -439,14 +541,30 @@ Deno.test("Query: _getORCIDsByUser, _getAffiliationsByUser, _getBadgesByUser ret
     // Verify Affiliations
     assertEquals(affiliations2.length, 2, "Should have two affiliations");
     const affIds = affiliations2.map((a) => a.affiliation._id);
-    assertEquals(affIds.includes(affId1), true, "Should include first affiliation");
-    assertEquals(affIds.includes(affId2), true, "Should include second affiliation");
+    assertEquals(
+      affIds.includes(affId1),
+      true,
+      "Should include first affiliation",
+    );
+    assertEquals(
+      affIds.includes(affId2),
+      true,
+      "Should include second affiliation",
+    );
 
     // Verify Badges
     assertEquals(badges2.length, 2, "Should have two badges");
     const badgeIds = badges2.map((b) => b.badge._id);
-    assertEquals(badgeIds.includes(badgeId1), true, "Should include first badge");
-    assertEquals(badgeIds.includes(badgeId2), true, "Should include second badge");
+    assertEquals(
+      badgeIds.includes(badgeId1),
+      true,
+      "Should include first badge",
+    );
+    assertEquals(
+      badgeIds.includes(badgeId2),
+      true,
+      "Should include second badge",
+    );
     console.log("    Correctly returns all verification signals");
   } finally {
     await client.close();
@@ -458,7 +576,9 @@ Deno.test("Query: _getORCIDsByUser, _getBadgesByUser return separate results for
   const concept = new IdentityVerificationConcept(db);
 
   try {
-    console.log("Testing _getORCIDsByUser, _getBadgesByUser queries - user isolation");
+    console.log(
+      "Testing _getORCIDsByUser, _getBadgesByUser queries - user isolation",
+    );
 
     await concept.addORCID({ user: userAlice, orcid: orcid1 });
     await concept.addBadge({ user: userAlice, badge: badge1 });
@@ -476,9 +596,17 @@ Deno.test("Query: _getORCIDsByUser, _getBadgesByUser return separate results for
     ]);
 
     assertEquals(aliceOrcids.length, 1, "Alice should have one ORCID");
-    assertEquals(aliceOrcids[0].orcid.orcid, orcid1, "Alice's ORCID should match");
+    assertEquals(
+      aliceOrcids[0].orcid.orcid,
+      orcid1,
+      "Alice's ORCID should match",
+    );
     assertEquals(aliceBadges.length, 1, "Alice should have one badge");
-    assertEquals(aliceBadges[0].badge.badge, badge1, "Alice's badge should match");
+    assertEquals(
+      aliceBadges[0].badge.badge,
+      badge1,
+      "Alice's badge should match",
+    );
 
     assertEquals(bobOrcids.length, 1, "Bob should have one ORCID");
     assertEquals(bobOrcids[0].orcid.orcid, orcid2, "Bob's ORCID should match");
@@ -490,3 +618,153 @@ Deno.test("Query: _getORCIDsByUser, _getBadgesByUser return separate results for
   }
 });
 
+// OAuth Verification Tests
+Deno.test("Action: initiateORCIDVerification generates OAuth URL and stores state", async () => {
+  const [db, client] = await testDb();
+
+  // Set up environment variables for OAuth
+  Deno.env.set("ORCID_CLIENT_ID", "test-client-id");
+  Deno.env.set("ORCID_CLIENT_SECRET", "test-client-secret");
+  Deno.env.set(
+    "ORCID_REDIRECT_URI",
+    "http://localhost:8000/api/IdentityVerification/completeVerification",
+  );
+  Deno.env.set("ORCID_API_BASE_URL", "https://orcid.org");
+
+  const concept = new IdentityVerificationConcept(db);
+
+  try {
+    console.log("Testing initiateORCIDVerification action");
+
+    // First, add an ORCID
+    const addResult = await concept.addORCID({
+      user: userAlice,
+      orcid: orcid1,
+    });
+    const { newORCID: orcidId } = addResult as { newORCID: ID };
+
+    // Test: initiateORCIDVerification generates auth URL
+    console.log("  Testing: generates OAuth URL and state");
+    const initiateResult = await concept.initiateORCIDVerification({
+      orcid: orcidId,
+      redirectUri:
+        "http://localhost:8000/api/IdentityVerification/completeVerification",
+      user: userAlice,
+    });
+
+    assertNotEquals("error" in initiateResult, true, "Should succeed");
+    const { authUrl, state } = initiateResult as {
+      authUrl: string;
+      state: string;
+    };
+    assertExists(authUrl, "Auth URL should be returned");
+    assertExists(state, "State should be returned");
+    assertEquals(
+      authUrl.includes("orcid.org"),
+      true,
+      "Auth URL should point to ORCID",
+    );
+    assertEquals(
+      authUrl.includes("client_id=test-client-id"),
+      true,
+      "Auth URL should include client ID",
+    );
+    assertEquals(
+      authUrl.includes(`state=${state}`),
+      true,
+      "Auth URL should include state",
+    );
+    console.log("    OAuth URL and state generated correctly");
+  } finally {
+    await client.close();
+    // Clean up environment variables
+    Deno.env.delete("ORCID_CLIENT_ID");
+    Deno.env.delete("ORCID_CLIENT_SECRET");
+    Deno.env.delete("ORCID_REDIRECT_URI");
+    Deno.env.delete("ORCID_API_BASE_URL");
+  }
+});
+
+Deno.test("Action: initiateORCIDVerification fails for non-existent ORCID", async () => {
+  const [db, client] = await testDb();
+
+  Deno.env.set("ORCID_CLIENT_ID", "test-client-id");
+  Deno.env.set("ORCID_CLIENT_SECRET", "test-client-secret");
+  Deno.env.set(
+    "ORCID_REDIRECT_URI",
+    "http://localhost:8000/api/IdentityVerification/completeVerification",
+  );
+  Deno.env.set("ORCID_API_BASE_URL", "https://orcid.org");
+
+  const concept = new IdentityVerificationConcept(db);
+
+  try {
+    console.log("Testing initiateORCIDVerification with non-existent ORCID");
+
+    const result = await concept.initiateORCIDVerification({
+      orcid: "nonexistent-orcid" as ID,
+      redirectUri:
+        "http://localhost:8000/api/IdentityVerification/completeVerification",
+      user: userAlice,
+    });
+
+    assertEquals("error" in result, true, "Should fail for non-existent ORCID");
+    console.log("    Correctly rejects non-existent ORCID");
+  } finally {
+    await client.close();
+    Deno.env.delete("ORCID_CLIENT_ID");
+    Deno.env.delete("ORCID_CLIENT_SECRET");
+    Deno.env.delete("ORCID_REDIRECT_URI");
+    Deno.env.delete("ORCID_API_BASE_URL");
+  }
+});
+
+Deno.test("Action: completeORCIDVerification fails with invalid state", async () => {
+  const [db, client] = await testDb();
+
+  Deno.env.set("ORCID_CLIENT_ID", "test-client-id");
+  Deno.env.set("ORCID_CLIENT_SECRET", "test-client-secret");
+  Deno.env.set(
+    "ORCID_REDIRECT_URI",
+    "http://localhost:8000/api/IdentityVerification/completeVerification",
+  );
+  Deno.env.set("ORCID_API_BASE_URL", "https://sandbox.orcid.org");
+
+  const concept = new IdentityVerificationConcept(db);
+
+  try {
+    console.log("Testing completeORCIDVerification with invalid state");
+
+    // First, add an ORCID
+    const addResult = await concept.addORCID({
+      user: userAlice,
+      orcid: orcid1,
+    });
+    const { newORCID: orcidId } = addResult as { newORCID: ID };
+
+    const result = await concept.completeORCIDVerification({
+      orcid: orcidId,
+      code: "test-code",
+      state: "invalid-state",
+    });
+
+    assertEquals("error" in result, true, "Should fail with invalid state");
+    const { error } = result as { error: string };
+    assertEquals(
+      error.includes("Invalid or expired"),
+      true,
+      "Error should mention invalid state",
+    );
+    console.log("    Correctly rejects invalid state");
+  } finally {
+    await client.close();
+    Deno.env.delete("ORCID_CLIENT_ID");
+    Deno.env.delete("ORCID_CLIENT_SECRET");
+    Deno.env.delete("ORCID_REDIRECT_URI");
+    Deno.env.delete("ORCID_API_BASE_URL");
+  }
+});
+
+// Note: Full OAuth flow test with mocked ORCID API would require mocking fetch
+// This is a more complex integration test that would be better suited for e2e testing
+// The above tests verify the state management and error handling logic

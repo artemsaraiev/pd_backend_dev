@@ -80,6 +80,88 @@
 
 ---
 
+### POST /api/IdentityVerification/initiateVerification
+
+**Description:** Initiates ORCID OAuth verification flow by generating an authorization URL.
+
+**Requirements:**
+- the ORCID exists in the set of ORCIDs
+
+**Effects:**
+- generates an OAuth authorization URL with a state parameter
+- stores the state temporarily (expires after 10 minutes)
+- returns the authorization URL and state
+
+**Request Body:**
+```json
+{
+  "orcid": "string",
+  "redirectUri": "string"
+}
+```
+
+**Note:** The `orcid` parameter is the internal ORCID document ID (not the ORCID string). The `redirectUri` is optional and defaults to the configured `ORCID_REDIRECT_URI` environment variable.
+
+**Success Response Body (Action):**
+```json
+{
+  "authUrl": "string",
+  "state": "string"
+}
+```
+
+**Error Response Body:**
+```json
+{
+  "error": "string"
+}
+```
+
+---
+
+### POST /api/IdentityVerification/completeVerification
+
+**Description:** Completes ORCID OAuth verification by exchanging the authorization code for an access token and verifying ownership.
+
+**Requirements:**
+- the ORCID exists in the set of ORCIDs
+- the state is valid and matches the stored state
+- the authorization code is valid
+
+**Effects:**
+- exchanges the authorization code for an access token
+- fetches the ORCID profile to verify ownership
+- updates the ORCID record with verified=true and verifiedAt=now
+- removes the stored state
+- returns an error if verification fails
+
+**Request Body:**
+```json
+{
+  "orcid": "string",
+  "code": "string",
+  "state": "string"
+}
+```
+
+**Note:** This endpoint is typically called as a callback from ORCID after the user authorizes. The `orcid` parameter is the internal ORCID document ID, `code` is the authorization code from ORCID, and `state` is the state parameter that was returned from `initiateVerification`.
+
+**Success Response Body (Action):**
+```json
+{
+  "ok": true
+}
+```
+
+**Error Response Body:**
+```json
+{
+  "error": "string"
+}
+```
+
+---
+
 ### POST /api/IdentityVerification/addAffiliation
 
 **Description:** Adds an institution affiliation to a user's account.
@@ -282,7 +364,10 @@
     {
       "_id": "string",
       "user": "string",
-      "orcid": "string"
+      "orcid": "string",
+      "verified": "boolean",
+      "verifiedAt": "Date (optional)",
+      "accessToken": "string (optional)"
     }
   ],
   "affiliations": [

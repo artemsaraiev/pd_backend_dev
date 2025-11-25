@@ -321,7 +321,11 @@ export const DiscussionListThreadsWithAnchorRequest: Sync = (
   }, { request }]),
   where: async (frames) => {
     const originalFrame = frames[0];
-    frames = await frames.query(DiscussionPub._listThreads, { pubId, anchorId, includeDeleted }, { thread });
+    frames = await frames.query(DiscussionPub._listThreads, {
+      pubId,
+      anchorId,
+      includeDeleted,
+    }, { thread });
     if (frames.length === 0) {
       return new Frames({ ...originalFrame, [threads]: [] });
     }
@@ -341,7 +345,10 @@ export const DiscussionListThreadsRequest: Sync = (
   }, { request }]),
   where: async (frames) => {
     const originalFrame = frames[0];
-    frames = await frames.query(DiscussionPub._listThreads, { pubId, includeDeleted }, { thread });
+    frames = await frames.query(DiscussionPub._listThreads, {
+      pubId,
+      includeDeleted,
+    }, { thread });
     if (frames.length === 0) {
       return new Frames({ ...originalFrame, [threads]: [] });
     }
@@ -360,7 +367,10 @@ export const DiscussionListRepliesRequest: Sync = (
   }, { request }]),
   where: async (frames) => {
     const originalFrame = frames[0];
-    frames = await frames.query(DiscussionPub._listReplies, { threadId, includeDeleted }, { reply });
+    frames = await frames.query(DiscussionPub._listReplies, {
+      threadId,
+      includeDeleted,
+    }, { reply });
     if (frames.length === 0) {
       return new Frames({ ...originalFrame, [replies]: [] });
     }
@@ -380,7 +390,10 @@ export const DiscussionListRepliesTreeRequest: Sync = (
   }, { request }]),
   where: async (frames) => {
     const originalFrame = frames[0];
-    frames = await frames.query(DiscussionPub._listRepliesTree, { threadId, includeDeleted }, { reply });
+    frames = await frames.query(DiscussionPub._listRepliesTree, {
+      threadId,
+      includeDeleted,
+    }, { reply });
     if (frames.length === 0) {
       return new Frames({ ...originalFrame, [replies]: [] });
     }
@@ -404,16 +417,28 @@ export const IdentityAddORCIDRequest: Sync = (
   then: actions([IdentityVerification.addORCID, { user, orcid }]),
 });
 
-export const IdentityAddORCIDResponse: Sync = (
-  { request, newORCID, error },
+export const IdentityAddORCIDResponseSuccess: Sync = (
+  { request, newORCID },
 ) => ({
   when: actions(
     [Requesting.request, { path: "/IdentityVerification/addORCID" }, {
       request,
     }],
-    [IdentityVerification.addORCID, {}, { newORCID, error }],
+    [IdentityVerification.addORCID, {}, { newORCID }],
   ),
-  then: actions([Requesting.respond, { request, newORCID, error }]),
+  then: actions([Requesting.respond, { request, newORCID }]),
+});
+
+export const IdentityAddORCIDResponseError: Sync = (
+  { request, error },
+) => ({
+  when: actions(
+    [Requesting.request, { path: "/IdentityVerification/addORCID" }, {
+      request,
+    }],
+    [IdentityVerification.addORCID, {}, { error }],
+  ),
+  then: actions([Requesting.respond, { request, error }]),
 });
 
 export const IdentityAddBadgeRequest: Sync = (
@@ -430,16 +455,28 @@ export const IdentityAddBadgeRequest: Sync = (
   then: actions([IdentityVerification.addBadge, { user, badge }]),
 });
 
-export const IdentityAddBadgeResponse: Sync = (
-  { request, newBadge, error },
+export const IdentityAddBadgeResponseSuccess: Sync = (
+  { request, newBadge },
 ) => ({
   when: actions(
     [Requesting.request, { path: "/IdentityVerification/addBadge" }, {
       request,
     }],
-    [IdentityVerification.addBadge, {}, { newBadge, error }],
+    [IdentityVerification.addBadge, {}, { newBadge }],
   ),
-  then: actions([Requesting.respond, { request, newBadge, error }]),
+  then: actions([Requesting.respond, { request, newBadge }]),
+});
+
+export const IdentityAddBadgeResponseError: Sync = (
+  { request, error },
+) => ({
+  when: actions(
+    [Requesting.request, { path: "/IdentityVerification/addBadge" }, {
+      request,
+    }],
+    [IdentityVerification.addBadge, {}, { error }],
+  ),
+  then: actions([Requesting.respond, { request, error }]),
 });
 
 // PaperIndex mutations
@@ -727,6 +764,101 @@ export const IdentityRemoveORCIDRequest: Sync = (
   ]),
 });
 
+export const IdentityInitiateORCIDVerificationRequest: Sync = (
+  { request, session, orcid, redirectUri, user },
+) => ({
+  when: actions([Requesting.request, {
+    path: "/IdentityVerification/initiateORCIDVerification",
+    session,
+    orcid,
+    redirectUri,
+  }, { request }]),
+  where: async (frames) => {
+    // Get user from session
+    return await frames.query(Sessioning._getUser, { session }, { user });
+  },
+  then: actions([
+    IdentityVerification.initiateORCIDVerification,
+    { orcid, redirectUri, user },
+  ]),
+});
+
+export const IdentityInitiateORCIDVerificationResponseSuccess: Sync = (
+  { request, authUrl, state },
+) => ({
+  when: actions(
+    [
+      Requesting.request,
+      { path: "/IdentityVerification/initiateORCIDVerification" },
+      {
+        request,
+      },
+    ],
+    [
+      IdentityVerification.initiateORCIDVerification,
+      {},
+      { authUrl, state },
+    ],
+  ),
+  then: actions([Requesting.respond, { request, authUrl, state }]),
+});
+
+export const IdentityInitiateORCIDVerificationResponseError: Sync = (
+  { request, error },
+) => ({
+  when: actions(
+    [
+      Requesting.request,
+      { path: "/IdentityVerification/initiateORCIDVerification" },
+      {
+        request,
+      },
+    ],
+    [
+      IdentityVerification.initiateORCIDVerification,
+      {},
+      { error },
+    ],
+  ),
+  then: actions([Requesting.respond, { request, error }]),
+});
+
+export const IdentityCompleteORCIDVerificationRequest: Sync = (
+  { request, orcid, code, state, redirectUri },
+) => ({
+  when: actions([Requesting.request, {
+    path: "/IdentityVerification/completeORCIDVerification",
+    orcid,
+    code,
+    state,
+    redirectUri,
+  }, { request }]),
+  then: actions([
+    IdentityVerification.completeORCIDVerification,
+    { orcid, code, state, redirectUri },
+  ]),
+});
+
+export const IdentityCompleteORCIDVerificationResponse: Sync = (
+  { request, ok, error },
+) => ({
+  when: actions(
+    [
+      Requesting.request,
+      { path: "/IdentityVerification/completeORCIDVerification" },
+      {
+        request,
+      },
+    ],
+    [
+      IdentityVerification.completeORCIDVerification,
+      {},
+      { ok, error },
+    ],
+  ),
+  then: actions([Requesting.respond, { request, ok, error }]),
+});
+
 export const IdentityRemoveAffiliationRequest: Sync = (
   { request, session, affiliation, user },
 ) => ({
@@ -763,7 +895,17 @@ export const IdentityUpdateAffiliationRequest: Sync = (
 });
 
 export const IdentityGetByUserRequest: Sync = (
-  { request, session, user, orcid, affiliation, badge, orcids, affiliations, badges },
+  {
+    request,
+    session,
+    user,
+    orcid,
+    affiliation,
+    badge,
+    orcids,
+    affiliations,
+    badges,
+  },
 ) => ({
   when: actions([Requesting.request, {
     path: "/IdentityVerification/_getByUser",
@@ -771,32 +913,73 @@ export const IdentityGetByUserRequest: Sync = (
   }, { request }]),
   where: async (frames) => {
     const originalFrame = frames[0];
+
+    // Get user from session
     frames = await frames.query(Sessioning._getUser, { session }, { user });
-    
-    // Query all three types - user is bound from frames
-    const [orcidFrames, affiliationFrames, badgeFrames] = await Promise.all([
-      frames.query(IdentityVerification._getORCIDsByUser, { user }, { orcid }),
-      frames.query(IdentityVerification._getAffiliationsByUser, { user }, { affiliation }),
-      frames.query(IdentityVerification._getBadgesByUser, { user }, { badge }),
-    ]);
-    
-    // Collect each type into arrays
-    const orcidsCollected = orcidFrames.length === 0 ? new Frames({ [orcids]: [] }) : orcidFrames.collectAs([orcid], orcids);
-    const affiliationsCollected = affiliationFrames.length === 0 ? new Frames({ [affiliations]: [] }) : affiliationFrames.collectAs([affiliation], affiliations);
-    const badgesCollected = badgeFrames.length === 0 ? new Frames({ [badges]: [] }) : badgeFrames.collectAs([badge], badges);
-    
-    // Extract arrays from collected frames
-    const orcidsArray = (orcidsCollected[0]?.[orcids] as Array<unknown>) ?? [];
-    const affiliationsArray = (affiliationsCollected[0]?.[affiliations] as Array<unknown>) ?? [];
-    const badgesArray = (badgesCollected[0]?.[badges] as Array<unknown>) ?? [];
-    
-    // Combine all results into a single frame
+
+    // Handle case where user is not found
+    if (frames.length === 0) {
+      return new Frames({
+        ...originalFrame,
+        [orcids]: [],
+        [affiliations]: [],
+        [badges]: [],
+      });
+    }
+
+    // Query ORCIDs - this will create one frame per ORCID
+    const orcidFrames = await frames.query(
+      IdentityVerification._getORCIDsByUser,
+      { user },
+      { orcid },
+    );
+
+    // Query affiliations - this will create one frame per affiliation
+    const affiliationFrames = await frames.query(
+      IdentityVerification._getAffiliationsByUser,
+      { user },
+      { affiliation },
+    );
+
+    // Query badges - this will create one frame per badge
+    const badgeFrames = await frames.query(
+      IdentityVerification._getBadgesByUser,
+      { user },
+      { badge },
+    );
+
+    // Collect ORCIDs into an array
+    const orcidsCollected = orcidFrames.length === 0
+      ? []
+      : (orcidFrames.collectAs([orcid], orcids)[0]?.[orcids] as Array<
+        unknown
+      > ?? []);
+
+    // Collect affiliations into an array
+    const affiliationsCollected = affiliationFrames.length === 0
+      ? []
+      : (affiliationFrames.collectAs([affiliation], affiliations)[0]
+        ?.[affiliations] as Array<unknown> ?? []);
+
+    // Collect badges into an array
+    const badgesCollected = badgeFrames.length === 0
+      ? []
+      : (badgeFrames.collectAs([badge], badges)[0]?.[badges] as Array<
+        unknown
+      > ?? []);
+
+    // Return a single frame with all three arrays
     return new Frames({
       ...originalFrame,
-      [orcids]: orcidsArray,
-      [affiliations]: affiliationsArray,
-      [badges]: badgesArray,
+      [orcids]: orcidsCollected,
+      [affiliations]: affiliationsCollected,
+      [badges]: badgesCollected,
     });
   },
-  then: actions([Requesting.respond, { request, orcids, affiliations, badges }]),
+  then: actions([Requesting.respond, {
+    request,
+    orcids,
+    affiliations,
+    badges,
+  }]),
 });
