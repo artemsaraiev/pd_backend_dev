@@ -4,7 +4,8 @@ import { Collection, Db } from "npm:mongodb";
 import { freshID } from "@utils/database.ts";
 import { ID } from "@utils/types.ts";
 import { exclusions, inclusions } from "./passthrough.ts";
-import { fetchBiorxivPdf, isAwsConfigured } from "@utils/biorxiv_s3.ts";
+// Note: S3 access for bioRxiv is only for bulk TDM, not individual article serving
+// Per bioRxiv's terms, we must link to their site rather than re-host content
 import "jsr:@std/dotenv/load";
 
 /**
@@ -345,7 +346,9 @@ export function startRequestingServer(
     }
   });
 
-  // bioRxiv PDF proxy - suffix is the DOI part after 10.1101/
+  // bioRxiv PDF proxy - disabled per bioRxiv's TDM terms
+  // Their S3 bucket is for bulk TDM only, not individual article serving
+  // Users must access bioRxiv PDFs directly from bioRxiv's website
   const biorxivPdfRoute = `${REQUESTING_BASE_URL}/biorxiv-pdf/:suffix`;
   app.options(biorxivPdfRoute, (c) => {
     return c.text("", 204, {
@@ -358,99 +361,24 @@ export function startRequestingServer(
     });
   });
 
-  app.get(biorxivPdfRoute, async (c) => {
+  app.get(biorxivPdfRoute, (c) => {
     const suffix = c.req.param("suffix");
-    console.log(
-      `[Requesting] Proxying bioRxiv PDF request for suffix: ${suffix}`,
+    const doi = `10.1101/${suffix}`;
+    const biorxivUrl = `https://www.biorxiv.org/content/${doi}`;
+    
+    return c.text(
+      `bioRxiv PDFs must be accessed directly from bioRxiv per their terms of service. ` +
+      `Please visit: ${biorxivUrl}`,
+      403,
+      {
+        "Access-Control-Allow-Origin": REQUESTING_ALLOWED_DOMAIN,
+        "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+        "Access-Control-Allow-Headers": "Content-Type, Range",
+        "Access-Control-Expose-Headers":
+          "Accept-Ranges, Content-Length, Content-Range",
+        "Vary": "Origin",
+      },
     );
-
-    if (!suffix) {
-      return c.text("Missing DOI suffix", 400);
-    }
-
-    const corsHeaders: Record<string, string> = {
-      "Access-Control-Allow-Origin": REQUESTING_ALLOWED_DOMAIN,
-      "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-      "Access-Control-Allow-Headers": "Content-Type, Range",
-      "Access-Control-Expose-Headers":
-        "Accept-Ranges, Content-Length, Content-Range",
-      "Vary": "Origin",
-    };
-
-    // Check if AWS is configured for S3 access
-    if (!isAwsConfigured()) {
-      console.log("[Requesting] AWS not configured, falling back to direct fetch");
-      // Fall back to direct fetch (will likely fail due to Cloudflare)
-      const doi = `10.1101/${suffix}`;
-      try {
-        const upstream = await fetch(
-          `https://www.biorxiv.org/content/${doi}.full.pdf`,
-          {
-            redirect: "follow",
-            headers: {
-              "User-Agent":
-                "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
-              "Accept": "application/pdf,*/*",
-            },
-          },
-        );
-        if (!upstream.ok || !upstream.body) {
-          return c.text(
-            `bioRxiv blocked request (${upstream.status}). Configure AWS credentials for S3 access.`,
-            upstream.status,
-            corsHeaders,
-          );
-        }
-        return new Response(upstream.body, {
-          status: upstream.status,
-          headers: {
-            "Content-Type": "application/pdf",
-            ...corsHeaders,
-          },
-        });
-      } catch (e) {
-        console.error("[Requesting] bioRxiv direct fetch error:", e);
-        return c.text(
-          "bioRxiv blocked. Configure AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY for S3 access.",
-          502,
-          corsHeaders,
-        );
-      }
-    }
-
-    // Use S3 to fetch the PDF
-    try {
-      console.log(`[Requesting] Fetching bioRxiv PDF from S3 for: ${suffix}`);
-      const result = await fetchBiorxivPdf(suffix);
-
-      if ("error" in result) {
-        console.log(`[Requesting] bioRxiv S3 error: ${result.error}`);
-        // Return 404 for not found, with informative message
-        return c.text(result.error, 404, corsHeaders);
-      }
-
-      console.log(
-        `[Requesting] Successfully fetched bioRxiv PDF: ${result.data.length} bytes`,
-      );
-
-      return new Response(result.data, {
-        status: 200,
-        headers: {
-          "Content-Type": "application/pdf",
-          "Content-Length": String(result.data.length),
-          "Cache-Control": "public, max-age=86400",
-          "Accept-Ranges": "bytes",
-          ...corsHeaders,
-        },
-      });
-    } catch (e) {
-      console.error("[Requesting] bioRxiv S3 fetch error:", e);
-      return c.text(
-        `Failed to fetch bioRxiv PDF from S3: ${e instanceof Error ? e.message : String(e)}`,
-        502,
-        corsHeaders,
-      );
-    }
   });
 
   /**
