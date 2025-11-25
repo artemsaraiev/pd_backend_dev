@@ -31,6 +31,8 @@ export const inclusions: Record<string, string> = {
 
   // Public queries
   "/api/PaperIndex/_searchArxiv": "public search query",
+  "/api/PaperIndex/_searchBiorxiv": "public search query - bioRxiv via Europe PMC",
+  "/api/PaperIndex/_listRecentBiorxiv": "public query - recent bioRxiv papers",
 
   // Public read queries - if paper data is public
   "/api/PaperIndex/_get": "public query - paper data is public",

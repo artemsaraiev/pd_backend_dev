@@ -42,7 +42,11 @@ Deno.test("Principle: Papers can be added to index and metadata can be updated",
     const { paper } = ensureResult as { paper: ID };
     assertExists(paper, "Paper ID should be returned");
     // paper is the internal _id, which should be different from paperId
-    assertNotEquals(paper, paper1, "Internal _id should be different from external paperId");
+    assertNotEquals(
+      paper,
+      paper1,
+      "Internal _id should be different from external paperId",
+    );
     console.log(`    Added paper: ${paper}`);
 
     // 2. Paper metadata can be updated
@@ -86,9 +90,21 @@ Deno.test("Principle: Papers can be added to index and metadata can be updated",
     );
     const { paper: paperDoc } = getResult[0];
     assertExists(paperDoc, "Paper should exist");
-    assertEquals(paperDoc!._id, paper, "Paper _id should match returned internal ID");
-    assertEquals(paperDoc!.paperId, paper1, "Paper paperId should match external identifier");
-    assertNotEquals(paperDoc!._id, paperDoc!.paperId, "_id and paperId should be different");
+    assertEquals(
+      paperDoc!._id,
+      paper,
+      "Paper _id should match returned internal ID",
+    );
+    assertEquals(
+      paperDoc!.paperId,
+      paper1,
+      "Paper paperId should match external identifier",
+    );
+    assertNotEquals(
+      paperDoc!._id,
+      paperDoc!.paperId,
+      "_id and paperId should be different",
+    );
     assertEquals(paperDoc!.title, "Updated Title", "Title should be updated");
     assertEquals(
       paperDoc!.authors.length,
@@ -100,7 +116,11 @@ Deno.test("Principle: Papers can be added to index and metadata can be updated",
       true,
       "Should include Alice",
     );
-    assertEquals(paperDoc!.authors.includes(author2), true, "Should include Bob");
+    assertEquals(
+      paperDoc!.authors.includes(author2),
+      true,
+      "Should include Bob",
+    );
     assertEquals(paperDoc!.links.length, 1, "Should have one link");
     assertEquals(
       paperDoc!.links.includes("https://example.com/paper"),
@@ -130,12 +150,24 @@ Deno.test("Action: ensure creates paper if not exists, returns existing if exist
     assertNotEquals("error" in result1, true, "Should succeed");
     const { paper: paperId1 } = result1 as { paper: ID };
     // paperId1 is the internal _id, which should be different from paper1 (external paperId)
-    assertNotEquals(paperId1, paper1, "Internal _id should be different from external paperId");
+    assertNotEquals(
+      paperId1,
+      paper1,
+      "Internal _id should be different from external paperId",
+    );
 
     // Verify paper was created
     const getResult1 = await concept._get({ paper: paperId1 });
-    assertEquals(getResult1[0].paper?._id, paperId1, "Paper _id should match returned internal ID");
-    assertEquals(getResult1[0].paper?.paperId, paper1, "Paper paperId should match external identifier");
+    assertEquals(
+      getResult1[0].paper?._id,
+      paperId1,
+      "Paper _id should match returned internal ID",
+    );
+    assertEquals(
+      getResult1[0].paper?.paperId,
+      paper1,
+      "Paper paperId should match external identifier",
+    );
     assertEquals(
       getResult1[0].paper?.title,
       "First Paper",
@@ -157,7 +189,11 @@ Deno.test("Action: ensure creates paper if not exists, returns existing if exist
     });
     assertNotEquals("error" in result2, true, "Should succeed");
     const { paper: paperId2 } = result2 as { paper: ID };
-    assertEquals(paperId2, paperId1, "Should return same internal _id for same paperId");
+    assertEquals(
+      paperId2,
+      paperId1,
+      "Should return same internal _id for same paperId",
+    );
 
     // Verify paper was not updated (idempotent)
     const getResult2 = await concept._get({ paper: paperId2 });
@@ -174,11 +210,23 @@ Deno.test("Action: ensure creates paper if not exists, returns existing if exist
     assertNotEquals("error" in result3, true, "Should succeed");
     const { paper: paperId3 } = result3 as { paper: ID };
     // paperId3 is the internal _id, which should be different from paper2 (external paperId)
-    assertNotEquals(paperId3, paper2, "Internal _id should be different from external paperId");
+    assertNotEquals(
+      paperId3,
+      paper2,
+      "Internal _id should be different from external paperId",
+    );
 
     const getResult3 = await concept._get({ paper: paperId3 });
-    assertEquals(getResult3[0].paper?._id, paperId3, "Paper _id should match returned internal ID");
-    assertEquals(getResult3[0].paper?.paperId, paper2, "Paper paperId should match external identifier");
+    assertEquals(
+      getResult3[0].paper?._id,
+      paperId3,
+      "Paper _id should match returned internal ID",
+    );
+    assertEquals(
+      getResult3[0].paper?.paperId,
+      paper2,
+      "Paper paperId should match external identifier",
+    );
     assertEquals(
       getResult3[0].paper?.title,
       undefined,
@@ -204,12 +252,19 @@ Deno.test("Action: updateMeta requires paper exists, sets title", async () => {
       paper: "nonexistent" as ID,
       title: "New Title",
     });
-    assertEquals("error" in errorResult, true, "Should fail for nonexistent paper");
+    assertEquals(
+      "error" in errorResult,
+      true,
+      "Should fail for nonexistent paper",
+    );
     console.log("    Correctly rejects nonexistent paper");
 
     // Test: updateMeta sets title
     console.log("  Testing effects: sets title");
-    const ensureResult = await concept.ensure({ paperId: paper1, title: "Original Title" });
+    const ensureResult = await concept.ensure({
+      paperId: paper1,
+      title: "Original Title",
+    });
     const { paper: internalId } = ensureResult as { paper: ID };
     const updateResult = await concept.updateMeta({
       paper: internalId,
@@ -243,15 +298,25 @@ Deno.test("Action: addAuthors requires paper exists, adds unique authors", async
       paper: "nonexistent" as ID,
       authors: [author1],
     });
-    assertEquals("error" in errorResult, true, "Should fail for nonexistent paper");
+    assertEquals(
+      "error" in errorResult,
+      true,
+      "Should fail for nonexistent paper",
+    );
     console.log("    Correctly rejects nonexistent paper");
 
     // Test: addAuthors adds unique authors (set semantics)
     console.log("  Testing effects: adds unique authors");
     const ensureResult = await concept.ensure({ paperId: paper1 });
     const { paper: internalId } = ensureResult as { paper: ID };
-    await concept.addAuthors({ paper: internalId, authors: [author1, author2] });
-    await concept.addAuthors({ paper: internalId, authors: [author2, author3] }); // author2 already exists
+    await concept.addAuthors({
+      paper: internalId,
+      authors: [author1, author2],
+    });
+    await concept.addAuthors({
+      paper: internalId,
+      authors: [author2, author3],
+    }); // author2 already exists
 
     const getResult = await concept._get({ paper: internalId });
     const authors = getResult[0].paper?.authors ?? [];
@@ -282,15 +347,25 @@ Deno.test("Action: removeAuthors requires paper exists, removes authors if prese
       paper: "nonexistent" as ID,
       authors: [author1],
     });
-    assertEquals("error" in errorResult, true, "Should fail for nonexistent paper");
+    assertEquals(
+      "error" in errorResult,
+      true,
+      "Should fail for nonexistent paper",
+    );
     console.log("    Correctly rejects nonexistent paper");
 
     // Test: removeAuthors removes authors if present
     console.log("  Testing effects: removes authors if present");
     const ensureResult = await concept.ensure({ paperId: paper1 });
     const { paper: internalId } = ensureResult as { paper: ID };
-    await concept.addAuthors({ paper: internalId, authors: [author1, author2, author3] });
-    await concept.removeAuthors({ paper: internalId, authors: [author2, "nonexistent" as ID] }); // nonexistent doesn't exist
+    await concept.addAuthors({
+      paper: internalId,
+      authors: [author1, author2, author3],
+    });
+    await concept.removeAuthors({
+      paper: internalId,
+      authors: [author2, "nonexistent" as ID],
+    }); // nonexistent doesn't exist
 
     const getResult = await concept._get({ paper: internalId });
     const authors = getResult[0].paper?.authors ?? [];
@@ -318,7 +393,11 @@ Deno.test("Action: addLink requires paper exists, adds url if not present", asyn
       paper: "nonexistent" as ID,
       url: "https://example.com",
     });
-    assertEquals("error" in errorResult, true, "Should fail for nonexistent paper");
+    assertEquals(
+      "error" in errorResult,
+      true,
+      "Should fail for nonexistent paper",
+    );
     console.log("    Correctly rejects nonexistent paper");
 
     // Test: addLink adds url if not present (set semantics)
@@ -362,7 +441,11 @@ Deno.test("Action: removeLink requires paper exists, removes url if present", as
       paper: "nonexistent" as ID,
       url: "https://example.com",
     });
-    assertEquals("error" in errorResult, true, "Should fail for nonexistent paper");
+    assertEquals(
+      "error" in errorResult,
+      true,
+      "Should fail for nonexistent paper",
+    );
     console.log("    Correctly rejects nonexistent paper");
 
     // Test: removeLink removes url if present (no-op if not present)
@@ -371,8 +454,14 @@ Deno.test("Action: removeLink requires paper exists, removes url if present", as
     const { paper: internalId } = ensureResult as { paper: ID };
     await concept.addLink({ paper: internalId, url: "https://example.com/1" });
     await concept.addLink({ paper: internalId, url: "https://example.com/2" });
-    await concept.removeLink({ paper: internalId, url: "https://example.com/1" });
-    await concept.removeLink({ paper: internalId, url: "https://example.com/nonexistent" }); // No-op
+    await concept.removeLink({
+      paper: internalId,
+      url: "https://example.com/1",
+    });
+    await concept.removeLink({
+      paper: internalId,
+      url: "https://example.com/nonexistent",
+    }); // No-op
 
     const getResult = await concept._get({ paper: internalId });
     const links = getResult[0].paper?.links ?? [];
@@ -409,12 +498,19 @@ Deno.test("Query: _get returns paper document or null", async () => {
       1,
       "Query should return array with one dictionary",
     );
-    assertEquals(result1[0].paper, null, "Should return null for nonexistent paper");
+    assertEquals(
+      result1[0].paper,
+      null,
+      "Should return null for nonexistent paper",
+    );
     console.log("    Correctly returns null for nonexistent paper");
 
     // Test: returns paper document for existing paper
     console.log("  Testing existing paper");
-    const ensureResult = await concept.ensure({ paperId: paper1, title: "Test Paper" });
+    const ensureResult = await concept.ensure({
+      paperId: paper1,
+      title: "Test Paper",
+    });
     const { paper: internalId } = ensureResult as { paper: ID };
     await concept.addAuthors({ paper: internalId, authors: [author1] });
     await concept.addLink({ paper: internalId, url: "https://example.com" });
@@ -427,13 +523,25 @@ Deno.test("Query: _get returns paper document or null", async () => {
     );
     const { paper: paperDoc } = result2[0];
     assertExists(paperDoc, "Paper should exist");
-    assertEquals(paperDoc!._id, internalId, "Paper _id should match internal ID");
-    assertEquals(paperDoc!.paperId, paper1, "Paper paperId should match external identifier");
+    assertEquals(
+      paperDoc!._id,
+      internalId,
+      "Paper _id should match internal ID",
+    );
+    assertEquals(
+      paperDoc!.paperId,
+      paper1,
+      "Paper paperId should match external identifier",
+    );
     assertEquals(paperDoc!.title, "Test Paper", "Title should match");
     assertEquals(paperDoc!.authors.length, 1, "Should have one author");
     assertEquals(paperDoc!.authors[0], author1, "Author should match");
     assertEquals(paperDoc!.links.length, 1, "Should have one link");
-    assertEquals(paperDoc!.links[0], "https://example.com", "Link should match");
+    assertEquals(
+      paperDoc!.links[0],
+      "https://example.com",
+      "Link should match",
+    );
     console.log("    Correctly returns paper document");
   } finally {
     await client.close();
@@ -449,13 +557,22 @@ Deno.test("Query: _listRecent returns recent papers ordered by createdAt", async
     console.log("Testing _listRecent query - ordering");
 
     // Create papers with delays to ensure different createdAt
-    const ensure1 = await concept.ensure({ paperId: paper1, title: "First Paper" });
+    const ensure1 = await concept.ensure({
+      paperId: paper1,
+      title: "First Paper",
+    });
     const { paper: internalId1 } = ensure1 as { paper: ID };
     await new Promise((resolve) => setTimeout(resolve, 10)); // Small delay
-    const ensure2 = await concept.ensure({ paperId: paper2, title: "Second Paper" });
+    const ensure2 = await concept.ensure({
+      paperId: paper2,
+      title: "Second Paper",
+    });
     const { paper: internalId2 } = ensure2 as { paper: ID };
     await new Promise((resolve) => setTimeout(resolve, 10));
-    const ensure3 = await concept.ensure({ paperId: paper3, title: "Third Paper" });
+    const ensure3 = await concept.ensure({
+      paperId: paper3,
+      title: "Third Paper",
+    });
     const { paper: internalId3 } = ensure3 as { paper: ID };
 
     const result = await concept._listRecent({ limit: 10 });
@@ -500,6 +617,255 @@ Deno.test("Query: _listRecent returns empty array when no papers exist", async (
       "Query should return empty array when no papers exist",
     );
     console.log("    Correctly returns empty array");
+  } finally {
+    await client.close();
+  }
+});
+
+// Action: ensure with source field
+Deno.test("Action: ensure accepts and stores source field", async () => {
+  const [db, client] = await testDb();
+  const concept = new PaperIndexConcept(db);
+
+  try {
+    console.log("Testing ensure action with source field");
+
+    // Test: ensure with explicit source="biorxiv"
+    console.log("  Creating paper with source='biorxiv'");
+    const result1 = await concept.ensure({
+      paperId: "10.1101/2024.01.01.123456",
+      title: "bioRxiv Paper",
+      source: "biorxiv",
+    });
+    assertNotEquals("error" in result1, true, "Should succeed");
+    const { paper: internalId1 } = result1 as { paper: ID };
+
+    const getResult1 = await concept._get({ paper: internalId1 });
+    assertEquals(
+      getResult1[0].paper?.source,
+      "biorxiv",
+      "Source should be 'biorxiv'",
+    );
+    console.log("    Paper created with source='biorxiv'");
+
+    // Test: ensure with explicit source="arxiv"
+    console.log("  Creating paper with source='arxiv'");
+    const result2 = await concept.ensure({
+      paperId: paper1,
+      title: "arXiv Paper",
+      source: "arxiv",
+    });
+    assertNotEquals("error" in result2, true, "Should succeed");
+    const { paper: internalId2 } = result2 as { paper: ID };
+
+    const getResult2 = await concept._get({ paper: internalId2 });
+    assertEquals(
+      getResult2[0].paper?.source,
+      "arxiv",
+      "Source should be 'arxiv'",
+    );
+    console.log("    Paper created with source='arxiv'");
+
+    // Test: ensure without source defaults to "arxiv"
+    console.log("  Creating paper without source (should default to 'arxiv')");
+    const result3 = await concept.ensure({
+      paperId: paper2,
+      title: "Default Source Paper",
+    });
+    assertNotEquals("error" in result3, true, "Should succeed");
+    const { paper: internalId3 } = result3 as { paper: ID };
+
+    const getResult3 = await concept._get({ paper: internalId3 });
+    assertEquals(
+      getResult3[0].paper?.source,
+      "arxiv",
+      "Source should default to 'arxiv'",
+    );
+    console.log("    Paper created with default source='arxiv'");
+
+    // Test: ensure with source="other"
+    console.log("  Creating paper with source='other'");
+    const result4 = await concept.ensure({
+      paperId: "doi:10.5555/other.paper",
+      title: "Other Source Paper",
+      source: "other",
+    });
+    assertNotEquals("error" in result4, true, "Should succeed");
+    const { paper: internalId4 } = result4 as { paper: ID };
+
+    const getResult4 = await concept._get({ paper: internalId4 });
+    assertEquals(
+      getResult4[0].paper?.source,
+      "other",
+      "Source should be 'other'",
+    );
+    console.log("    Paper created with source='other'");
+  } finally {
+    await client.close();
+  }
+});
+
+// Query: _listRecent with source filter
+Deno.test("Query: _listRecent filters by source when provided", async () => {
+  const [db, client] = await testDb();
+  const concept = new PaperIndexConcept(db);
+
+  try {
+    console.log("Testing _listRecent query with source filter");
+
+    // Create papers with different sources
+    await concept.ensure({
+      paperId: paper1,
+      title: "arXiv Paper 1",
+      source: "arxiv",
+    });
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    await concept.ensure({
+      paperId: "10.1101/2024.01.01.111111",
+      title: "bioRxiv Paper 1",
+      source: "biorxiv",
+    });
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    await concept.ensure({
+      paperId: paper2,
+      title: "arXiv Paper 2",
+      source: "arxiv",
+    });
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    await concept.ensure({
+      paperId: "10.1101/2024.01.01.222222",
+      title: "bioRxiv Paper 2",
+      source: "biorxiv",
+    });
+
+    // Test: list all papers (no filter)
+    console.log("  Listing all papers (no source filter)");
+    const allResult = await concept._listRecent({ limit: 10 });
+    assertEquals(allResult.length, 4, "Should return all 4 papers");
+    console.log("    All papers returned");
+
+    // Test: filter by arxiv
+    console.log("  Listing arXiv papers only");
+    const arxivResult = await concept._listRecent({
+      limit: 10,
+      source: "arxiv",
+    });
+    assertEquals(arxivResult.length, 2, "Should return 2 arXiv papers");
+    for (const r of arxivResult) {
+      assertEquals(r.paper.source, "arxiv", "All papers should be from arXiv");
+    }
+    console.log("    arXiv papers filtered correctly");
+
+    // Test: filter by biorxiv
+    console.log("  Listing bioRxiv papers only");
+    const biorxivResult = await concept._listRecent({
+      limit: 10,
+      source: "biorxiv",
+    });
+    assertEquals(biorxivResult.length, 2, "Should return 2 bioRxiv papers");
+    for (const r of biorxivResult) {
+      assertEquals(
+        r.paper.source,
+        "biorxiv",
+        "All papers should be from bioRxiv",
+      );
+    }
+    console.log("    bioRxiv papers filtered correctly");
+
+    // Test: filter by source with no matches
+    console.log("  Listing 'other' source papers");
+    const otherResult = await concept._listRecent({
+      limit: 10,
+      source: "other",
+    });
+    assertEquals(
+      otherResult.length,
+      0,
+      "Should return 0 papers for 'other' source",
+    );
+    console.log("    No papers returned for 'other' source");
+  } finally {
+    await client.close();
+  }
+});
+
+// Query: _searchBiorxiv (integration test - calls actual Europe PMC API)
+Deno.test("Query: _searchBiorxiv returns results from Europe PMC API", async () => {
+  const [db, client] = await testDb();
+  const concept = new PaperIndexConcept(db);
+
+  try {
+    console.log("Testing _searchBiorxiv query (integration test)");
+
+    // Test: search with a common term that should return results
+    console.log("  Searching for 'COVID' in bioRxiv");
+    const result = await concept._searchBiorxiv({ q: "COVID" });
+    console.log(`    Found ${result.length} results`);
+    // Note: We can't guarantee results since it depends on external API
+    // Just verify the structure is correct
+    if (result.length > 0) {
+      assertExists(result[0].result, "Result should have 'result' field");
+      assertExists(result[0].result.id, "Result should have 'id' field");
+      console.log(
+        `    Sample result: id=${result[0].result.id}, title=${
+          result[0].result.title?.substring(0, 50)
+        }...`,
+      );
+    }
+
+    // Test: empty query returns empty array
+    console.log("  Testing empty query");
+    const emptyResult = await concept._searchBiorxiv({ q: "" });
+    assertEquals(
+      emptyResult.length,
+      0,
+      "Empty query should return empty array",
+    );
+    console.log("    Empty query returned empty array");
+
+    // Test: whitespace-only query returns empty array
+    console.log("  Testing whitespace-only query");
+    const whitespaceResult = await concept._searchBiorxiv({ q: "   " });
+    assertEquals(
+      whitespaceResult.length,
+      0,
+      "Whitespace query should return empty array",
+    );
+    console.log("    Whitespace query returned empty array");
+  } finally {
+    await client.close();
+  }
+});
+
+// Query: _listRecentBiorxiv (integration test - calls actual bioRxiv API)
+Deno.test("Query: _listRecentBiorxiv returns recent papers from bioRxiv API", async () => {
+  const [db, client] = await testDb();
+  const concept = new PaperIndexConcept(db);
+
+  try {
+    console.log("Testing _listRecentBiorxiv query (integration test)");
+
+    // Test: list recent bioRxiv papers
+    console.log("  Fetching recent bioRxiv papers");
+    const result = await concept._listRecentBiorxiv({ limit: 5 });
+    console.log(`    Found ${result.length} recent papers`);
+    // Note: We can't guarantee results since it depends on external API
+    // Just verify the structure is correct
+    if (result.length > 0) {
+      assertExists(result[0].result, "Result should have 'result' field");
+      assertExists(result[0].result.id, "Result should have 'id' field");
+      console.log(
+        `    Sample result: id=${result[0].result.id}, title=${
+          result[0].result.title?.substring(0, 50)
+        }...`,
+      );
+    }
+
+    // Test: limit is respected (if we got results)
+    if (result.length > 0) {
+      assertEquals(result.length <= 5, true, "Should respect limit of 5");
+      console.log("    Limit respected");
+    }
   } finally {
     await client.close();
   }
