@@ -112,6 +112,7 @@ export const exclusions: Array<string> = [
   "/api/IdentityVerification/_getORCIDsByUser",
   "/api/IdentityVerification/_getAffiliationsByUser",
   "/api/IdentityVerification/_getBadgesByUser",
+  "/api/IdentityVerification/_getORCIDFromState",
 
   // LikertSurvey - mutations need auth/tracking
   "/api/LikertSurvey/createSurvey",

@@ -1019,6 +1019,11 @@
   "workspace": {
     "dependencies": [
       "npm:mongodb@7"
-    ]
+    ],
+    "packageJson": {
+      "dependencies": [
+        "npm:mongodb@7"
+      ]
+    }
   }
 }

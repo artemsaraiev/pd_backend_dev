@@ -162,6 +162,44 @@
 
 ---
 
+### POST /api/IdentityVerification/_getORCIDFromState
+
+**Description:** Retrieves the ORCID ID associated with an OAuth state token. This is useful during the OAuth callback flow when the frontend needs to determine which ORCID is being verified.
+
+**Requirements:**
+- the state exists and is not expired
+
+**Effects:**
+- returns the ORCID ID associated with the given OAuth state
+- returns an empty result if the state is invalid or expired
+
+**Request Body:**
+```json
+{
+  "state": "string"
+}
+```
+
+**Note:** This endpoint is typically called during the OAuth callback flow after the user returns from ORCID authorization. The `state` parameter is the state value returned from `initiateVerification` and passed back by ORCID in the callback URL.
+
+**Success Response Body (Query):**
+```json
+{
+  "orcid": "string"
+}
+```
+
+**Note:** If the state is invalid or expired, the response will not include the `orcid` field, or it may be empty/null. The frontend should handle this case and show an appropriate error message.
+
+**Error Response Body:**
+```json
+{
+  "error": "string"
+}
+```
+
+---
+
 ### POST /api/IdentityVerification/addAffiliation
 
 **Description:** Adds an institution affiliation to a user's account.

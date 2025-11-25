@@ -839,8 +839,8 @@ export const IdentityCompleteORCIDVerificationRequest: Sync = (
   ]),
 });
 
-export const IdentityCompleteORCIDVerificationResponse: Sync = (
-  { request, ok, error },
+export const IdentityCompleteORCIDVerificationResponseSuccess: Sync = (
+  { request, ok },
 ) => ({
   when: actions(
     [
@@ -853,10 +853,47 @@ export const IdentityCompleteORCIDVerificationResponse: Sync = (
     [
       IdentityVerification.completeORCIDVerification,
       {},
-      { ok, error },
+      { ok },
     ],
   ),
-  then: actions([Requesting.respond, { request, ok, error }]),
+  then: actions([Requesting.respond, { request, ok }]),
+});
+
+export const IdentityCompleteORCIDVerificationResponseError: Sync = (
+  { request, error },
+) => ({
+  when: actions(
+    [
+      Requesting.request,
+      { path: "/IdentityVerification/completeORCIDVerification" },
+      {
+        request,
+      },
+    ],
+    [
+      IdentityVerification.completeORCIDVerification,
+      {},
+      { error },
+    ],
+  ),
+  then: actions([Requesting.respond, { request, error }]),
+});
+
+export const IdentityGetORCIDFromStateRequest: Sync = (
+  { request, state, orcid },
+) => ({
+  when: actions([Requesting.request, {
+    path: "/IdentityVerification/_getORCIDFromState",
+    state,
+  }, { request }]),
+  where: async (frames) => {
+    return await frames.query(
+      IdentityVerification._getORCIDFromState,
+      { state },
+      { orcid },
+    );
+  },
+  then: actions([Requesting.respond, { request, orcid }]),
 });
 
 export const IdentityRemoveAffiliationRequest: Sync = (
