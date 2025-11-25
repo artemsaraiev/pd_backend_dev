@@ -34,6 +34,7 @@ interface HighlightDoc {
   page: number;
   rects: Rect[];
   quote?: string;
+  color?: string;
 }
 
 export default class PdfHighlighterConcept {
@@ -61,11 +62,12 @@ export default class PdfHighlighterConcept {
    * **effects** creates a new Highlight with the given paper, page, rects, and quote (if provided), and returns its ID
    */
   async createHighlight(
-    { paper, page, rects, quote }: {
+    { paper, page, rects, quote, color }: {
       paper: Paper;
       page: number;
       rects: Rect[];
       quote?: string;
+      color?: string;
     },
   ): Promise<{ highlightId: Highlight } | { error: string }> {
     try {
@@ -76,6 +78,7 @@ export default class PdfHighlighterConcept {
         page,
         rects,
         ...(quote !== undefined && { quote }),
+        ...(color !== undefined && { color }),
       };
 
       await this.highlights.insertOne(doc);

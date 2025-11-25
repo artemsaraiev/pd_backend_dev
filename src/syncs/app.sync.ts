@@ -213,6 +213,7 @@ export const DiscussionStartThreadRequest: Sync = (
     session,
     pubId,
     body,
+    anchorId,
   }, { request }]),
   where: async (frames) => {
     return await frames.query(Sessioning._getUser, { session }, { user });
@@ -311,16 +312,17 @@ export const DiscussionGetPubIdByPaperResponse: Sync = (
 
 // _listThreads with anchorId filter
 export const DiscussionListThreadsWithAnchorRequest: Sync = (
-  { request, pubId, anchorId, thread, threads },
+  { request, pubId, anchorId, includeDeleted, thread, threads },
 ) => ({
   when: actions([Requesting.request, {
     path: "/DiscussionPub/_listThreads",
     pubId,
     anchorId,
+    includeDeleted,
   }, { request }]),
   where: async (frames) => {
     const originalFrame = frames[0];
-    frames = await frames.query(DiscussionPub._listThreads, { pubId, anchorId }, { thread });
+    frames = await frames.query(DiscussionPub._listThreads, { pubId, anchorId, includeDeleted }, { thread });
     if (frames.length === 0) {
       return new Frames({ ...originalFrame, [threads]: [] });
     }
@@ -331,15 +333,16 @@ export const DiscussionListThreadsWithAnchorRequest: Sync = (
 
 // _listThreads without anchorId filter
 export const DiscussionListThreadsRequest: Sync = (
-  { request, pubId, thread, threads },
+  { request, pubId, includeDeleted, thread, threads },
 ) => ({
   when: actions([Requesting.request, {
     path: "/DiscussionPub/_listThreads",
     pubId,
+    includeDeleted,
   }, { request }]),
   where: async (frames) => {
     const originalFrame = frames[0];
-    frames = await frames.query(DiscussionPub._listThreads, { pubId }, { thread });
+    frames = await frames.query(DiscussionPub._listThreads, { pubId, includeDeleted }, { thread });
     if (frames.length === 0) {
       return new Frames({ ...originalFrame, [threads]: [] });
     }
@@ -349,15 +352,16 @@ export const DiscussionListThreadsRequest: Sync = (
 });
 
 export const DiscussionListRepliesRequest: Sync = (
-  { request, threadId, reply, replies },
+  { request, threadId, includeDeleted, reply, replies },
 ) => ({
   when: actions([Requesting.request, {
     path: "/DiscussionPub/_listReplies",
     threadId,
+    includeDeleted,
   }, { request }]),
   where: async (frames) => {
     const originalFrame = frames[0];
-    frames = await frames.query(DiscussionPub._listReplies, { threadId }, { reply });
+    frames = await frames.query(DiscussionPub._listReplies, { threadId, includeDeleted }, { reply });
     if (frames.length === 0) {
       return new Frames({ ...originalFrame, [replies]: [] });
     }
@@ -368,15 +372,16 @@ export const DiscussionListRepliesRequest: Sync = (
 
 // Tree-structured replies
 export const DiscussionListRepliesTreeRequest: Sync = (
-  { request, threadId, reply, replies },
+  { request, threadId, includeDeleted, reply, replies },
 ) => ({
   when: actions([Requesting.request, {
     path: "/DiscussionPub/_listRepliesTree",
     threadId,
+    includeDeleted,
   }, { request }]),
   where: async (frames) => {
     const originalFrame = frames[0];
-    frames = await frames.query(DiscussionPub._listRepliesTree, { threadId }, { reply });
+    frames = await frames.query(DiscussionPub._listRepliesTree, { threadId, includeDeleted }, { reply });
     if (frames.length === 0) {
       return new Frames({ ...originalFrame, [replies]: [] });
     }
