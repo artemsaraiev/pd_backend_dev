@@ -6,9 +6,12 @@ import { freshID } from "@utils/database.ts";
 type Paper = ID;
 type Author = ID;
 
+// Source type for paper origin
+type PaperSource = "arxiv" | "biorxiv" | "other";
+
 /**
  * @concept PaperIndex [Author]
- * @purpose registry of papers by id (DOI or arXiv) with minimal metadata
+ * @purpose registry of papers by id (DOI, arXiv, or bioRxiv) with minimal metadata
  *
  * @principle papers can be added to the index, and paper metadata relevant to
  * us can be updated
@@ -16,22 +19,24 @@ type Author = ID;
 
 /**
  * a set of Papers with
- *   a paperId String (external unique identifier: DOI, arXiv, etc.)
+ *   a paperId String (external unique identifier: DOI, arXiv, bioRxiv, etc.)
  *   an authors Author[]
  *   a links String[]
  *   a title String?
+ *   a source "arxiv" | "biorxiv" | "other"
  *   a createdAt Date
  *
  * Note: Both _id and paperId are stored separately:
  * - _id: MongoDB's internal document identifier (generated with freshID())
- * - paperId: External unique identifier (DOI, arXiv, etc.) from outside the system
+ * - paperId: External unique identifier (DOI, arXiv, bioRxiv, etc.) from outside the system
  */
 interface PaperDoc {
   _id: Paper; // MongoDB internal document ID (generated with freshID())
-  paperId: string; // External unique identifier (DOI, arXiv, etc.)
+  paperId: string; // External unique identifier (DOI, arXiv, bioRxiv, etc.)
   title?: string;
   authors: Author[]; // Author IDs
   links: string[];
+  source: PaperSource; // Paper source: "arxiv", "biorxiv", or "other"
   createdAt?: number; // Implementation detail for ordering
 }
 
@@ -87,15 +92,20 @@ export default class PaperIndexConcept {
   }
 
   /**
-   * ensure(paperId: String, title?: String) : (paper: Paper)
+   * ensure(paperId: String, title?: String, source?: "arxiv" | "biorxiv" | "other") : (paper: Paper)
    *
    * **requires** nothing
    * **effects** if paper with given paperId is in the set of Papers, returns it.
-   * Otherwise, creates a new paper with the given paperId and title (if provided),
-   * and links and authors arrays set to empty arrays, and returns the new paper
+   * Otherwise, creates a new paper with the given paperId, title (if provided),
+   * source (defaults to "arxiv" if not provided), and links and authors arrays
+   * set to empty arrays, and returns the new paper
    */
   async ensure(
-    { paperId, title }: { paperId: string; title?: string },
+    { paperId, title, source }: {
+      paperId: string;
+      title?: string;
+      source?: PaperSource;
+    },
   ): Promise<{ paper: Paper } | { error: string }> {
     try {
       // Check if paper with this paperId already exists
@@ -111,6 +121,7 @@ export default class PaperIndexConcept {
         paperId: paperId,
         authors: [],
         links: [],
+        source: source ?? "arxiv", // Default to "arxiv" for backward compatibility
         createdAt: Date.now(),
       };
       if (title !== undefined) doc.title = title;
@@ -283,22 +294,24 @@ export default class PaperIndexConcept {
   }
 
   /**
-   * _listRecent(limit?: Number) : (paper: PaperDoc)
+   * _listRecent(limit?: Number, source?: "arxiv" | "biorxiv" | "other") : (paper: PaperDoc)
    *
    * **requires** nothing
    * **effects** returns an array of dictionaries, each containing one paper document
    * for the most recently created papers, limited by the provided limit (default 20).
-   * Results are ordered by createdAt descending. Each paper includes _id, title, and
-   * createdAt. Returns an empty array if no papers exist.
+   * If source is provided, filters to only papers with that source. Results are ordered
+   * by createdAt descending. Each paper includes _id, title, source, and createdAt.
+   * Returns an empty array if no papers exist.
    */
   async _listRecent(
-    { limit }: { limit?: number },
+    { limit, source }: { limit?: number; source?: PaperSource },
   ): Promise<
     Array<{
       paper: {
         _id: Paper;
         paperId: string;
         title?: string;
+        source?: PaperSource;
         createdAt?: number;
         authors: Author[];
         links: string[];
@@ -306,12 +319,19 @@ export default class PaperIndexConcept {
     }>
   > {
     try {
+      // Build filter based on optional source parameter
+      const filter: Record<string, unknown> = {};
+      if (source) {
+        filter.source = source;
+      }
+
       const cur = this.papers
-        .find({}, {
+        .find(filter, {
           projection: {
             _id: 1,
             paperId: 1,
             title: 1,
+            source: 1,
             createdAt: 1,
             authors: 1,
             links: 1,
@@ -323,6 +343,116 @@ export default class PaperIndexConcept {
       const papers = items as Array<PaperDoc>;
       // Queries must return an array of dictionaries, one per paper
       return papers.map((paper) => ({ paper }));
+    } catch {
+      // On error, return empty array (queries should not throw)
+      return [];
+    }
+  }
+
+  /**
+   * _searchBiorxiv(q: String) : (result: {id: String, title?: String, doi?: String})
+   *
+   * **requires** nothing
+   * **effects** returns an array of dictionaries, each containing one search result
+   * from the Europe PMC API matching the query string for bioRxiv preprints. Each result
+   * includes an id (bioRxiv identifier), optionally a title, and optionally a DOI.
+   * Returns an empty array if no results are found.
+   */
+  async _searchBiorxiv(
+    { q }: { q: string },
+  ): Promise<Array<{ result: { id: string; title?: string; doi?: string } }>> {
+    try {
+      const query = q.trim();
+      if (!query) return [];
+
+      // Use Europe PMC API to search for bioRxiv preprints
+      // SRC:PPR filters to preprints; bioRxiv DOIs start with 10.1101/
+      const url =
+        `https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=${
+          encodeURIComponent(query)
+        }%20AND%20(SRC:PPR)&format=json&pageSize=25`;
+
+      const res = await fetch(url);
+      if (!res.ok) throw new Error(`Europe PMC API error: ${res.status}`);
+
+      const data = await res.json();
+      const results = data.resultList?.result ?? [];
+
+      const items: Array<{ id: string; title?: string; doi?: string }> = [];
+      for (const r of results) {
+        const doi = r.doi;
+        // bioRxiv DOIs start with 10.1101/ (medRxiv uses 10.1101/ too but different pattern)
+        // Accept any preprint with a 10.1101 DOI
+        const isBiorxiv = doi?.startsWith("10.1101/") ||
+          r.bookOrReportDetails?.publisher?.toLowerCase()?.includes("biorxiv");
+
+        if (isBiorxiv) {
+          // Extract bioRxiv ID from DOI (format: 10.1101/YYYY.MM.DD.XXXXXX)
+          const id = doi ? doi.replace("10.1101/", "") : r.id;
+          items.push({
+            id,
+            title: r.title,
+            doi,
+          });
+        }
+      }
+
+      // Queries must return an array of dictionaries, one per result
+      return items.map((result) => ({ result }));
+    } catch {
+      // On error, return empty array (queries should not throw)
+      return [];
+    }
+  }
+
+  /**
+   * _listRecentBiorxiv(limit?: Number) : (result: {id: String, title?: String, doi?: String})
+   *
+   * **requires** nothing
+   * **effects** returns an array of dictionaries, each containing one recent bioRxiv
+   * preprint from the bioRxiv API. Each result includes an id (DOI), optionally a title.
+   * Results are ordered by date descending. Limited by the provided limit (default 10).
+   * Returns an empty array if no results are found.
+   */
+  async _listRecentBiorxiv(
+    { limit }: { limit?: number },
+  ): Promise<Array<{ result: { id: string; title?: string; doi?: string } }>> {
+    try {
+      // bioRxiv API uses date ranges. Get papers from last 7 days
+      const endDate = new Date();
+      const startDate = new Date();
+      startDate.setDate(startDate.getDate() - 7);
+
+      const formatDate = (d: Date) => d.toISOString().split("T")[0];
+      const interval = `${formatDate(startDate)}/${formatDate(endDate)}`;
+
+      const url = `https://api.biorxiv.org/details/biorxiv/${interval}/0/50`;
+
+      const res = await fetch(url);
+      if (!res.ok) throw new Error(`bioRxiv API error: ${res.status}`);
+
+      const data = await res.json();
+      const collection = data.collection ?? [];
+
+      const maxResults = limit ?? 10;
+      const items: Array<{ id: string; title?: string; doi?: string }> = [];
+
+      for (const paper of collection) {
+        if (items.length >= maxResults) break;
+
+        const doi = paper.doi;
+        // Extract ID from DOI (format: 10.1101/YYYY.MM.DD.XXXXXX)
+        const id = doi ? doi.replace("10.1101/", "") : paper.biorxiv_doi;
+
+        items.push({
+          id,
+          title: paper.title,
+          doi,
+        });
+      }
+
+      // Queries must return an array of dictionaries, one per result
+      return items.map((result) => ({ result }));
     } catch {
       // On error, return empty array (queries should not throw)
       return [];

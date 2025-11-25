@@ -4,6 +4,8 @@ import { Collection, Db } from "npm:mongodb";
 import { freshID } from "@utils/database.ts";
 import { ID } from "@utils/types.ts";
 import { exclusions, inclusions } from "./passthrough.ts";
+// Note: S3 access for bioRxiv is only for bulk TDM, not individual article serving
+// Per bioRxiv's terms, we must link to their site rather than re-host content
 import "jsr:@std/dotenv/load";
 
 /**
@@ -251,13 +253,14 @@ export function startRequestingServer(
         const ext = file.name.split(".").pop() || "bin";
         const filename = `${crypto.randomUUID()}.${ext}`;
         const path = `${UPLOADS_DIR}/${filename}`;
-        
+
         await Deno.writeFile(path, new Uint8Array(await file.arrayBuffer()));
-        
+
         // Build an absolute URL so the frontend can use it directly in <img src="">
         const proto = c.req.header("x-forwarded-proto") ?? "http";
         const host = c.req.header("host") ?? `localhost:${PORT}`;
-        const url = `${proto}://${host}${REQUESTING_BASE_URL}/uploads/${filename}`;
+        const url =
+          `${proto}://${host}${REQUESTING_BASE_URL}/uploads/${filename}`;
         return c.json({ url });
       }
       return c.json({ error: "No file uploaded" }, 400);
@@ -272,21 +275,24 @@ export function startRequestingServer(
     const filename = c.req.param("filename");
     // Basic sanitization to prevent directory traversal
     if (filename.includes("..") || filename.includes("/")) {
-        return c.text("Invalid filename", 400);
+      return c.text("Invalid filename", 400);
     }
     const path = `${UPLOADS_DIR}/${filename}`;
     try {
       const file = await Deno.readFile(path);
-      const mimeType = filename.endsWith(".png") ? "image/png" :
-                       filename.endsWith(".jpg") || filename.endsWith(".jpeg") ? "image/jpeg" :
-                       filename.endsWith(".gif") ? "image/gif" :
-                       "application/octet-stream";
-                       
+      const mimeType = filename.endsWith(".png")
+        ? "image/png"
+        : filename.endsWith(".jpg") || filename.endsWith(".jpeg")
+        ? "image/jpeg"
+        : filename.endsWith(".gif")
+        ? "image/gif"
+        : "application/octet-stream";
+
       return new Response(file, {
         headers: {
-            "Content-Type": mimeType,
-            "Access-Control-Allow-Origin": REQUESTING_ALLOWED_DOMAIN,
-        }
+          "Content-Type": mimeType,
+          "Access-Control-Allow-Origin": REQUESTING_ALLOWED_DOMAIN,
+        },
       });
     } catch {
       return c.text("File not found", 404);
@@ -342,6 +348,41 @@ export function startRequestingServer(
         "Vary": "Origin",
       });
     }
+  });
+
+  // bioRxiv PDF proxy - disabled per bioRxiv's TDM terms
+  // Their S3 bucket is for bulk TDM only, not individual article serving
+  // Users must access bioRxiv PDFs directly from bioRxiv's website
+  const biorxivPdfRoute = `${REQUESTING_BASE_URL}/biorxiv-pdf/:suffix`;
+  app.options(biorxivPdfRoute, (c) => {
+    return c.text("", 204, {
+      "Access-Control-Allow-Origin": REQUESTING_ALLOWED_DOMAIN,
+      "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+      "Access-Control-Allow-Headers": "Content-Type, Range",
+      "Access-Control-Expose-Headers":
+        "Accept-Ranges, Content-Length, Content-Range",
+      "Vary": "Origin",
+    });
+  });
+
+  app.get(biorxivPdfRoute, (c) => {
+    const suffix = c.req.param("suffix");
+    const doi = `10.1101/${suffix}`;
+    const biorxivUrl = `https://www.biorxiv.org/content/${doi}`;
+
+    return c.text(
+      `bioRxiv PDFs must be accessed directly from bioRxiv per their terms of service. ` +
+        `Please visit: ${biorxivUrl}`,
+      403,
+      {
+        "Access-Control-Allow-Origin": REQUESTING_ALLOWED_DOMAIN,
+        "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+        "Access-Control-Allow-Headers": "Content-Type, Range",
+        "Access-Control-Expose-Headers":
+          "Accept-Ranges, Content-Length, Content-Range",
+        "Vary": "Origin",
+      },
+    );
   });
 
   /**
