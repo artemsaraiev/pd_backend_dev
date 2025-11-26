@@ -375,13 +375,13 @@
 
 ### POST /api/AccessControl/removeGroup
 
-**Description:** Removes a group and all associated memberships and accesses.
+**Description:** Removes a group and all associated memberships, accesses, and invitations.
 
 **Requirements:**
 - the group is in the set of Groups
 
 **Effects:**
-- removes the group from the set of Groups. Also removes all Memberships and Accesses associated with the group.
+- removes the group from the set of Groups. Also removes all Memberships, PrivateAccesses, and Invitations associated with the group.
 
 **Request Body:**
 ```json
@@ -397,6 +397,117 @@
 ```json
 {
   "ok": true
+}
+```
+
+**Error Response Body:**
+```json
+{
+  "error": "string"
+}
+```
+
+---
+
+### POST /api/AccessControl/inviteUser
+
+**Description:** Invites a user to join a group.
+
+**Requirements:**
+- inviter is an admin member of the group; no pending invitation exists for the same invitee/group pair; invitee is not a current member of the group
+
+**Effects:**
+- creates a new invitation with the given group, inviter, invitee, and message if provided, adds it to the set of Invitations and returns the new invitation
+
+**Request Body:**
+```json
+{
+  "session": "string",
+  "group": "string",
+  "invitee": "string",
+  "message": "string"
+}
+```
+
+**Note:** This endpoint requires authentication. The `session` parameter is required. The `inviter` field is automatically set from the session. The `message` field is optional.
+
+**Success Response Body (Action):**
+```json
+{
+  "newInvitation": "string"
+}
+```
+
+**Error Response Body:**
+```json
+{
+  "error": "string"
+}
+```
+
+---
+
+### POST /api/AccessControl/removeInvitation
+
+**Description:** Removes an invitation.
+
+**Requirements:**
+- the invitation is in the set of Invitations
+
+**Effects:**
+- removes the invitation from the set of Invitations
+
+**Request Body:**
+```json
+{
+  "session": "string",
+  "invitation": "string"
+}
+```
+
+**Note:** This endpoint requires authentication. The `session` parameter is required.
+
+**Success Response Body (Action):**
+```json
+{
+  "ok": true
+}
+```
+
+**Error Response Body:**
+```json
+{
+  "error": "string"
+}
+```
+
+---
+
+### POST /api/AccessControl/acceptInvitation
+
+**Description:** Accepts an invitation to join a group.
+
+**Requirements:**
+- the invitation is in the set of Invitations
+- the user accepting must be the invitee
+
+**Effects:**
+- creates a new membership with the group, invitee, and isAdmin set to false, adds it to the set of Memberships, removes the invitation from the set of Invitations, and returns the new membership
+
+**Request Body:**
+```json
+{
+  "session": "string",
+  "invitation": "string"
+}
+```
+
+**Note:** This endpoint requires authentication. The `session` parameter is required. The user accepting must be the invitee specified in the invitation.
+
+**Success Response Body (Action):**
+```json
+{
+  "newMembership": "string"
 }
 ```
 
@@ -561,6 +672,135 @@
   }
 ]
 ```
+
+**Error Response Body:**
+```json
+{
+  "error": "string"
+}
+```
+
+---
+
+### POST /api/AccessControl/_getGroupsForUser
+
+**Description:** Retrieves all groups that a user belongs to.
+
+**Requirements:**
+- nothing
+
+**Effects:**
+- returns an array with one entry per group the user belongs to, useful for frontend drop-downs.
+
+**Request Body:**
+```json
+{
+  "session": "string"
+}
+```
+
+**Note:** This endpoint requires authentication. The `session` parameter is required. The `user` field is automatically set from the session.
+
+**Success Response Body (Query):**
+```json
+{
+  "groups": [
+    "string"
+  ]
+}
+```
+
+**Note:** The sync collects all group IDs into a single `groups` array for the response.
+
+**Error Response Body:**
+```json
+{
+  "error": "string"
+}
+```
+
+---
+
+### POST /api/AccessControl/_listPendingInvitationsByUser
+
+**Description:** Retrieves all pending invitations for a user.
+
+**Requirements:**
+- nothing
+
+**Effects:**
+- returns an array of InvitationDoc dictionaries for the given user, representing pending invitations
+
+**Request Body:**
+```json
+{
+  "session": "string"
+}
+```
+
+**Note:** This endpoint requires authentication. The `session` parameter is required. The `invitee` field is automatically set from the session.
+
+**Success Response Body (Query):**
+```json
+{
+  "invitations": [
+    {
+      "_id": "string",
+      "groupId": "string",
+      "inviter": "string",
+      "invitee": "string",
+      "message": "string",
+      "createdAt": "number"
+    }
+  ]
+}
+```
+
+**Note:** The sync collects all invitation frames into a single `invitations` array for the response. The `message` field is optional and may be omitted.
+
+**Error Response Body:**
+```json
+{
+  "error": "string"
+}
+```
+
+---
+
+### POST /api/AccessControl/_getInvitation
+
+**Description:** Retrieves a single invitation document by its ID.
+
+**Requirements:**
+- nothing
+
+**Effects:**
+- fetches a single invitation document if it exists, returns as a single-element array. If no invitation exists, returns an empty array.
+
+**Request Body:**
+```json
+{
+  "invitation": "string"
+}
+```
+
+**Success Response Body (Query):**
+```json
+{
+  "invitations": [
+    {
+      "_id": "string",
+      "groupId": "string",
+      "inviter": "string",
+      "invitee": "string",
+      "message": "string",
+      "createdAt": "number"
+    }
+  ]
+}
+```
+
+**Note:** The sync collects the invitation into an array. If the invitation does not exist, the `invitations` array will be empty. The `message` field is optional and may be omitted.
 
 **Error Response Body:**
 ```json
