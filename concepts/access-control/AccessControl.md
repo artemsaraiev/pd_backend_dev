@@ -78,7 +78,7 @@ access, and recording invitation responses.
   + removeGroup(group: Group) : ()
     + **requires** the group is in the set of Groups
     + **effects** removes the group from the set of Groups. Also removes all
-    Memberships and Accesses associated with the group.
+    Memberships, PrivateAccesses, and Invitations associated with the group.
   + inviteUser(group: Group, inviter: User, invitee: User, message?: String) :
     (newInvitation: Invitation)
     + **requires** inviter is an admin member of `group`; no pending invitation exists
@@ -99,20 +99,16 @@ access, and recording invitation responses.
     + **effects** returns an array of dictionaries, each containing the group document
     for the given group in the `group` field, or null if the group does not exist.
     Returns an array with one dictionary containing `{ group: GroupDoc | null }`.
-  + _getMembershipsByGroup(group: Group) : (memberships: MembershipDoc[])
+  + _getMembershipsByGroup(group: Group) : (membership: MembershipDoc)
     + **requires** nothing
-    + **effects** returns an array of dictionaries, each containing all memberships
-    for the given group in the `memberships` field. Each membership includes _id,
-    groupId,
-    user, and isAdmin. Returns an array with one dictionary containing
-    `{ memberships: MembershipDoc[] }`.
-  + _getMembershipsByUser(user: User) : (memberships: MembershipDoc[])
+    + **effects** returns an array of dictionaries, each containing one membership
+    for the given group in the `membership` field. Each membership includes _id,
+    groupId, user, and isAdmin. Returns an empty array if no memberships exist.
+  + _getMembershipsByUser(user: User) : (membership: MembershipDoc)
     + **requires** nothing
-    + **effects** returns an array of dictionaries, each containing all memberships
-    for the given user in the `memberships` field. Each membership includes _id,
-    groupId,
-    user, and isAdmin. Returns an array with one dictionary containing
-    `{ memberships: MembershipDoc[] }`.
+    + **effects** returns an array of dictionaries, each containing one membership
+    for the given user in the `membership` field. Each membership includes _id,
+    groupId, user, and isAdmin. Returns an empty array if no memberships exist.
   + _getGroupsForUser(user: User) : (group: Group)
     + **requires** nothing
     + **effects** returns an array with one entry per group the user belongs to,
@@ -137,6 +133,3 @@ access, and recording invitation responses.
 Discussion thread identifiers. Synchronizations between DiscussionPub and
 AccessControl create `PrivateAccesses` when a thread is restricted to a group, and
 queries such as `_hasAccess` gate which threads are returned to each user.
-+ Invitation usernames are stored as strings because invitees may not have accounts
-yet; when `acceptInvitation` succeeds, the responder’s username is mapped to a `User`
-id to create the membership.

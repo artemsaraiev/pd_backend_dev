@@ -9,6 +9,7 @@ type Group = ID;
 type Membership = ID;
 type PrivateAccess = ID;
 type UniversalAccess = ID;
+type Invitation = ID;
 
 /**
  * @concept AccessControl [User, Resource]
@@ -65,6 +66,23 @@ interface UniversalAccessDoc {
   resource: Resource;
 }
 
+/**
+ * a set of Invitations with
+ *   a group Group
+ *   an inviter User
+ *   an invitee User
+ *   a message String?
+ *   a createdAt Date
+ */
+interface InvitationDoc {
+  _id: Invitation;
+  groupId: Group;
+  inviter: User;
+  invitee: User;
+  message?: string;
+  createdAt: number;
+}
+
 export default class AccessControlConcept {
   constructor(private readonly db: Db) {
     // Fire-and-forget index initialization
@@ -87,14 +105,29 @@ export default class AccessControlConcept {
     return this.db.collection("universalAccesses");
   }
 
+  private get invitations(): Collection<InvitationDoc> {
+    return this.db.collection("invitations");
+  }
+
   private async initIndexes(): Promise<void> {
     try {
-      await this.memberships.createIndex({ groupId: 1, user: 1 }, { unique: true });
+      await this.memberships.createIndex({ groupId: 1, user: 1 }, {
+        unique: true,
+      });
       await this.memberships.createIndex({ groupId: 1 });
       await this.memberships.createIndex({ user: 1 });
-      await this.privateAccesses.createIndex({ groupId: 1, resource: 1 }, { unique: true });
+      await this.privateAccesses.createIndex({ groupId: 1, resource: 1 }, {
+        unique: true,
+      });
       await this.privateAccesses.createIndex({ resource: 1 });
-      await this.universalAccesses.createIndex({ resource: 1 }, { unique: true });
+      await this.universalAccesses.createIndex({ resource: 1 }, {
+        unique: true,
+      });
+      await this.invitations.createIndex({ groupId: 1, invitee: 1 }, {
+        unique: true,
+      });
+      await this.invitations.createIndex({ groupId: 1 });
+      await this.invitations.createIndex({ invitee: 1 });
     } catch {
       // best-effort
     }
@@ -110,8 +143,12 @@ export default class AccessControlConcept {
    * and adds it to the set of Memberships
    */
   async createGroup(
-    { creator, name, description }: { creator: User; name: string; description: string },
-    ): Promise<{ newGroup: Group } | { error: string }> {
+    { creator, name, description }: {
+      creator: User;
+      name: string;
+      description: string;
+    },
+  ): Promise<{ newGroup: Group } | { error: string }> {
     try {
       // Create the group
       const groupId = freshID() as Group;
@@ -145,8 +182,12 @@ export default class AccessControlConcept {
    * If a value is not provided, that field remains unchanged.
    */
   async updateGroup(
-    { group, name, description }: { group: Group; name?: string; description?: string },
-    ): Promise<{ ok: true } | { error: string }> {
+    { group, name, description }: {
+      group: Group;
+      name?: string;
+      description?: string;
+    },
+  ): Promise<{ ok: true } | { error: string }> {
     try {
       // Check if group exists
       const groupDoc = await this.groups.findOne({ _id: group });
@@ -189,7 +230,7 @@ export default class AccessControlConcept {
    */
   async addUser(
     { group, user }: { group: Group; user: User },
-    ): Promise<{ newMembership: Membership } | { error: string }> {
+  ): Promise<{ newMembership: Membership } | { error: string }> {
     try {
       // Check if group exists
       const groupDoc = await this.groups.findOne({ _id: group });
@@ -225,7 +266,7 @@ export default class AccessControlConcept {
    */
   async revokeMembership(
     { membership }: { membership: Membership },
-    ): Promise<{ ok: true } | { error: string }> {
+  ): Promise<{ ok: true } | { error: string }> {
     try {
       // Get the membership to check group
       const membershipDoc = await this.memberships.findOne({
@@ -259,7 +300,7 @@ export default class AccessControlConcept {
    */
   async promoteUser(
     { membership }: { membership: Membership },
-    ): Promise<{ ok: true } | { error: string }> {
+  ): Promise<{ ok: true } | { error: string }> {
     try {
       const res = await this.memberships.updateOne(
         { _id: membership },
@@ -281,7 +322,7 @@ export default class AccessControlConcept {
    */
   async demoteUser(
     { membership }: { membership: Membership },
-    ): Promise<{ ok: true } | { error: string }> {
+  ): Promise<{ ok: true } | { error: string }> {
     try {
       // Get the membership to check group
       const membershipDoc = await this.memberships.findOne({
@@ -321,14 +362,17 @@ export default class AccessControlConcept {
    */
   async givePrivateAccess(
     { group, resource }: { group: Group; resource: Resource },
-    ): Promise<{ newPrivateAccess: PrivateAccess } | { error: string }> {
+  ): Promise<{ newPrivateAccess: PrivateAccess } | { error: string }> {
     try {
       // Check if group exists
       const groupDoc = await this.groups.findOne({ _id: group });
       if (!groupDoc) throw new Error("Group not found");
 
       // Check if access already exists
-      const existing = await this.privateAccesses.findOne({ groupId: group, resource });
+      const existing = await this.privateAccesses.findOne({
+        groupId: group,
+        resource,
+      });
       if (existing) {
         throw new Error("PrivateAccess already exists");
       }
@@ -355,7 +399,7 @@ export default class AccessControlConcept {
    */
   async revokePrivateAccess(
     { privateAccess }: { privateAccess: PrivateAccess },
-    ): Promise<{ ok: true } | { error: string }> {
+  ): Promise<{ ok: true } | { error: string }> {
     try {
       const res = await this.privateAccesses.deleteOne({
         _id: privateAccess,
@@ -377,7 +421,7 @@ export default class AccessControlConcept {
    */
   async giveUniversalAccess(
     { resource }: { resource: Resource },
-    ): Promise<{ newUniversalAccess: UniversalAccess } | { error: string }> {
+  ): Promise<{ newUniversalAccess: UniversalAccess } | { error: string }> {
     try {
       // Check if universal access already exists
       const existing = await this.universalAccesses.findOne({ resource });
@@ -403,7 +447,7 @@ export default class AccessControlConcept {
    */
   async revokeUniversalAccess(
     { universalAccess }: { universalAccess: UniversalAccess },
-    ): Promise<{ ok: true } | { error: string }> {
+  ): Promise<{ ok: true } | { error: string }> {
     try {
       const res = await this.universalAccesses.deleteOne({
         _id: universalAccess,
@@ -424,7 +468,7 @@ export default class AccessControlConcept {
    */
   async removeGroup(
     { group }: { group: Group },
-    ): Promise<{ ok: true } | { error: string }> {
+  ): Promise<{ ok: true } | { error: string }> {
     try {
       // Check if group exists
       const groupDoc = await this.groups.findOne({ _id: group });
@@ -436,11 +480,145 @@ export default class AccessControlConcept {
       // Remove all private accesses for this group
       await this.privateAccesses.deleteMany({ groupId: group });
 
+      // Remove all invitations for this group
+      await this.invitations.deleteMany({ groupId: group });
+
       // Remove the group
       const res = await this.groups.deleteOne({ _id: group });
       if (res.deletedCount === 0) throw new Error("Group not found");
 
       return { ok: true };
+    } catch (e) {
+      return { error: e instanceof Error ? e.message : String(e) };
+    }
+  }
+
+  /**
+   * inviteUser(group: Group, inviter: User, invitee: User, message?: String) : (newInvitation: Invitation)
+   *
+   * **requires** inviter is an admin member of `group`; no pending invitation exists
+   * for the same invitee/group pair; invitee is not a current member of the group
+   * **effects** creates a new invitation with the given group, inviter, invitee, and
+   * message if provided, adds it to the set of Invitations and returns the new invitation
+   */
+  async inviteUser(
+    {
+      group,
+      inviter,
+      invitee,
+      message,
+    }: { group: Group; inviter: User; invitee: User; message?: string },
+  ): Promise<{ newInvitation: Invitation } | { error: string }> {
+    try {
+      // Check if group exists
+      const groupDoc = await this.groups.findOne({ _id: group });
+      if (!groupDoc) throw new Error("Group not found");
+
+      // Check if inviter is an admin member of the group
+      const inviterMembership = await this.memberships.findOne({
+        groupId: group,
+        user: inviter,
+        isAdmin: true,
+      });
+      if (!inviterMembership) {
+        throw new Error("Inviter must be an admin member of the group");
+      }
+
+      // Check if invitee is already a member
+      const existingMembership = await this.memberships.findOne({
+        groupId: group,
+        user: invitee,
+      });
+      if (existingMembership) {
+        throw new Error("Invitee is already a member of the group");
+      }
+
+      // Check if pending invitation already exists
+      const existingInvitation = await this.invitations.findOne({
+        groupId: group,
+        invitee,
+      });
+      if (existingInvitation) {
+        throw new Error(
+          "Pending invitation already exists for this invitee/group pair",
+        );
+      }
+
+      // Create the invitation
+      const invitationId = freshID() as Invitation;
+      await this.invitations.insertOne({
+        _id: invitationId,
+        groupId: group,
+        inviter,
+        invitee,
+        createdAt: Date.now(),
+        ...(message !== undefined && { message }),
+      });
+
+      return { newInvitation: invitationId };
+    } catch (e) {
+      return { error: e instanceof Error ? e.message : String(e) };
+    }
+  }
+
+  /**
+   * removeInvitation(invitation: Invitation) : ()
+   *
+   * **requires** the invitation is in the set of Invitations
+   * **effects** removes the invitation from the set of Invitations
+   */
+  async removeInvitation(
+    { invitation }: { invitation: Invitation },
+  ): Promise<{ ok: true } | { error: string }> {
+    try {
+      const res = await this.invitations.deleteOne({ _id: invitation });
+      if (res.deletedCount === 0) throw new Error("Invitation not found");
+      return { ok: true };
+    } catch (e) {
+      return { error: e instanceof Error ? e.message : String(e) };
+    }
+  }
+
+  /**
+   * acceptInvitation(invitation: Invitation) : (newMembership: Membership)
+   *
+   * **requires** the invitation is in the set of Invitations
+   * **effects** creates a new membership with the group, invitee, and isAdmin
+   * set to false, adds it to the set of Memberships, removes the invitation from the
+   * set of Invitations, and returns the new membership
+   */
+  async acceptInvitation(
+    { invitation }: { invitation: Invitation },
+  ): Promise<{ newMembership: Membership } | { error: string }> {
+    try {
+      // Get the invitation
+      const invitationDoc = await this.invitations.findOne({ _id: invitation });
+      if (!invitationDoc) throw new Error("Invitation not found");
+
+      // Check if invitee is already a member (race condition check)
+      const existingMembership = await this.memberships.findOne({
+        groupId: invitationDoc.groupId,
+        user: invitationDoc.invitee,
+      });
+      if (existingMembership) {
+        // Remove the invitation and return error
+        await this.invitations.deleteOne({ _id: invitation });
+        throw new Error("Invitee is already a member of the group");
+      }
+
+      // Create the membership
+      const membershipId = freshID() as Membership;
+      await this.memberships.insertOne({
+        _id: membershipId,
+        groupId: invitationDoc.groupId,
+        user: invitationDoc.invitee,
+        isAdmin: false,
+      });
+
+      // Remove the invitation
+      await this.invitations.deleteOne({ _id: invitation });
+
+      return { newMembership: membershipId };
     } catch (e) {
       return { error: e instanceof Error ? e.message : String(e) };
     }
@@ -456,7 +634,7 @@ export default class AccessControlConcept {
    */
   async _getGroup(
     { group }: { group: Group },
-    ): Promise<Array<{ group: GroupDoc | null }>> {
+  ): Promise<Array<{ group: GroupDoc | null }>> {
     try {
       const result = await this.groups.findOne({ _id: group });
       // Queries must return an array of dictionaries
@@ -477,7 +655,18 @@ export default class AccessControlConcept {
    */
   async _getMembershipsByGroup(
     { group }: { group: Group },
-    ): Promise<Array<{ membership: { _id: Membership; groupId: Group; user: User; isAdmin: boolean } }>> {
+  ): Promise<
+    Array<
+      {
+        membership: {
+          _id: Membership;
+          groupId: Group;
+          user: User;
+          isAdmin: boolean;
+        };
+      }
+    >
+  > {
     try {
       const items = await this.memberships.find({ groupId: group }).toArray();
       // Queries must return an array of dictionaries, one per membership
@@ -505,7 +694,18 @@ export default class AccessControlConcept {
    */
   async _getMembershipsByUser(
     { user }: { user: User },
-    ): Promise<Array<{ membership: { _id: Membership; groupId: Group; user: User; isAdmin: boolean } }>> {
+  ): Promise<
+    Array<
+      {
+        membership: {
+          _id: Membership;
+          groupId: Group;
+          user: User;
+          isAdmin: boolean;
+        };
+      }
+    >
+  > {
     try {
       const items = await this.memberships.find({ user }).toArray();
       // Queries must return an array of dictionaries, one per membership
@@ -534,7 +734,7 @@ export default class AccessControlConcept {
    */
   async _hasAccess(
     { user, resource }: { user: User; resource: Resource },
-    ): Promise<Array<{ hasAccess: boolean }>> {
+  ): Promise<Array<{ hasAccess: boolean }>> {
     try {
       // Check for universal access
       const universal = await this.universalAccesses.findOne({ resource });
@@ -562,5 +762,64 @@ export default class AccessControlConcept {
       return [{ hasAccess: false }];
     }
   }
-}
 
+  /**
+   * _getGroupsForUser(user: User) : (group: Group)
+   *
+   * **requires** nothing
+   * **effects** returns an array with one entry per group the user belongs to,
+   * useful for frontend drop-downs.
+   */
+  async _getGroupsForUser(
+    { user }: { user: User },
+  ): Promise<Array<{ group: Group }>> {
+    try {
+      const memberships = await this.memberships.find({ user }).toArray();
+      return memberships.map((m) => ({ group: m.groupId }));
+    } catch {
+      // On error, return empty array (queries should not throw)
+      return [];
+    }
+  }
+
+  /**
+   * _listPendingInvitationsByUser(invitee: User) : (invitation: InvitationDoc)
+   *
+   * **requires** nothing
+   * **effects** returns an array of InvitationDoc dictionaries for the given user,
+   * representing pending invitations
+   */
+  async _listPendingInvitationsByUser(
+    { invitee }: { invitee: User },
+  ): Promise<Array<{ invitation: InvitationDoc }>> {
+    try {
+      const items = await this.invitations.find({ invitee }).toArray();
+      return items.map((inv) => ({ invitation: inv }));
+    } catch {
+      // On error, return empty array (queries should not throw)
+      return [];
+    }
+  }
+
+  /**
+   * _getInvitation(invitation: Invitation) : (invitation: InvitationDoc)
+   *
+   * **requires** nothing
+   * **effects** fetches a single invitation document if it exists, returns as a
+   * single-element array. If no invitation exists, returns an empty array.
+   */
+  async _getInvitation(
+    { invitation }: { invitation: Invitation },
+  ): Promise<Array<{ invitation: InvitationDoc }>> {
+    try {
+      const result = await this.invitations.findOne({ _id: invitation });
+      if (result) {
+        return [{ invitation: result }];
+      }
+      return [];
+    } catch {
+      // On error, return empty array (queries should not throw)
+      return [];
+    }
+  }
+}

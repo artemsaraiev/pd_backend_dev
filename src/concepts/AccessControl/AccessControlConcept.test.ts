@@ -683,7 +683,7 @@ Deno.test("Action: removeGroup requires group exists, removes group and associat
   try {
     console.log("Testing removeGroup action - requires/effects");
 
-    // Create a group with members and access
+    // Create a group with members, access, and invitations
     const groupResult = await concept.createGroup({
       creator: userAlice,
       name: "Test Group",
@@ -692,6 +692,12 @@ Deno.test("Action: removeGroup requires group exists, removes group and associat
     const { newGroup: groupId } = groupResult as { newGroup: ID };
     await concept.addUser({ group: groupId, user: userBob });
     await concept.givePrivateAccess({ group: groupId, resource: resource1 });
+    const inviteResult = await concept.inviteUser({
+      group: groupId,
+      inviter: userAlice,
+      invitee: userCharlie,
+    });
+    const { newInvitation: invitationId } = inviteResult as { newInvitation: ID };
 
     // Test: removeGroup requires group exists
     console.log("  Testing requires: group must exist");
@@ -722,6 +728,10 @@ Deno.test("Action: removeGroup requires group exists, removes group and associat
       resource: resource1,
     });
     assertEquals(hasAccessResult[0].hasAccess, false, "Access should be removed");
+
+    // Verify invitations are removed
+    const getInvitationResult = await concept._getInvitation({ invitation: invitationId });
+    assertEquals(getInvitationResult.length, 0, "Invitations should be removed");
     console.log("    Group and associated data removed correctly");
   } finally {
     await client.close();
@@ -913,6 +923,329 @@ Deno.test("Query: _hasAccess returns false when no access", async () => {
     const result = await concept._hasAccess({ user: userAlice, resource: resource1 });
     assertEquals(result[0].hasAccess, false, "Should return false when no access");
     console.log("    Correctly returns false when no access");
+  } finally {
+    await client.close();
+  }
+});
+
+// Query: _getGroupsForUser
+Deno.test("Query: _getGroupsForUser returns all groups for user", async () => {
+  const [db, client] = await testDb();
+  const concept = new AccessControlConcept(db);
+
+  try {
+    console.log("Testing _getGroupsForUser query");
+
+    // Create multiple groups and add user to them
+    const groupResult1 = await concept.createGroup({
+      creator: userAlice,
+      name: "Group 1",
+      description: "Test",
+    });
+    const { newGroup: groupId1 } = groupResult1 as { newGroup: ID };
+    const groupResult2 = await concept.createGroup({
+      creator: userBob,
+      name: "Group 2",
+      description: "Test",
+    });
+    const { newGroup: groupId2 } = groupResult2 as { newGroup: ID };
+    await concept.addUser({ group: groupId2, user: userAlice });
+
+    const result = await concept._getGroupsForUser({ user: userAlice });
+    assertEquals(result.length, 2, "Should return two groups");
+    const groupIds = result.map((r) => r.group);
+    assertEquals(groupIds.includes(groupId1), true, "Should include Group 1");
+    assertEquals(groupIds.includes(groupId2), true, "Should include Group 2");
+    console.log("    Correctly returns all groups for user");
+  } finally {
+    await client.close();
+  }
+});
+
+// Action: inviteUser
+Deno.test("Action: inviteUser requires admin inviter, no duplicate, no existing member", async () => {
+  const [db, client] = await testDb();
+  const concept = new AccessControlConcept(db);
+
+  try {
+    console.log("Testing inviteUser action - requires/effects");
+
+    // Create a group
+    const groupResult = await concept.createGroup({
+      creator: userAlice,
+      name: "Test Group",
+      description: "Test",
+    });
+    const { newGroup: groupId } = groupResult as { newGroup: ID };
+
+    // Test: inviteUser requires inviter is admin
+    console.log("  Testing requires: inviter must be admin");
+    const addResult = await concept.addUser({ group: groupId, user: userBob });
+    const { newMembership: membershipId } = addResult as { newMembership: ID };
+    // userBob is not admin, so this should fail
+    const errorResult1 = await concept.inviteUser({
+      group: groupId,
+      inviter: userBob,
+      invitee: userCharlie,
+    });
+    assertEquals("error" in errorResult1, true, "Should fail - inviter not admin");
+    console.log("    Correctly rejects non-admin inviter");
+
+    // Test: inviteUser requires invitee not already a member
+    console.log("  Testing requires: invitee not already a member");
+    const errorResult2 = await concept.inviteUser({
+      group: groupId,
+      inviter: userAlice,
+      invitee: userBob,
+    });
+    assertEquals("error" in errorResult2, true, "Should fail - invitee already member");
+    console.log("    Correctly rejects existing member");
+
+    // Test: inviteUser requires no duplicate invitation
+    console.log("  Testing requires: no duplicate invitation");
+    const result1 = await concept.inviteUser({
+      group: groupId,
+      inviter: userAlice,
+      invitee: userCharlie,
+      message: "Welcome!",
+    });
+    assertNotEquals("error" in result1, true, "Should succeed");
+    const { newInvitation: invitationId1 } = result1 as { newInvitation: ID };
+
+    const duplicateResult = await concept.inviteUser({
+      group: groupId,
+      inviter: userAlice,
+      invitee: userCharlie,
+    });
+    assertEquals("error" in duplicateResult, true, "Should fail - duplicate invitation");
+    console.log("    Correctly rejects duplicate invitation");
+
+    // Test: inviteUser effects - creates invitation
+    console.log("  Testing effects: creates invitation");
+    const getInvitationResult = await concept._getInvitation({ invitation: invitationId1 });
+    assertEquals(getInvitationResult.length, 1, "Should return invitation");
+    const { invitation: invitationDoc } = getInvitationResult[0];
+    assertEquals(invitationDoc.groupId, groupId, "Group should match");
+    assertEquals(invitationDoc.inviter, userAlice, "Inviter should match");
+    assertEquals(invitationDoc.invitee, userCharlie, "Invitee should match");
+    assertEquals(invitationDoc.message, "Welcome!", "Message should match");
+    assertExists(invitationDoc.createdAt, "CreatedAt should be set");
+    console.log("    Invitation created correctly");
+  } finally {
+    await client.close();
+  }
+});
+
+// Action: removeInvitation
+Deno.test("Action: removeInvitation requires invitation exists, removes it", async () => {
+  const [db, client] = await testDb();
+  const concept = new AccessControlConcept(db);
+
+  try {
+    console.log("Testing removeInvitation action - requires/effects");
+
+    // Create a group and invitation
+    const groupResult = await concept.createGroup({
+      creator: userAlice,
+      name: "Test Group",
+      description: "Test",
+    });
+    const { newGroup: groupId } = groupResult as { newGroup: ID };
+    const inviteResult = await concept.inviteUser({
+      group: groupId,
+      inviter: userAlice,
+      invitee: userBob,
+    });
+    const { newInvitation: invitationId } = inviteResult as { newInvitation: ID };
+
+    // Test: removeInvitation requires invitation exists
+    console.log("  Testing requires: invitation must exist");
+    const errorResult = await concept.removeInvitation({
+      invitation: "invitation:nonexistent" as ID,
+    });
+    assertEquals("error" in errorResult, true, "Should fail for nonexistent invitation");
+    console.log("    Correctly rejects nonexistent invitation");
+
+    // Test: removeInvitation effects - removes invitation
+    console.log("  Testing effects: removes invitation");
+    const removeResult = await concept.removeInvitation({ invitation: invitationId });
+    assertNotEquals("error" in removeResult, true, "Should succeed");
+
+    const getInvitationResult = await concept._getInvitation({ invitation: invitationId });
+    assertEquals(getInvitationResult.length, 0, "Invitation should be removed");
+    console.log("    Invitation removed correctly");
+  } finally {
+    await client.close();
+  }
+});
+
+// Action: acceptInvitation
+Deno.test("Action: acceptInvitation requires invitation exists, creates membership and removes invitation", async () => {
+  const [db, client] = await testDb();
+  const concept = new AccessControlConcept(db);
+
+  try {
+    console.log("Testing acceptInvitation action - requires/effects");
+
+    // Create a group and invitation
+    const groupResult = await concept.createGroup({
+      creator: userAlice,
+      name: "Test Group",
+      description: "Test",
+    });
+    const { newGroup: groupId } = groupResult as { newGroup: ID };
+    const inviteResult = await concept.inviteUser({
+      group: groupId,
+      inviter: userAlice,
+      invitee: userBob,
+      message: "Join us!",
+    });
+    const { newInvitation: invitationId } = inviteResult as { newInvitation: ID };
+
+    // Test: acceptInvitation requires invitation exists
+    console.log("  Testing requires: invitation must exist");
+    const errorResult = await concept.acceptInvitation({
+      invitation: "invitation:nonexistent" as ID,
+    });
+    assertEquals("error" in errorResult, true, "Should fail for nonexistent invitation");
+    console.log("    Correctly rejects nonexistent invitation");
+
+    // Test: acceptInvitation effects - creates membership and removes invitation
+    console.log("  Testing effects: creates membership and removes invitation");
+    const acceptResult = await concept.acceptInvitation({ invitation: invitationId });
+    assertNotEquals("error" in acceptResult, true, "Should succeed");
+    const { newMembership: membershipId } = acceptResult as { newMembership: ID };
+
+    // Verify membership was created
+    const membershipsResult = await concept._getMembershipsByGroup({ group: groupId });
+    const bobMembership = membershipsResult.find(
+      (m) => m.membership._id === membershipId,
+    )?.membership;
+    assertExists(bobMembership, "Bob's membership should exist");
+    assertEquals(bobMembership.user, userBob, "User should be Bob");
+    assertEquals(bobMembership.isAdmin, false, "Bob should not be admin");
+    console.log("    Membership created correctly");
+
+    // Verify invitation was removed
+    const getInvitationResult = await concept._getInvitation({ invitation: invitationId });
+    assertEquals(getInvitationResult.length, 0, "Invitation should be removed");
+    console.log("    Invitation removed correctly");
+
+    // Test: acceptInvitation fails if invitee already a member (race condition)
+    console.log("  Testing: fails if invitee already a member");
+    const inviteResult2 = await concept.inviteUser({
+      group: groupId,
+      inviter: userAlice,
+      invitee: userBob,
+    });
+    const { newInvitation: invitationId2 } = inviteResult2 as { newInvitation: ID };
+    // Bob is already a member, so accepting should fail
+    const errorResult2 = await concept.acceptInvitation({ invitation: invitationId2 });
+    assertEquals("error" in errorResult2, true, "Should fail - invitee already member");
+    // Invitation should be removed even on error
+    const getInvitationResult2 = await concept._getInvitation({ invitation: invitationId2 });
+    assertEquals(getInvitationResult2.length, 0, "Invitation should be removed on error");
+    console.log("    Correctly handles race condition");
+  } finally {
+    await client.close();
+  }
+});
+
+// Query: _listPendingInvitationsByUser
+Deno.test("Query: _listPendingInvitationsByUser returns pending invitations for user", async () => {
+  const [db, client] = await testDb();
+  const concept = new AccessControlConcept(db);
+
+  try {
+    console.log("Testing _listPendingInvitationsByUser query");
+
+    // Create groups and invitations
+    const groupResult1 = await concept.createGroup({
+      creator: userAlice,
+      name: "Group 1",
+      description: "Test",
+    });
+    const { newGroup: groupId1 } = groupResult1 as { newGroup: ID };
+    const groupResult2 = await concept.createGroup({
+      creator: userAlice,
+      name: "Group 2",
+      description: "Test",
+    });
+    const { newGroup: groupId2 } = groupResult2 as { newGroup: ID };
+
+    const inviteResult1 = await concept.inviteUser({
+      group: groupId1,
+      inviter: userAlice,
+      invitee: userBob,
+      message: "Join Group 1",
+    });
+    const { newInvitation: invitationId1 } = inviteResult1 as { newInvitation: ID };
+    const inviteResult2 = await concept.inviteUser({
+      group: groupId2,
+      inviter: userAlice,
+      invitee: userBob,
+      message: "Join Group 2",
+    });
+    const { newInvitation: invitationId2 } = inviteResult2 as { newInvitation: ID };
+
+    const result = await concept._listPendingInvitationsByUser({ invitee: userBob });
+    assertEquals(result.length, 2, "Should return two invitations");
+    const invitationIds = result.map((r) => r.invitation._id);
+    assertEquals(invitationIds.includes(invitationId1), true, "Should include invitation 1");
+    assertEquals(invitationIds.includes(invitationId2), true, "Should include invitation 2");
+
+    // Accept one invitation
+    await concept.acceptInvitation({ invitation: invitationId1 });
+
+    // Should now return only one invitation
+    const result2 = await concept._listPendingInvitationsByUser({ invitee: userBob });
+    assertEquals(result2.length, 1, "Should return one invitation");
+    assertEquals(result2[0].invitation._id, invitationId2, "Should be the remaining invitation");
+    console.log("    Correctly returns pending invitations for user");
+  } finally {
+    await client.close();
+  }
+});
+
+// Query: _getInvitation
+Deno.test("Query: _getInvitation returns invitation or empty array", async () => {
+  const [db, client] = await testDb();
+  const concept = new AccessControlConcept(db);
+
+  try {
+    console.log("Testing _getInvitation query");
+
+    // Test: returns empty array for nonexistent invitation
+    console.log("  Testing nonexistent invitation");
+    const result1 = await concept._getInvitation({ invitation: "invitation:nonexistent" as ID });
+    assertEquals(result1.length, 0, "Should return empty array for nonexistent invitation");
+    console.log("    Correctly returns empty array for nonexistent invitation");
+
+    // Test: returns invitation for existing invitation
+    console.log("  Testing existing invitation");
+    const groupResult = await concept.createGroup({
+      creator: userAlice,
+      name: "Test Group",
+      description: "Test",
+    });
+    const { newGroup: groupId } = groupResult as { newGroup: ID };
+    const inviteResult = await concept.inviteUser({
+      group: groupId,
+      inviter: userAlice,
+      invitee: userBob,
+      message: "Test message",
+    });
+    const { newInvitation: invitationId } = inviteResult as { newInvitation: ID };
+
+    const result2 = await concept._getInvitation({ invitation: invitationId });
+    assertEquals(result2.length, 1, "Should return one invitation");
+    const { invitation: invitationDoc } = result2[0];
+    assertEquals(invitationDoc._id, invitationId, "Invitation ID should match");
+    assertEquals(invitationDoc.groupId, groupId, "Group should match");
+    assertEquals(invitationDoc.inviter, userAlice, "Inviter should match");
+    assertEquals(invitationDoc.invitee, userBob, "Invitee should match");
+    assertEquals(invitationDoc.message, "Test message", "Message should match");
+    console.log("    Correctly returns invitation document");
   } finally {
     await client.close();
   }
