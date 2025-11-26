@@ -406,20 +406,30 @@ export const AccessControlRemoveGroupResponseError: Sync = (
 });
 
 // AccessControl Queries
-export const AccessControlGetGroupRequest: Sync = ({ request, group }) => ({
+export const AccessControlGetGroupRequest: Sync = (
+  { request, groupId, groups, group },
+) => ({
   when: actions([Requesting.request, {
     path: "/AccessControl/_getGroup",
-    group,
+    group: groupId,
   }, { request }]),
-  then: actions([AccessControl._getGroup, { group }]),
-});
+  where: async (frames) => {
+    // Preserve the original request frame
+    const originalFrame = frames[0];
 
-export const AccessControlGetGroupResponse: Sync = ({ request, result }) => ({
-  when: actions(
-    [Requesting.request, { path: "/AccessControl/_getGroup" }, { request }],
-    [AccessControl._getGroup, {}, { result }],
-  ),
-  then: actions([Requesting.respond, { request, result }]),
+    // Query returns Array<{ group: GroupDoc | null }> - one element
+    frames = await frames.query(AccessControl._getGroup, { group: groupId }, {
+      group: group,
+    });
+
+    if (frames.length === 0) {
+      console.log("No frames found");
+      return new Frames({ ...originalFrame, [group]: [] });
+    }
+
+    return frames.collectAs([group], groups);
+  },
+  then: actions([Requesting.respond, { request, group: groups }]),
 });
 
 export const AccessControlGetMembershipsByGroupRequest: Sync = (
