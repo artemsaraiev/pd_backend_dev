@@ -163,10 +163,16 @@ export const exclusions: Array<string> = [
   "/api/AccessControl/giveUniversalAccess",
   "/api/AccessControl/revokeUniversalAccess",
   "/api/AccessControl/removeGroup",
+  "/api/AccessControl/inviteUser",
+  "/api/AccessControl/removeInvitation",
+  "/api/AccessControl/acceptInvitation",
   "/api/AccessControl/_getGroup",
   "/api/AccessControl/_getMembershipsByGroup",
   "/api/AccessControl/_getMembershipsByUser",
   "/api/AccessControl/_hasAccess",
+  "/api/AccessControl/_getGroupsForUser",
+  "/api/AccessControl/_listPendingInvitationsByUser",
+  "/api/AccessControl/_getInvitation",
 
   // PdfHighlighter - mutations need auth
   "/api/PdfHighlighter/createHighlight",
