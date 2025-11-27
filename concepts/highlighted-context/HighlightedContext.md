@@ -24,10 +24,6 @@ this context can later be referenced by discussion/other users
     current creation timestamp and missing editedAt timestamp and returns newContext
 + **queries**
   + _getFilteredContexts(paperIds?: String[], authors?: User[]) :
-  (filteredContexts: Context[])
+  (filteredContext: Context)
     + **requires** nothing
-    + **effects** returns a subset of Contexts where the paperID is in the provided
-    paperIds array (if provided) and/or the author is in the provided authors array
-    (if provided). If both are provided, returns contexts matching both criteria.
-    Returns all contexts if neither parameter is provided. Results are ordered by
-    createdAt.
+    + **effects** returns an array of dictionaries, each containing one context for the given paperIds (if provided) and/or authors (if provided). If both are provided, returns contexts matching both criteria. Returns all contexts if neither parameter is provided. Results are ordered by createdAt. Each context includes _id, paperId, author, location, kind, parentContext, and createdAt. Returns an empty array if no contexts match the criteria. 

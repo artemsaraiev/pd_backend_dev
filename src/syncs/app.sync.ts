@@ -1,6 +1,5 @@
 import { actions, Frames, Sync } from "@engine";
 import {
-  HighlightedContext,
   IdentityVerification,
   PaperIndex,
   Requesting,
@@ -110,82 +109,6 @@ export const PaperIndexListRecentRequest: Sync = (
     return frames.collectAs([paper], papers);
   },
   then: actions([Requesting.respond, { request, papers }]),
-});
-
-// HighlightedContext
-export const HighlightedCreateRequest: Sync = (
-  { request, session, paperId, location, kind, parentContext, user },
-) => ({
-  when: actions([Requesting.request, {
-    path: "/HighlightedContext/create",
-    session,
-    paperId,
-    location,
-    kind,
-    // Note: parentContext is optional; do not require it in the
-    // `when` pattern, or the sync will never match when callers
-    // omit it.
-  }, { request }]),
-  where: async (frames) => {
-    return await frames.query(Sessioning._getUser, { session }, { user });
-  },
-  then: actions([HighlightedContext.create, {
-    paperId,
-    author: user,
-    location,
-    kind,
-    parentContext,
-  }]),
-});
-
-// On success, respond with the new context id
-export const HighlightedCreateResponseSuccess: Sync = (
-  { request, newContext },
-) => ({
-  when: actions(
-    [Requesting.request, { path: "/HighlightedContext/create" }, { request }],
-    // Match only when HighlightedContext.create produced a `newContext`
-    [HighlightedContext.create, {}, { newContext }],
-  ),
-  then: actions([Requesting.respond, { request, newContext }]),
-});
-
-// On error, propagate the error back to the HTTP caller
-export const HighlightedCreateResponseError: Sync = (
-  { request, error },
-) => ({
-  when: actions(
-    [Requesting.request, { path: "/HighlightedContext/create" }, { request }],
-    // Match only when HighlightedContext.create produced an `error`
-    [HighlightedContext.create, {}, { error }],
-  ),
-  then: actions([Requesting.respond, { request, error }]),
-});
-
-export const HighlightedGetFilteredContextsRequest: Sync = (
-  { request, paperIds, authors },
-) => ({
-  when: actions([Requesting.request, {
-    path: "/HighlightedContext/_getFilteredContexts",
-    paperIds,
-    authors,
-  }, { request }]),
-  then: actions([HighlightedContext._getFilteredContexts, {
-    paperIds,
-    authors,
-  }]),
-});
-
-export const HighlightedGetFilteredContextsResponse: Sync = (
-  { request, result },
-) => ({
-  when: actions(
-    [Requesting.request, { path: "/HighlightedContext/_getFilteredContexts" }, {
-      request,
-    }],
-    [HighlightedContext._getFilteredContexts, {}, { result }],
-  ),
-  then: actions([Requesting.respond, { request, result }]),
 });
 
 // IdentityVerification

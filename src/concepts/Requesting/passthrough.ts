@@ -39,10 +39,6 @@ export const inclusions: Record<string, string> = {
   "/api/PaperIndex/_get": "public query - paper data is public",
   "/api/PaperIndex/_getByPaperId": "public query - paper data is public",
   "/api/PaperIndex/_listRecent": "public query - paper list is public",
-
-  // Public read queries - if contexts are public
-  "/api/HighlightedContext/_getFilteredContexts":
-    "public query - contexts are public",
 };
 
 /**
@@ -71,6 +67,7 @@ export const exclusions: Array<string> = [
 
   // HighlightedContext - mutations need auth, queries handled via syncs
   "/api/HighlightedContext/create",
+  "/api/HighlightedContext/_getFilteredContexts",
 
   // DiscussionPub - mutations need auth
   "/api/DiscussionPub/open",
