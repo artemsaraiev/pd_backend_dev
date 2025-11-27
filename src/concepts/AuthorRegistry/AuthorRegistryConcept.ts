@@ -19,7 +19,7 @@ type UserLink = ID;
  * a set of Authors with
  *   a canonicalName String
  *   an affiliations String[]
- *   an externalIds String[] 
+ *   an externalIds String[]
  *   a website String?
  */
 interface AuthorDoc {
@@ -91,8 +91,11 @@ export default class AuthorRegistryConcept {
    * **effects** creates a new Author with the given canonicalName and affiliations, and returns it. Also creates a NameVariation with the canonicalName pointing to this new author.
    */
   async createAuthor(
-    { canonicalName, affiliations }: { canonicalName: string; affiliations: string[] },
-    ): Promise<{ newAuthor: Author } | { error: string }> {
+    { canonicalName, affiliations }: {
+      canonicalName: string;
+      affiliations: string[];
+    },
+  ): Promise<{ newAuthor: Author } | { error: string }> {
     try {
       // Create author
       const authorId = freshID() as Author;
@@ -125,7 +128,7 @@ export default class AuthorRegistryConcept {
    */
   async addNameVariation(
     { author, name }: { author: Author; name: string },
-    ): Promise<{ ok: true } | { error: string }> {
+  ): Promise<{ ok: true } | { error: string }> {
     try {
       // Check if author exists
       const authorDoc = await this.authors.findOne({ _id: author });
@@ -162,7 +165,7 @@ export default class AuthorRegistryConcept {
    */
   async removeNameVariation(
     { author, name }: { author: Author; name: string },
-    ): Promise<{ ok: true } | { error: string }> {
+  ): Promise<{ ok: true } | { error: string }> {
     try {
       const authorDoc = await this.authors.findOne({ _id: author });
       if (!authorDoc) throw new Error("Author not found");
@@ -176,7 +179,9 @@ export default class AuthorRegistryConcept {
         name,
       });
 
-      if (res.deletedCount === 0) throw new Error("Name variation not found for this author");
+      if (res.deletedCount === 0) {
+        throw new Error("Name variation not found for this author");
+      }
 
       return { ok: true };
     } catch (e) {
@@ -191,8 +196,12 @@ export default class AuthorRegistryConcept {
    * **effects** updates the provided fields (website, affiliations). If a field is not provided, it remains unchanged.
    */
   async updateAuthorProfile(
-    { author, website, affiliations }: { author: Author; website?: string; affiliations?: string[] },
-    ): Promise<{ ok: true } | { error: string }> {
+    { author, website, affiliations }: {
+      author: Author;
+      website?: string;
+      affiliations?: string[];
+    },
+  ): Promise<{ ok: true } | { error: string }> {
     try {
       const authorDoc = await this.authors.findOne({ _id: author });
       if (!authorDoc) throw new Error("Author not found");
@@ -222,7 +231,7 @@ export default class AuthorRegistryConcept {
    */
   async claimAuthor(
     { user, author }: { user: User; author: Author },
-    ): Promise<{ ok: true } | { error: string }> {
+  ): Promise<{ ok: true } | { error: string }> {
     try {
       const authorDoc = await this.authors.findOne({ _id: author });
       if (!authorDoc) throw new Error("Author not found");
@@ -251,7 +260,7 @@ export default class AuthorRegistryConcept {
    */
   async unclaimAuthor(
     { user, author }: { user: User; author: Author },
-    ): Promise<{ ok: true } | { error: string }> {
+  ): Promise<{ ok: true } | { error: string }> {
     try {
       const res = await this.userLinks.deleteOne({
         user,
@@ -274,14 +283,18 @@ export default class AuthorRegistryConcept {
    */
   async mergeAuthors(
     { primary, secondary }: { primary: Author; secondary: Author },
-    ): Promise<{ ok: true } | { error: string }> {
+  ): Promise<{ ok: true } | { error: string }> {
     try {
-      if (primary === secondary) throw new Error("Cannot merge author into itself");
+      if (primary === secondary) {
+        throw new Error("Cannot merge author into itself");
+      }
 
       const primaryDoc = await this.authors.findOne({ _id: primary });
       const secondaryDoc = await this.authors.findOne({ _id: secondary });
 
-      if (!primaryDoc || !secondaryDoc) throw new Error("One or both authors not found");
+      if (!primaryDoc || !secondaryDoc) {
+        throw new Error("One or both authors not found");
+      }
 
       // Move NameVariations
       await this.nameVariations.updateMany(
@@ -311,39 +324,41 @@ export default class AuthorRegistryConcept {
   }
 
   /**
-   * _getAuthor(author: Author) : (author: AuthorDoc | null)
+   * _getAuthor(author: Author) : (author: AuthorDoc)
    *
    * **requires** nothing
-   * **effects** returns the author document or null
+   * **effects** returns the author document. Returns an array with one dictionary if the
+   * author exists, or an empty array if the author does not exist.
    */
   async _getAuthor(
     { author }: { author: Author },
-    ): Promise<Array<{ author: AuthorDoc | null }>> {
+  ): Promise<Array<{ author: AuthorDoc }>> {
     try {
       const doc = await this.authors.findOne({ _id: author });
-      return [{ author: doc ?? null }];
+      return doc ? [{ author: doc }] : [];
     } catch {
-      return [{ author: null }];
+      return [];
     }
   }
 
   /**
-   * _getAuthorByUser(user: User) : (author: AuthorDoc | null)
+   * _getAuthorByUser(user: User) : (author: AuthorDoc)
    *
    * **requires** nothing
-   * **effects** returns the author linked to this user, or null if none
+   * **effects** returns the author linked to this user. Returns an array with one dictionary
+   * if an author is linked, or an empty array if none.
    */
   async _getAuthorByUser(
     { user }: { user: User },
-    ): Promise<Array<{ author: AuthorDoc | null }>> {
+  ): Promise<Array<{ author: AuthorDoc }>> {
     try {
       const link = await this.userLinks.findOne({ user });
-      if (!link) return [{ author: null }];
+      if (!link) return [];
 
       const doc = await this.authors.findOne({ _id: link.authorId });
-      return [{ author: doc ?? null }];
+      return doc ? [{ author: doc }] : [];
     } catch {
-      return [{ author: null }];
+      return [];
     }
   }
 
@@ -357,24 +372,25 @@ export default class AuthorRegistryConcept {
    */
   async _findAuthorsByName(
     { nameQuery }: { nameQuery: string },
-    ): Promise<Array<{ author: AuthorDoc; matchType: string }>> {
+  ): Promise<Array<{ author: AuthorDoc; matchType: string }>> {
     try {
       // Find matching name variations
       const regex = new RegExp(nameQuery, "i");
-      const variations = await this.nameVariations.find({ name: regex }).toArray();
-      
-      const authorIds = [...new Set(variations.map(v => v.authorId))];
-      const authors = await this.authors.find({ 
-        _id: { $in: authorIds } 
+      const variations = await this.nameVariations.find({ name: regex })
+        .toArray();
+
+      const authorIds = [...new Set(variations.map((v) => v.authorId))];
+      const authors = await this.authors.find({
+        _id: { $in: authorIds },
       }).toArray();
 
       // Queries must return an array of dictionaries, one per match
-      return authors.map(author => {
+      return authors.map((author) => {
         // Find best match type (Canonical or Variation)
         const isCanonical = regex.test(author.canonicalName);
         return {
           author,
-          matchType: isCanonical ? "Canonical" : "Variation"
+          matchType: isCanonical ? "Canonical" : "Variation",
         };
       });
     } catch {
@@ -383,23 +399,23 @@ export default class AuthorRegistryConcept {
   }
 
   /**
-   * _resolveAuthor(exactName: String) : (author: AuthorDoc | null)
+   * _resolveAuthor(exactName: String) : (author: AuthorDoc)
    *
    * **requires** nothing
-   * **effects** returns the author that owns this specific name string variation, if any.
+   * **effects** returns the author that owns this specific name string variation.
+   * Returns an array with one dictionary if found, or an empty array if not found.
    */
   async _resolveAuthor(
     { exactName }: { exactName: string },
-    ): Promise<Array<{ author: AuthorDoc | null }>> {
+  ): Promise<Array<{ author: AuthorDoc }>> {
     try {
       const variation = await this.nameVariations.findOne({ name: exactName });
-      if (!variation) return [{ author: null }];
+      if (!variation) return [];
 
       const doc = await this.authors.findOne({ _id: variation.authorId });
-      return [{ author: doc ?? null }];
+      return doc ? [{ author: doc }] : [];
     } catch {
-      return [{ author: null }];
+      return [];
     }
   }
 }
-

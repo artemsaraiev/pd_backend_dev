@@ -266,7 +266,7 @@
 
 ---
 
-### POST /api/AuthorRegistry/_getAuthor
+### POST /api/AuthorRegistry/getAuthor
 
 **Description:** Retrieves an author document by its ID.
 
@@ -274,7 +274,7 @@
 - nothing
 
 **Effects:**
-- returns the author document or null
+- returns the author document. Returns an array with one dictionary if the author exists, or an empty array if the author does not exist.
 
 **Request Body:**
 ```json
@@ -285,18 +285,18 @@
 
 **Success Response Body (Query):**
 ```json
-[
-  {
-    "author": {
-      "_id": "string",
-      "canonicalName": "string",
-      "affiliations": ["string"],
-      "externalIds": ["string"],
-      "website": "string"
-    }
-  }
-]
+{
+  "author": {
+    "_id": "string",
+    "canonicalName": "string",
+    "affiliations": ["string"],
+    "externalIds": ["string"],
+    "website": "string"
+  } | null
+}
 ```
+
+**Note:** If the author does not exist, the response will be `{ "author": null }`.
 
 **Error Response Body:**
 ```json
@@ -307,7 +307,7 @@
 
 ---
 
-### POST /api/AuthorRegistry/_getAuthorByUser
+### POST /api/AuthorRegistry/getAuthorByUser
 
 **Description:** Retrieves the author linked to a specific user.
 
@@ -315,7 +315,7 @@
 - nothing
 
 **Effects:**
-- returns the author linked to this user, or null if none
+- returns the author linked to this user. Returns an array with one dictionary if an author is linked, or an empty array if none.
 
 **Request Body:**
 ```json
@@ -328,18 +328,18 @@
 
 **Success Response Body (Query):**
 ```json
-[
-  {
-    "author": {
-      "_id": "string",
-      "canonicalName": "string",
-      "affiliations": ["string"],
-      "externalIds": ["string"],
-      "website": "string"
-    }
-  }
-]
+{
+  "author": {
+    "_id": "string",
+    "canonicalName": "string",
+    "affiliations": ["string"],
+    "externalIds": ["string"],
+    "website": "string"
+  } | null
+}
 ```
+
+**Note:** If no author is linked to the user, the response will be `{ "author": null }`.
 
 **Error Response Body:**
 ```json
@@ -350,7 +350,7 @@
 
 ---
 
-### POST /api/AuthorRegistry/_findAuthorsByName
+### POST /api/AuthorRegistry/findAuthorsByName
 
 **Description:** Searches for authors by name (canonical name or name variations).
 
@@ -380,14 +380,12 @@
         "website": "string"
       },
       "matchType": "Canonical" | "Variation"
-      }
-    ]
-  }
+    }
+  ]
 }
 ```
 
-**Note:** The sync collects all match frames into a single `matches` array for the response.
-```
+**Note:** The sync collects all match frames into a single `matches` array for the response. Each item in the array is wrapped in an object with keys matching the collected variable names (`author` and `matchType`).
 
 **Error Response Body:**
 ```json
@@ -398,7 +396,7 @@
 
 ---
 
-### POST /api/AuthorRegistry/_resolveAuthor
+### POST /api/AuthorRegistry/resolveAuthor
 
 **Description:** Resolves an exact name string to an author entity.
 
@@ -406,7 +404,7 @@
 - nothing
 
 **Effects:**
-- returns the author that owns this specific name string variation, if any.
+- returns the author that owns this specific name string variation. Returns an array with one dictionary if found, or an empty array if not found.
 
 **Request Body:**
 ```json
@@ -417,18 +415,18 @@
 
 **Success Response Body (Query):**
 ```json
-[
-  {
-    "author": {
-      "_id": "string",
-      "canonicalName": "string",
-      "affiliations": ["string"],
-      "externalIds": ["string"],
-      "website": "string"
-    }
-  }
-]
+{
+  "author": {
+    "_id": "string",
+    "canonicalName": "string",
+    "affiliations": ["string"],
+    "externalIds": ["string"],
+    "website": "string"
+  } | null
+}
 ```
+
+**Note:** If no author is found for the exact name, the response will be `{ "author": null }`.
 
 **Error Response Body:**
 ```json

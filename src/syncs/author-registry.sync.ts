@@ -136,57 +136,66 @@ export const AuthorRegistryMergeAuthorsRequest: Sync = (
 });
 
 // AuthorRegistry Queries
-export const AuthorRegistryGetAuthorRequest: Sync = ({ request, author }) => ({
+export const AuthorRegistryGetAuthorRequest: Sync = (
+  { request, authorId, author },
+) => ({
   when: actions([Requesting.request, {
-    path: "/AuthorRegistry/_getAuthor",
-    author,
+    path: "/AuthorRegistry/getAuthor",
+    author: authorId,
   }, { request }]),
-  then: actions([AuthorRegistry._getAuthor, { author }]),
-});
-
-export const AuthorRegistryGetAuthorResponse: Sync = ({ request, result }) => ({
-  when: actions(
-    [Requesting.request, { path: "/AuthorRegistry/_getAuthor" }, { request }],
-    [AuthorRegistry._getAuthor, {}, { result }],
-  ),
-  then: actions([Requesting.respond, { request, result }]),
+  where: async (frames) => {
+    const originalFrame = frames[0];
+    frames = await frames.query(
+      AuthorRegistry._getAuthor,
+      { author: authorId },
+      {
+        author,
+      },
+    );
+    if (frames.length === 0) {
+      return new Frames({ ...originalFrame, [author]: null });
+    }
+    return frames;
+  },
+  then: actions([Requesting.respond, { request, author }]),
 });
 
 export const AuthorRegistryGetAuthorByUserRequest: Sync = (
-  { request, session, user },
+  { request, session, user, author },
 ) => ({
   when: actions([Requesting.request, {
-    path: "/AuthorRegistry/_getAuthorByUser",
+    path: "/AuthorRegistry/getAuthorByUser",
     session,
   }, { request }]),
   where: async (frames) => {
-    return await frames.query(Sessioning._getUser, { session }, { user });
+    const originalFrame = frames[0];
+    frames = await frames.query(Sessioning._getUser, { session }, { user });
+    if (frames.length === 0) {
+      return new Frames({ ...originalFrame, [author]: null });
+    }
+    frames = await frames.query(AuthorRegistry._getAuthorByUser, { user }, {
+      author,
+    });
+    if (frames.length === 0) {
+      return new Frames({ ...originalFrame, [author]: null });
+    }
+    return frames;
   },
-  then: actions([AuthorRegistry._getAuthorByUser, { user }]),
-});
-
-export const AuthorRegistryGetAuthorByUserResponse: Sync = (
-  { request, result },
-) => ({
-  when: actions(
-    [Requesting.request, { path: "/AuthorRegistry/_getAuthorByUser" }, {
-      request,
-    }],
-    [AuthorRegistry._getAuthorByUser, {}, { result }],
-  ),
-  then: actions([Requesting.respond, { request, result }]),
+  then: actions([Requesting.respond, { request, author }]),
 });
 
 export const AuthorRegistryFindAuthorsByNameRequest: Sync = (
   { request, nameQuery, author, matchType, matches },
 ) => ({
   when: actions([Requesting.request, {
-    path: "/AuthorRegistry/_findAuthorsByName",
+    path: "/AuthorRegistry/findAuthorsByName",
     nameQuery,
   }, { request }]),
   where: async (frames) => {
     const originalFrame = frames[0];
-    frames = await frames.query(AuthorRegistry._findAuthorsByName, { nameQuery }, { author, matchType });
+    frames = await frames.query(AuthorRegistry._findAuthorsByName, {
+      nameQuery,
+    }, { author, matchType });
     if (frames.length === 0) {
       return new Frames({ ...originalFrame, [matches]: [] });
     }
@@ -196,23 +205,21 @@ export const AuthorRegistryFindAuthorsByNameRequest: Sync = (
 });
 
 export const AuthorRegistryResolveAuthorRequest: Sync = (
-  { request, exactName },
+  { request, exactName, author },
 ) => ({
   when: actions([Requesting.request, {
-    path: "/AuthorRegistry/_resolveAuthor",
+    path: "/AuthorRegistry/resolveAuthor",
     exactName,
   }, { request }]),
-  then: actions([AuthorRegistry._resolveAuthor, { exactName }]),
-});
-
-export const AuthorRegistryResolveAuthorResponse: Sync = (
-  { request, result },
-) => ({
-  when: actions(
-    [Requesting.request, { path: "/AuthorRegistry/_resolveAuthor" }, {
-      request,
-    }],
-    [AuthorRegistry._resolveAuthor, {}, { result }],
-  ),
-  then: actions([Requesting.respond, { request, result }]),
+  where: async (frames) => {
+    const originalFrame = frames[0];
+    frames = await frames.query(AuthorRegistry._resolveAuthor, { exactName }, {
+      author,
+    });
+    if (frames.length === 0) {
+      return new Frames({ ...originalFrame, [author]: null });
+    }
+    return frames;
+  },
+  then: actions([Requesting.respond, { request, author }]),
 });

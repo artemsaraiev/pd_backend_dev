@@ -146,10 +146,10 @@ export const exclusions: Array<string> = [
   "/api/AuthorRegistry/claimAuthor",
   "/api/AuthorRegistry/unclaimAuthor",
   "/api/AuthorRegistry/mergeAuthors",
-  "/api/AuthorRegistry/_getAuthor",
-  "/api/AuthorRegistry/_getAuthorByUser",
-  "/api/AuthorRegistry/_findAuthorsByName",
-  "/api/AuthorRegistry/_resolveAuthor",
+  "/api/AuthorRegistry/getAuthor",
+  "/api/AuthorRegistry/getAuthorByUser",
+  "/api/AuthorRegistry/findAuthorsByName",
+  "/api/AuthorRegistry/resolveAuthor",
 
   // AccessControl - security-critical, all operations need auth
   "/api/AccessControl/createGroup",
