@@ -31,23 +31,14 @@ export const inclusions: Record<string, string> = {
 
   // Public queries
   "/api/PaperIndex/_searchArxiv": "public search query",
-  "/api/PaperIndex/_searchBiorxiv": "public search query - bioRxiv via Europe PMC",
+  "/api/PaperIndex/_searchBiorxiv":
+    "public search query - bioRxiv via Europe PMC",
   "/api/PaperIndex/_listRecentBiorxiv": "public query - recent bioRxiv papers",
 
   // Public read queries - if paper data is public
   "/api/PaperIndex/_get": "public query - paper data is public",
   "/api/PaperIndex/_getByPaperId": "public query - paper data is public",
   "/api/PaperIndex/_listRecent": "public query - paper list is public",
-
-  // Public read queries - if discussions are public
-  "/api/DiscussionPub/_getPubIdByPaper":
-    "public query - discussions are public",
-  "/api/DiscussionPub/_listThreads": "public query - discussions are public",
-  "/api/DiscussionPub/_listReplies": "public query - discussions are public",
-  "/api/DiscussionPub/_listRepliesTree":
-    "public query - discussions are public",
-  "/api/DiscussionPub/_getThread": "public query - discussions are public",
-  "/api/DiscussionPub/_getReply": "public query - discussions are public",
 
   // Public read queries - if contexts are public
   "/api/HighlightedContext/_getFilteredContexts":
@@ -92,6 +83,13 @@ export const exclusions: Array<string> = [
   "/api/DiscussionPub/editReply",
   "/api/DiscussionPub/deleteReply",
   "/api/DiscussionPub/initIndexes",
+  // Queries handled via syncs (paths without underscores)
+  "/api/DiscussionPub/_getPubIdByPaper",
+  "/api/DiscussionPub/_listThreads",
+  "/api/DiscussionPub/_listReplies",
+  "/api/DiscussionPub/_listRepliesTree",
+  "/api/DiscussionPub/_getThread",
+  "/api/DiscussionPub/_getReply",
 
   // Internal initialization methods - not public endpoints
   "/api/AccessControl/initIndexes",
@@ -146,10 +144,11 @@ export const exclusions: Array<string> = [
   "/api/AuthorRegistry/claimAuthor",
   "/api/AuthorRegistry/unclaimAuthor",
   "/api/AuthorRegistry/mergeAuthors",
-  "/api/AuthorRegistry/getAuthor",
-  "/api/AuthorRegistry/getAuthorByUser",
-  "/api/AuthorRegistry/findAuthorsByName",
-  "/api/AuthorRegistry/resolveAuthor",
+  // Queries handled via syncs (paths without underscores)
+  "/api/AuthorRegistry/_getAuthor",
+  "/api/AuthorRegistry/_getAuthorByUser",
+  "/api/AuthorRegistry/_findAuthorsByName",
+  "/api/AuthorRegistry/_resolveAuthor",
 
   // AccessControl - security-critical, all operations need auth
   "/api/AccessControl/createGroup",

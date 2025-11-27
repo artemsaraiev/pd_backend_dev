@@ -268,7 +268,7 @@
 
 ---
 
-### POST /api/DiscussionPub/_getPubIdByPaper
+### POST /api/DiscussionPub/getPubIdByPaper
 
 **Description:** Retrieves the pub ID for a given paper ID.
 
@@ -276,7 +276,7 @@
 - nothing
 
 **Effects:**
-- returns an array of dictionaries, each containing the Pub ID for the given paperId in the `result` field, or null if no pub exists. Returns an array with one dictionary containing `{ result: Pub | null }`.
+- returns the Pub ID for the given paperId. Returns an array with one dictionary if the pub exists, or an empty array if no pub exists.
 
 **Request Body:**
 ```json
@@ -287,12 +287,12 @@
 
 **Success Response Body (Query):**
 ```json
-[
-  {
-    "result": "string"
-  }
-]
+{
+  "result": "string" | null
+}
 ```
+
+**Note:** If no pub exists for the paperId, the response will be `{ "result": null }`.
 
 **Error Response Body:**
 ```json
@@ -303,7 +303,7 @@
 
 ---
 
-### POST /api/DiscussionPub/_listThreads
+### POST /api/DiscussionPub/listThreads
 
 **Description:** Lists all non-deleted threads for a pub, optionally filtered by anchor.
 
@@ -317,28 +317,34 @@
 ```json
 {
   "pubId": "string",
-  "anchorId": "string"
+  "anchorId": "string",
+  "includeDeleted": "boolean"
 }
 ```
+
+**Note:** The `anchorId` and `includeDeleted` parameters are optional.
 
 **Success Response Body (Query):**
 ```json
 {
   "threads": [
     {
-      "_id": "string",
-      "author": "string",
-      "title": "string",
-      "body": "string",
-      "anchorId": "string",
-      "createdAt": "number",
-      "editedAt": "number"
+      "thread": {
+        "_id": "string",
+        "author": "string",
+        "title": "string",
+        "body": "string",
+        "anchorId": "string",
+        "createdAt": "number",
+        "editedAt": "number",
+        "deleted": "boolean"
+      }
     }
   ]
 }
 ```
 
-**Note:** The sync collects all thread frames into a single `threads` array for the response.
+**Note:** The sync collects all thread frames into a single `threads` array for the response using `collectAs([thread], threads)`. Each item in the array is wrapped in an object with a key matching the collected variable name (`thread`).
 
 **Error Response Body:**
 ```json
@@ -349,7 +355,7 @@
 
 ---
 
-### POST /api/DiscussionPub/_listReplies
+### POST /api/DiscussionPub/listReplies
 
 **Description:** Lists all non-deleted replies for a thread.
 
@@ -362,28 +368,34 @@
 **Request Body:**
 ```json
 {
-  "threadId": "string"
+  "threadId": "string",
+  "includeDeleted": "boolean"
 }
 ```
+
+**Note:** The `includeDeleted` parameter is optional.
 
 **Success Response Body (Query):**
 ```json
 {
   "replies": [
     {
-      "_id": "string",
-      "author": "string",
-      "body": "string",
-      "anchorId": "string",
-      "parentId": "string",
-      "createdAt": "number",
-      "editedAt": "number"
+      "reply": {
+        "_id": "string",
+        "author": "string",
+        "body": "string",
+        "anchorId": "string",
+        "parentId": "string",
+        "createdAt": "number",
+        "editedAt": "number",
+        "deleted": "boolean"
+      }
     }
   ]
 }
 ```
 
-**Note:** The sync collects all reply frames into a single `replies` array for the response.
+**Note:** The sync collects all reply frames into a single `replies` array for the response using `collectAs([reply], replies)`. Each item in the array is wrapped in an object with a key matching the collected variable name (`reply`).
 
 **Error Response Body:**
 ```json
@@ -394,7 +406,7 @@
 
 ---
 
-### POST /api/DiscussionPub/_listRepliesTree
+### POST /api/DiscussionPub/listRepliesTree
 
 **Description:** Lists all non-deleted replies for a thread organized as a tree structure.
 
@@ -407,28 +419,35 @@
 **Request Body:**
 ```json
 {
-  "threadId": "string"
+  "threadId": "string",
+  "includeDeleted": "boolean"
 }
 ```
+
+**Note:** The `includeDeleted` parameter is optional.
 
 **Success Response Body (Query):**
 ```json
 {
   "replies": [
     {
-      "_id": "string",
-      "author": "string",
-      "body": "string",
-      "anchorId": "string",
-      "createdAt": "number",
-      "editedAt": "number",
-      "parentId": "string",
-      "children": []
+      "reply": {
+        "_id": "string",
+        "author": "string",
+        "body": "string",
+        "anchorId": "string",
+        "createdAt": "number",
+        "editedAt": "number",
+        "parentId": "string",
+        "deleted": "boolean",
+        "children": []
       }
-    ]
-  }
-]
+    }
+  ]
+}
 ```
+
+**Note:** The sync collects all reply frames into a single `replies` array for the response using `collectAs([reply], replies)`. Each item in the array is wrapped in an object with a key matching the collected variable name (`reply`). The `children` array contains nested replies in the same format.
 
 **Error Response Body:**
 ```json
@@ -439,7 +458,7 @@
 
 ---
 
-### POST /api/DiscussionPub/_getThread
+### POST /api/DiscussionPub/getThread
 
 **Description:** Retrieves a thread document by its ID.
 
@@ -447,7 +466,7 @@
 - nothing
 
 **Effects:**
-- returns the thread document for the given thread, or null if it does not exist. Returns an array with one dictionary containing `{ thread: ThreadDoc | null }`.
+- returns the thread document for the given thread. Returns an array with one dictionary if the thread exists, or an empty array if it does not exist.
 
 **Request Body:**
 ```json
@@ -458,22 +477,22 @@
 
 **Success Response Body (Query):**
 ```json
-[
-  {
-    "thread": {
-      "_id": "string",
-      "pubId": "string",
-      "author": "string",
-      "anchorId": "string",
-      "title": "string",
-      "body": "string",
-      "deleted": "boolean",
-      "createdAt": "number",
-      "editedAt": "number"
-    }
-  }
-]
+{
+  "thread": {
+    "_id": "string",
+    "pubId": "string",
+    "author": "string",
+    "anchorId": "string",
+    "title": "string",
+    "body": "string",
+    "deleted": "boolean",
+    "createdAt": "number",
+    "editedAt": "number"
+  } | null
+}
 ```
+
+**Note:** If the thread does not exist, the response will be `{ "thread": null }`. This endpoint is used internally by syncs for authorization checks.
 
 **Error Response Body:**
 ```json
@@ -484,7 +503,7 @@
 
 ---
 
-### POST /api/DiscussionPub/_getReply
+### POST /api/DiscussionPub/getReply
 
 **Description:** Retrieves a reply document by its ID.
 
@@ -492,7 +511,7 @@
 - nothing
 
 **Effects:**
-- returns the reply document for the given reply, or null if it does not exist. Returns an array with one dictionary containing `{ reply: ReplyDoc | null }`.
+- returns the reply document for the given reply. Returns an array with one dictionary if the reply exists, or an empty array if it does not exist.
 
 **Request Body:**
 ```json
@@ -503,22 +522,22 @@
 
 **Success Response Body (Query):**
 ```json
-[
-  {
-    "reply": {
-      "_id": "string",
-      "threadId": "string",
-      "parentId": "string",
-      "author": "string",
-      "anchorId": "string",
-      "body": "string",
-      "deleted": "boolean",
-      "createdAt": "number",
-      "editedAt": "number"
-    }
-  }
-]
+{
+  "reply": {
+    "_id": "string",
+    "threadId": "string",
+    "parentId": "string",
+    "author": "string",
+    "anchorId": "string",
+    "body": "string",
+    "deleted": "boolean",
+    "createdAt": "number",
+    "editedAt": "number"
+  } | null
+}
 ```
+
+**Note:** If the reply does not exist, the response will be `{ "reply": null }`. This endpoint is used internally by syncs for authorization checks.
 
 **Error Response Body:**
 ```json
