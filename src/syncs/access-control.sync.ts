@@ -644,23 +644,25 @@ export const AccessControlListPendingInvitationsByUserRequest: Sync = (
 });
 
 export const AccessControlGetInvitationRequest: Sync = (
-  { request, invitation, invitationDoc, invitations },
+  { request, invitationId, invitation },
 ) => ({
   when: actions([Requesting.request, {
     path: "/AccessControl/getInvitation",
-    invitation,
+    invitation: invitationId,
   }, { request }]),
   where: async (frames) => {
     const originalFrame = frames[0];
-    frames = await frames.query(AccessControl._getInvitation, { invitation }, {
-      invitation: invitationDoc,
+    frames = await frames.query(AccessControl._getInvitation, {
+      invitation: invitationId,
+    }, {
+      invitation,
     });
     if (frames.length === 0) {
-      return new Frames({ ...originalFrame, [invitations]: [] });
+      return new Frames({ ...originalFrame, [invitation]: null });
     }
-    return frames.collectAs([invitationDoc], invitations);
+    return frames;
   },
-  then: actions([Requesting.respond, { request, invitations }]),
+  then: actions([Requesting.respond, { request, invitation }]),
 });
 
 export const AccessControlGetGroupsForUserRequest: Sync = (

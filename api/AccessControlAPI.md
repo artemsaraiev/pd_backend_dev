@@ -582,16 +582,18 @@
 {
   "memberships": [
     {
-      "_id": "string",
-      "groupId": "string",
-      "user": "string",
-      "isAdmin": "boolean"
+      "membership": {
+        "_id": "string",
+        "groupId": "string",
+        "user": "string",
+        "isAdmin": "boolean"
+      }
     }
   ]
 }
 ```
 
-**Note:** The sync collects all membership frames into a single `memberships` array for the response.
+**Note:** The sync collects all membership frames into a single `memberships` array for the response. Each element in the array is wrapped with a `membership` key.
 
 **Error Response Body:**
 ```json
@@ -626,16 +628,18 @@
 {
   "memberships": [
     {
-      "_id": "string",
-      "groupId": "string",
-      "user": "string",
-      "isAdmin": "boolean"
+      "membership": {
+        "_id": "string",
+        "groupId": "string",
+        "user": "string",
+        "isAdmin": "boolean"
+      }
     }
   ]
 }
 ```
 
-**Note:** The sync collects all membership frames into a single `memberships` array for the response.
+**Note:** The sync collects all membership frames into a single `memberships` array for the response. Each element in the array is wrapped with a `membership` key.
 
 **Error Response Body:**
 ```json
@@ -703,7 +707,9 @@
 ```json
 {
   "groups": [
-    "string"
+    {
+      "group": "string"
+    }
   ]
 }
 ```
@@ -743,18 +749,20 @@
 {
   "invitations": [
     {
-      "_id": "string",
-      "groupId": "string",
-      "inviter": "string",
-      "invitee": "string",
-      "message": "string",
-      "createdAt": "number"
+      "invitation": {
+        "_id": "string",
+        "groupId": "string",
+        "inviter": "string",
+        "invitee": "string",
+        "message": "string",
+        "createdAt": "number"
+      }
     }
   ]
 }
 ```
 
-**Note:** The sync collects all invitation frames into a single `invitations` array for the response. The `message` field is optional and may be omitted.
+**Note:** The sync collects all invitation frames into a single `invitations` array for the response. Each element in the array is wrapped with an `invitation` key. The `message` field is optional and may be omitted.
 
 **Error Response Body:**
 ```json
@@ -773,7 +781,7 @@
 - nothing
 
 **Effects:**
-- fetches a single invitation document if it exists, returns as a single-element array. If no invitation exists, returns an empty array.
+- fetches a single invitation document if it exists. If no invitation exists, returns null.
 
 **Request Body:**
 ```json
@@ -785,20 +793,18 @@
 **Success Response Body (Query):**
 ```json
 {
-  "invitations": [
-    {
-      "_id": "string",
-      "groupId": "string",
-      "inviter": "string",
-      "invitee": "string",
-      "message": "string",
-      "createdAt": "number"
-    }
-  ]
+  "invitation": {
+    "_id": "string",
+    "groupId": "string",
+    "inviter": "string",
+    "invitee": "string",
+    "message": "string",
+    "createdAt": "number"
+  }
 }
 ```
 
-**Note:** The sync collects the invitation into an array. If the invitation does not exist, the `invitations` array will be empty. The `message` field is optional and may be omitted.
+**Note:** If the invitation does not exist, the response will be `{ "invitation": null }`. The `message` field is optional and may be omitted.
 
 **Error Response Body:**
 ```json
