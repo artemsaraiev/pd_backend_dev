@@ -625,23 +625,23 @@ export default class AccessControlConcept {
   }
 
   /**
-   * _getGroup(group: Group) : (group: GroupDoc | null)
+   * _getGroup(group: Group) : (group: GroupDoc)
    *
    * **requires** nothing
    * **effects** returns an array of dictionaries, each containing the group document
-   * for the given group in the `group` field, or null if the group does not exist.
-   * Returns an array with one dictionary containing `{ group: GroupDoc | null }`.
+   * for the given group in the `group` field. Returns an array with one dictionary if the
+   * group exists, or an empty array if the group does not exist.
    */
   async _getGroup(
     { group }: { group: Group },
-  ): Promise<Array<{ group: GroupDoc | null }>> {
+  ): Promise<Array<{ group: GroupDoc }>> {
     try {
       const result = await this.groups.findOne({ _id: group });
       // Queries must return an array of dictionaries
-      return [{ group: result ?? null }];
+      return result ? [{ group: result }] : [];
     } catch {
-      // On error, return array with null (queries should not throw)
-      return [{ group: null }];
+      // On error, return empty array (queries should not throw)
+      return [];
     }
   }
 

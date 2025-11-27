@@ -16,8 +16,13 @@ unsuccessful queries, return an empty array. If query returns a single value, re
 an array with a single element.
 + In syncs, use queries through `frames.query` method.
 + Passthrough routes can be found in `src/concepts/Requesting/passthrough.ts` file.
-+ Queries can't be directly called from the frontend, instead, they are used through
-syncs on the backend.
++ Public queries should be included in the `inclusions` object in the aforementioned
+`passthrough.ts` file. Queries that are not public and start from `_` should be
+included in the `exclusions` array in `passthrough.ts` file. Rather, if we are
+interested in their results, we should use syncs to get them.
++ Inside syncs, actions in Requesting paths should not start with `_` (underscores).
++ If sync provides an interface for a query, and the corresponding query returned
+an empty array.
 + If some action requires user authentication and verification, use `Sessioning`
 concept to get the user from the session and verify their permissions in the action
 synchronization.
@@ -73,7 +78,7 @@ another temporary download URL.
     + **requires**: the given `owner` exists.
     + **effects**: returns all files owned by the user with status "uploaded", along with their filenames.
 
-## Implementation
+### Implementation
 
 ```typescript
 import { Collection, Db } from "npm:mongodb";
@@ -339,7 +344,7 @@ export default class FileUploadingConcept {
 }
 ```
 
-## Syncs
+### Syncs
 
 ```typescript
 import { actions, Frames, Sync } from "@engine";

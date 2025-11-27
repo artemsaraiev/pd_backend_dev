@@ -94,11 +94,11 @@ access, and recording invitation responses.
     set to false, adds it to the set of Memberships, removes the invitation from the
     set of Invitations, and returns the new membership
 + **queries**
-  + _getGroup(group: Group) : (group: GroupDoc | null)
+  + _getGroup(group: Group) : (group: GroupDoc)
     + **requires** nothing
     + **effects** returns an array of dictionaries, each containing the group document
-    for the given group in the `group` field, or null if the group does not exist.
-    Returns an array with one dictionary containing `{ group: GroupDoc | null }`.
+    for the given group in the `group` field. Returns an array with one dictionary if the
+    group exists, or an empty array if the group does not exist.
   + _getMembershipsByGroup(group: Group) : (membership: MembershipDoc)
     + **requires** nothing
     + **effects** returns an array of dictionaries, each containing one membership

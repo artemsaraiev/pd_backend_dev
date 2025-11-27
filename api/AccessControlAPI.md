@@ -520,7 +520,7 @@
 
 ---
 
-### POST /api/AccessControl/_getGroup
+### POST /api/AccessControl/getGroup
 
 **Description:** Retrieves a group document by its ID.
 
@@ -528,7 +528,7 @@
 - nothing
 
 **Effects:**
-- returns an array of dictionaries, each containing the group document for the given group in the `group` field, or null if the group does not exist. Returns an array with one dictionary containing `{ group: GroupDoc | null }`.
+- returns a dictionary containing the group document for the given group in the `group` field, or null if the group does not exist.
 
 **Request Body:**
 ```json
@@ -539,17 +539,17 @@
 
 **Success Response Body (Query):**
 ```json
-[
-  {
-    "group": {
-      "_id": "string",
-      "name": "string",
-      "description": "string",
-      "admin": "string"
-    }
+{
+  "group": {
+    "_id": "string",
+    "name": "string",
+    "description": "string",
+    "admin": "string"
   }
-]
+}
 ```
+
+**Note:** If the group does not exist, the response will be `{ "group": null }`.
 
 **Error Response Body:**
 ```json
@@ -560,7 +560,7 @@
 
 ---
 
-### POST /api/AccessControl/_getMembershipsByGroup
+### POST /api/AccessControl/getMembershipsByGroup
 
 **Description:** Retrieves all memberships for a group.
 
@@ -602,7 +602,7 @@
 
 ---
 
-### POST /api/AccessControl/_getMembershipsByUser
+### POST /api/AccessControl/getMembershipsByUser
 
 **Description:** Retrieves all group memberships for a user.
 
@@ -646,7 +646,7 @@
 
 ---
 
-### POST /api/AccessControl/_hasAccess
+### POST /api/AccessControl/hasAccess
 
 **Description:** Checks if a user has access to a resource.
 
@@ -654,7 +654,7 @@
 - nothing
 
 **Effects:**
-- returns an array of dictionaries, each containing whether the user has access to the resource. Returns true if the resource has universal access, or if the user is a member of a group that has private access to the resource. Returns an array with one dictionary containing `{ hasAccess: boolean }`.
+- returns a dictionary containing whether the user has access to the resource. Returns true if the resource has universal access, or if the user is a member of a group that has private access to the resource.
 
 **Request Body:**
 ```json
@@ -666,11 +666,9 @@
 
 **Success Response Body (Query):**
 ```json
-[
-  {
-    "hasAccess": "boolean"
-  }
-]
+{
+  "hasAccess": "boolean"
+}
 ```
 
 **Error Response Body:**
@@ -682,7 +680,7 @@
 
 ---
 
-### POST /api/AccessControl/_getGroupsForUser
+### POST /api/AccessControl/getGroupsForUser
 
 **Description:** Retrieves all groups that a user belongs to.
 
@@ -721,7 +719,7 @@
 
 ---
 
-### POST /api/AccessControl/_listPendingInvitationsByUser
+### POST /api/AccessControl/listPendingInvitationsByUser
 
 **Description:** Retrieves all pending invitations for a user.
 
@@ -767,7 +765,7 @@
 
 ---
 
-### POST /api/AccessControl/_getInvitation
+### POST /api/AccessControl/getInvitation
 
 **Description:** Retrieves a single invitation document by its ID.
 

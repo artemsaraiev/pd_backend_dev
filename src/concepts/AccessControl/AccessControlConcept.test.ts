@@ -712,7 +712,7 @@ Deno.test("Action: removeGroup requires group exists, removes group and associat
 
     // Verify group is removed
     const getGroupResult = await concept._getGroup({ group: groupId });
-    assertEquals(getGroupResult[0].group, null, "Group should be removed");
+    assertEquals(getGroupResult.length, 0, "Group should be removed");
 
     // Verify memberships are removed
     const membershipsResult = await concept._getMembershipsByGroup({ group: groupId });
@@ -739,23 +739,22 @@ Deno.test("Action: removeGroup requires group exists, removes group and associat
 });
 
 // Query: _getGroup
-Deno.test("Query: _getGroup returns group document or null", async () => {
+Deno.test("Query: _getGroup returns group document or empty array", async () => {
   const [db, client] = await testDb();
   const concept = new AccessControlConcept(db);
 
   try {
     console.log("Testing _getGroup query");
 
-    // Test: returns null for nonexistent group
+    // Test: returns empty array for nonexistent group
     console.log("  Testing nonexistent group");
     const result1 = await concept._getGroup({ group: "group:nonexistent" as ID });
     assertEquals(
       result1.length,
-      1,
-      "Query should return array with one dictionary",
+      0,
+      "Query should return empty array for nonexistent group",
     );
-    assertEquals(result1[0].group, null, "Should return null for nonexistent group");
-    console.log("    Correctly returns null for nonexistent group");
+    console.log("    Correctly returns empty array for nonexistent group");
 
     // Test: returns group document for existing group
     console.log("  Testing existing group");
@@ -774,10 +773,10 @@ Deno.test("Query: _getGroup returns group document or null", async () => {
     );
     const { group: groupDoc } = result2[0];
     assertExists(groupDoc, "Group should exist");
-    assertEquals(groupDoc!._id.toString(), groupId, "Group ID should match");
-    assertEquals(groupDoc!.name, "Test Group", "Name should match");
-    assertEquals(groupDoc!.description, "Test Description", "Description should match");
-    assertEquals(groupDoc!.admin, userAlice, "Admin should match");
+    assertEquals(groupDoc._id.toString(), groupId, "Group ID should match");
+    assertEquals(groupDoc.name, "Test Group", "Name should match");
+    assertEquals(groupDoc.description, "Test Description", "Description should match");
+    assertEquals(groupDoc.admin, userAlice, "Admin should match");
     console.log("    Correctly returns group document");
   } finally {
     await client.close();
