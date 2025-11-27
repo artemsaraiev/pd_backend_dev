@@ -104,8 +104,10 @@ export const exclusions: Array<string> = [
   "/api/IdentityVerification/updateAffiliation",
   "/api/IdentityVerification/addBadge",
   "/api/IdentityVerification/revokeBadge",
-  // User-specific queries need auth - used internally by syncs
-  "/api/IdentityVerification/_getByUser",
+  // User-specific queries need auth - handled via syncs (paths without underscores)
+  "/api/IdentityVerification/getByUser",
+  "/api/IdentityVerification/getORCIDFromState",
+  // Underscored query routes - handled via syncs
   "/api/IdentityVerification/_getORCIDsByUser",
   "/api/IdentityVerification/_getAffiliationsByUser",
   "/api/IdentityVerification/_getBadgesByUser",
