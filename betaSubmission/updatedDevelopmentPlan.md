@@ -27,7 +27,7 @@ We have accomplished almost most of our Week 2 goals.
 
 | Milestone | Target | Features | Owners |
 |---|---|---|---|
-| This Week — Verification, closed groups, upvotes, polish | Dec 9 (Final Deadline) | Verification with edu emails; closed pubs (access control: invite/join, restrict non‑members); upvotes (threads/replies) + sort by score/recent; highlight permalink polish (scroll/zoom robustness); highlight sidebar and general UI polish; optional: paper tags/thread categories if time | Sasha (auth verification, access control, upvotes endpoints), Rahsun (permalink polish, sidebar, UI finishing), Artem (verification UI, group UI, sort/filter, final integration) |
+| This Week — Email Verification, closed groups, upvotes, polish | Dec 9 (Final Deadline) | Verification with edu emails; closed pubs (access control: invite/join, restrict non‑members); upvotes (threads/replies) + sort by score/recent; highlight permalinks | Sasha (anonymous posting, email verification, user groups), Rahsun (badges and ORCID, thread filters), Artem (UI polish, user testing, clickable highlights ) |
 
 ### Success criteria
 - Closed pub restricts non‑members; upvotes reorder threads/replies; badges and verified ORCID show for thread authors
@@ -35,3 +35,4 @@ We have accomplished almost most of our Week 2 goals.
 ### Key risks, mitigations, fallback
 - Spam/low signal and access control → rate limits, first‑post throttle, moderator tools; fallback: invite‑only pubs for demo.
 - UI challenges → info takes up too much space on a thread, fallback: display upvotes, and don't display ORCID, anchor ID
+- Badge implementation → badges may not accurately reflect authority/authorship, fallback: only use badges for ORCID verification
