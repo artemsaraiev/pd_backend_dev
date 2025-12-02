@@ -2,7 +2,7 @@
 
 ## Team Beta Submission
 - [Screencast](https://www.youtube.com/watch?v=58Qpkjjo2IE)
-- [Updated Development Plan](alphaSubmission/updatedDevelopmentPlan.md)
+- [Updated Development Plan](betaSubmission/updatedDevelopmentPlan.md)
 
 ---
 
