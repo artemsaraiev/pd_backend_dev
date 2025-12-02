@@ -32,7 +32,8 @@
       "h": "number"
     }
   ],
-  "quote": "string"
+  "quote": "string",
+  "color": "string"
 }
 ```
 
@@ -54,7 +55,7 @@
 
 ---
 
-### POST /api/PdfHighlighter/_get
+### POST /api/PdfHighlighter/get
 
 **Description:** Retrieves a highlight document by its ID.
 
@@ -62,7 +63,7 @@
 - nothing
 
 **Effects:**
-- returns an array of dictionaries, each containing the highlight document for the given highlight ID in the `highlight` field, or null if it does not exist.
+- returns the highlight document for the given highlight ID in the `result` field, or null if it does not exist.
 
 **Request Body:**
 ```json
@@ -73,25 +74,26 @@
 
 **Success Response Body (Query):**
 ```json
-[
-  {
-    "highlight": {
-      "_id": "string",
-      "paper": "string",
-      "page": "number",
-      "rects": [
-        {
-          "x": "number",
-          "y": "number",
-          "w": "number",
-          "h": "number"
-        }
-      ],
-      "quote": "string"
-    }
-  }
-]
+{
+  "result": {
+    "_id": "string",
+    "paper": "string",
+    "page": "number",
+    "rects": [
+      {
+        "x": "number",
+        "y": "number",
+        "w": "number",
+        "h": "number"
+      }
+    ],
+    "quote": "string",
+    "color": "string"
+  } | null
+}
 ```
+
+**Note:** The `result` field contains the highlight document if it exists, or `null` if the highlight does not exist. The `quote` and `color` fields are optional.
 
 **Error Response Body:**
 ```json
@@ -102,7 +104,7 @@
 
 ---
 
-### POST /api/PdfHighlighter/_listByPaper
+### POST /api/PdfHighlighter/listByPaper
 
 **Description:** Lists all highlights for a specific paper.
 
@@ -110,7 +112,7 @@
 - nothing
 
 **Effects:**
-- returns an array of dictionaries, each containing one highlight document for the given paper in the `highlight` field. The sync collects all highlights and responds with a single `highlights` array.
+- returns an array of dictionaries, each containing one highlight document for the given paper in the `highlight` field. Returns an empty array if no highlights are found for the paper. The sync collects all highlights and responds with a single `highlights` array.
 
 **Request Body:**
 ```json
@@ -135,13 +137,14 @@
           "h": "number"
         }
       ],
-      "quote": "string"
+      "quote": "string",
+      "color": "string"
     }
   ]
 }
 ```
 
-**Note:** The query itself returns `Array<{ highlight: HighlightDoc }>` (one highlight per dictionary element), but the sync collects them and responds with a single object containing a `highlights` array for convenience.
+**Note:** The query itself returns `Array<{ highlight: HighlightDoc }>` (one highlight per dictionary element), but the sync collects them and responds with a single object containing a `highlights` array. The `quote` and `color` fields are optional. Returns an empty array if no highlights are found.
 
 **Error Response Body:**
 ```json

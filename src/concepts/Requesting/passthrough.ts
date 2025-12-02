@@ -34,7 +34,6 @@ export const inclusions: Record<string, string> = {
   "/api/PaperIndex/_searchBiorxiv":
     "public search query - bioRxiv via Europe PMC",
   "/api/PaperIndex/_listRecentBiorxiv": "public query - recent bioRxiv papers",
-
   // Public read queries - if paper data is public
   // Note: _get and _getByPaperId are handled via syncs (paths without underscores)
   // _listRecent is handled via sync (path without underscore)
@@ -178,6 +177,10 @@ export const exclusions: Array<string> = [
 
   // PdfHighlighter - mutations need auth
   "/api/PdfHighlighter/createHighlight",
+  // Queries handled via syncs (paths without underscores)
+  "/api/PdfHighlighter/get",
+  "/api/PdfHighlighter/listByPaper",
+  // Underscored query routes - handled via syncs
   "/api/PdfHighlighter/_get",
   "/api/PdfHighlighter/_listByPaper",
 ];

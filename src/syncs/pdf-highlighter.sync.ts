@@ -31,9 +31,7 @@ export const PdfHighlighterCreateHighlightRequest: Sync = (
 });
 
 // Respond to the HTTP caller once the highlight has been created.
-// We only pattern-match on `highlightId` here; errors are handled by
-// the Requesting timeout / generic error path.
-export const PdfHighlighterCreateHighlightResponse: Sync = (
+export const PdfHighlighterCreateHighlightResponseSuccess: Sync = (
   { request, highlightId },
 ) => ({
   when: actions(
@@ -45,23 +43,39 @@ export const PdfHighlighterCreateHighlightResponse: Sync = (
   then: actions([Requesting.respond, { request, highlightId }]),
 });
 
-// PdfHighlighter Queries
-export const PdfHighlighterGetRequest: Sync = ({ request, highlight }) => ({
-  when: actions([Requesting.request, {
-    path: "/PdfHighlighter/_get",
-    highlight,
-  }, { request }]),
-  then: actions([PdfHighlighter._get, { highlight }]),
+// On error, propagate the error back to the HTTP caller
+export const PdfHighlighterCreateHighlightResponseError: Sync = (
+  { request, error },
+) => ({
+  when: actions(
+    [Requesting.request, { path: "/PdfHighlighter/createHighlight" }, {
+      request,
+    }],
+    [PdfHighlighter.createHighlight, {}, { error }],
+  ),
+  then: actions([Requesting.respond, { request, error }]),
 });
 
-export const PdfHighlighterGetResponse: Sync = ({ request, highlight }) => ({
-  when: actions(
-    [Requesting.request, { path: "/PdfHighlighter/_get" }, { request }],
-    // Query returns Array<{ highlight: HighlightDoc | null }>
-    // Match on highlight field (as specified in the concept spec)
-    [PdfHighlighter._get, {}, { highlight }],
-  ),
-  then: actions([Requesting.respond, { request, highlight }]),
+// PdfHighlighter Queries
+export const PdfHighlighterGetRequest: Sync = (
+  { request, highlight, highlightDoc, result },
+) => ({
+  when: actions([Requesting.request, {
+    path: "/PdfHighlighter/get",
+    highlight,
+  }, { request }]),
+  where: async (frames) => {
+    const originalFrame = frames[0];
+    frames = await frames.query(PdfHighlighter._get, { highlight }, {
+      highlight: highlightDoc,
+    });
+    if (frames.length === 0) {
+      return new Frames({ ...originalFrame, [result]: null });
+    }
+    // Query returns { highlight: HighlightDoc }, extract and rename to result
+    return new Frames({ ...originalFrame, [result]: frames[0][highlightDoc] });
+  },
+  then: actions([Requesting.respond, { request, result }]),
 });
 
 export const PdfHighlighterListByPaperRequest: Sync = (
@@ -70,7 +84,7 @@ export const PdfHighlighterListByPaperRequest: Sync = (
   when: actions([
     Requesting.request,
     {
-      path: "/PdfHighlighter/_listByPaper",
+      path: "/PdfHighlighter/listByPaper",
       paper,
     },
     { request },
