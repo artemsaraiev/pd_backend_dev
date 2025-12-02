@@ -167,6 +167,15 @@ export const exclusions: Array<string> = [
   "/api/AccessControl/inviteUser",
   "/api/AccessControl/removeInvitation",
   "/api/AccessControl/acceptInvitation",
+  // Queries handled via syncs (paths without underscores)
+  "/api/AccessControl/getGroup",
+  "/api/AccessControl/getMembershipsByGroup",
+  "/api/AccessControl/getMembershipsByUser",
+  "/api/AccessControl/hasAccess",
+  "/api/AccessControl/getGroupsForUser",
+  "/api/AccessControl/listPendingInvitationsByUser",
+  "/api/AccessControl/getInvitation",
+  // Underscored query routes - handled via syncs
   "/api/AccessControl/_getGroup",
   "/api/AccessControl/_getMembershipsByGroup",
   "/api/AccessControl/_getMembershipsByUser",
