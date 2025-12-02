@@ -42,11 +42,18 @@ us can be updated
     the links array of the paper. If url is not in the links array of the paper, does
     nothing
 + **queries**
-  + _get(paper: Paper) : (paper: PaperDoc | null)
+  + _get(paper: Paper) : (paper: PaperDoc)
     + **requires** nothing
     + **effects** returns an array of dictionaries, each containing the paper document
-    for the given paper in the `paper` field, or null if the paper does not exist.
-    Returns an array with one dictionary containing `{ paper: PaperDoc | null }`.
+    for the given paper (by internal _id) in the `paper` field. Returns an array with one
+    dictionary containing `{ paper: PaperDoc }` if the paper exists, or an empty array if
+    the paper does not exist.
+  + _getByPaperId(paperId: String) : (paper: PaperDoc)
+    + **requires** nothing
+    + **effects** returns an array of dictionaries, each containing the paper document
+    for the given external paperId in the `paper` field. Returns an array with one dictionary
+    containing `{ paper: PaperDoc }` if the paper exists, or an empty array if the paper
+    does not exist.
   + _listRecent(limit?: Number, source?: "arxiv" | "biorxiv" | "other") : (paper: PaperDoc)
     + **requires** nothing
     + **effects** returns an array of dictionaries, each containing one paper document

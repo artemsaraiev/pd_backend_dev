@@ -483,27 +483,22 @@ Deno.test("Action: removeLink requires paper exists, removes url if present", as
 });
 
 // Query: _get
-Deno.test("Query: _get returns paper document or null", async () => {
+Deno.test("Query: _get returns paper document or empty array", async () => {
   const [db, client] = await testDb();
   const concept = new PaperIndexConcept(db);
 
   try {
     console.log("Testing _get query");
 
-    // Test: returns null for nonexistent paper
+    // Test: returns empty array for nonexistent paper
     console.log("  Testing nonexistent paper");
     const result1 = await concept._get({ paper: "nonexistent" as ID });
     assertEquals(
       result1.length,
-      1,
-      "Query should return array with one dictionary",
+      0,
+      "Query should return empty array for nonexistent paper",
     );
-    assertEquals(
-      result1[0].paper,
-      null,
-      "Should return null for nonexistent paper",
-    );
-    console.log("    Correctly returns null for nonexistent paper");
+    console.log("    Correctly returns empty array for nonexistent paper");
 
     // Test: returns paper document for existing paper
     console.log("  Testing existing paper");
@@ -523,6 +518,7 @@ Deno.test("Query: _get returns paper document or null", async () => {
     );
     const { paper: paperDoc } = result2[0];
     assertExists(paperDoc, "Paper should exist");
+    assertNotEquals(paperDoc, null, "Paper should not be null");
     assertEquals(
       paperDoc!._id,
       internalId,

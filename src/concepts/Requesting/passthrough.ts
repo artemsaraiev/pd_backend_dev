@@ -36,9 +36,8 @@ export const inclusions: Record<string, string> = {
   "/api/PaperIndex/_listRecentBiorxiv": "public query - recent bioRxiv papers",
 
   // Public read queries - if paper data is public
-  "/api/PaperIndex/_get": "public query - paper data is public",
-  "/api/PaperIndex/_getByPaperId": "public query - paper data is public",
-  "/api/PaperIndex/_listRecent": "public query - paper list is public",
+  // Note: _get and _getByPaperId are handled via syncs (paths without underscores)
+  // _listRecent is handled via sync (path without underscore)
 };
 
 /**
@@ -61,9 +60,14 @@ export const exclusions: Array<string> = [
   "/api/PaperIndex/removeAuthors",
   "/api/PaperIndex/addLink",
   "/api/PaperIndex/removeLink",
-  // Legacy route names (handled via syncs)
+  // Queries handled via syncs (paths without underscores)
   "/api/PaperIndex/get",
+  "/api/PaperIndex/getByPaperId",
   "/api/PaperIndex/listRecent",
+  // Underscored query routes - handled via syncs
+  "/api/PaperIndex/_get",
+  "/api/PaperIndex/_getByPaperId",
+  "/api/PaperIndex/_listRecent",
 
   // HighlightedContext - mutations need auth, queries handled via syncs
   "/api/HighlightedContext/create",
