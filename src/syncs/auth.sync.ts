@@ -66,4 +66,26 @@ export const LogoutResponse: Sync = ({ request }) => ({
   then: actions([Requesting.respond, { request, status: "logged_out" }]),
 });
 
+//-- Get Username by ID --//
+export const GetUsernameByIdRequest: Sync = ({ request, session, activeUser, userToLookup, username }) => ({
+  when: actions([
+    Requesting.request,
+    { path: "/UserAuthentication/_getUsernameById", session, user: userToLookup },
+    { request }
+  ]),
+  where: async (frames) => {
+    // Ensure an active session before allowing this query
+    frames = await frames.query(Sessioning._getUser, { session }, { user: activeUser });
+    if (frames.length === 0) {
+      return frames; // No active session, return empty frames
+    }
+
+    // Query the username for the requested user ID
+    const userToLookupValue = frames.at(0)![userToLookup];
+    frames = await frames.query(UserAuthentication._getUsername, { user: userToLookupValue }, { username });
+    return frames;
+  },
+  then: actions([Requesting.respond, { request, username }]),
+});
+
 

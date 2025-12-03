@@ -1,13 +1,18 @@
 # PubDiscuss Backend
 
+## Team Beta Submission
+- [Screencast](https://www.youtube.com/watch?v=58Qpkjjo2IE)
+- [Updated Development Plan](betaSubmission/updatedDevelopmentPlan.md)
+
+---
+
 ## Team Alpha Submission
 - [Screencast](https://www.youtube.com/watch?v=0YwZ6RQijLg)
 - [Updated Development Plan](alphaSubmission/updatedDevelopmentPlan.md)
 
+---
 
 > To check the Assignment 4a main doc, see [`concepts/overall-changes.md`](concepts/overall-changes.md).
-
----
 
 ## Docs (A4c)
 

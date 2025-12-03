@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git checkout:*)",
+      "Bash(npm run build:*)",
+      "Bash(npm run:*)",
+      "Bash(npx tsc:*)",
+      "Bash(deno check:*)",
+      "Bash(deno install)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

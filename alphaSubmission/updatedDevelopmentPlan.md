@@ -1,4 +1,4 @@
-# Updated Development Plan
+# Updated Development Plan (Alpha)
 
 ## Progress from last week:
 

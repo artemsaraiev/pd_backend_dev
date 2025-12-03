@@ -19,6 +19,9 @@ COPY --chown=deno:deno . .
 # This step writes to src/concepts/concepts.ts and now has permission to do so.
 RUN deno task build
 
+# Install npm dependencies (like mongodb) into node_modules
+RUN deno install
+
 # Cache the main module and all its dependencies.
 # This ensures faster startup times for the container as modules are pre-compiled.
 RUN deno cache src/main.ts
