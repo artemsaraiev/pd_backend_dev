@@ -23,7 +23,7 @@ export const DiscussionOpenResponse: Sync = ({ request, result }) => ({
 });
 
 // PUBLIC THREAD: /DiscussionPub/startThread (no groupId)
-// Handles optional anchorId
+// anchorId is required in the request (can be empty string for no anchor)
 export const DiscussionStartThreadPublicRequest: Sync = (
   { request, session, pubId, body, anchorId, user },
 ) => ({
@@ -32,6 +32,7 @@ export const DiscussionStartThreadPublicRequest: Sync = (
     session,
     pubId,
     body,
+    anchorId,
   }, { request }]),
   where: async (frames) => {
     return await frames.query(Sessioning._getUser, { session }, { user });
@@ -58,7 +59,7 @@ export const DiscussionStartThreadPublicGrantAccess: Sync = (
 });
 
 // PRIVATE THREAD: /DiscussionPub/startPrivateThread (requires groupId)
-// Handles optional anchorId
+// anchorId is required in the request (can be empty string for no anchor)
 export const DiscussionStartThreadPrivateRequest: Sync = (
   { request, session, pubId, body, anchorId, groupId, user },
 ) => ({
@@ -67,6 +68,7 @@ export const DiscussionStartThreadPrivateRequest: Sync = (
     session,
     pubId,
     body,
+    anchorId,
     groupId,
   }, { request }]),
   where: async (frames) => {
@@ -257,11 +259,16 @@ export const DiscussionListThreadsWithAnchorAndSessionRequest: Sync = (
     }
 
     // Try to resolve user from session
+    // Note: Sessioning._getUser returns [{ user }] on success or [{ error }] on failure
     const userFrames = await threadFrames.query(Sessioning._getUser, {
       session,
     }, { user });
 
-    if (userFrames.length === 0) {
+    // Check if session resolution failed (no user bound, or error returned)
+    const hasValidUser = userFrames.length > 0 &&
+      userFrames[0][user] !== undefined;
+
+    if (!hasValidUser) {
       // Invalid session - fall back to public threads only
       const publicFrames: typeof threadFrames = new Frames();
       for (const frame of threadFrames) {
@@ -290,10 +297,12 @@ export const DiscussionListThreadsWithAnchorAndSessionRequest: Sync = (
     for (const frame of userFrames) {
       const threadDoc = frame[thread] as { _id: string } | undefined;
       if (!threadDoc) continue;
+      // Get the user value directly from the frame to pass to _hasAccess
+      const userValue = frame[user];
       const accessFrames = await new Frames(frame).query(
         AccessControl._hasAccess,
         {
-          user,
+          user: userValue,
           resource: threadDoc._id,
         },
         { hasAccess },
@@ -345,11 +354,16 @@ export const DiscussionListThreadsWithSessionRequest: Sync = (
     }
 
     // Try to resolve user from session
+    // Note: Sessioning._getUser returns [{ user }] on success or [{ error }] on failure
     const userFrames = await threadFrames.query(Sessioning._getUser, {
       session,
     }, { user });
 
-    if (userFrames.length === 0) {
+    // Check if session resolution failed (no user bound, or error returned)
+    const hasValidUser = userFrames.length > 0 &&
+      userFrames[0][user] !== undefined;
+
+    if (!hasValidUser) {
       // Invalid session - fall back to public threads only
       const publicFrames: typeof threadFrames = new Frames();
       for (const frame of threadFrames) {
@@ -378,10 +392,12 @@ export const DiscussionListThreadsWithSessionRequest: Sync = (
     for (const frame of userFrames) {
       const threadDoc = frame[thread] as { _id: string } | undefined;
       if (!threadDoc) continue;
+      // Get the user value directly from the frame to pass to _hasAccess
+      const userValue = frame[user];
       const accessFrames = await new Frames(frame).query(
         AccessControl._hasAccess,
         {
-          user,
+          user: userValue,
           resource: threadDoc._id,
         },
         { hasAccess },

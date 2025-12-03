@@ -174,6 +174,10 @@ export default class DiscussionPubConcept {
       if (!pub) throw new Error("Pub not found");
       const now = Date.now();
       const threadId = freshID() as Thread;
+      // Treat empty string as no anchor (for sync pattern matching compatibility)
+      const effectiveAnchorId = anchorId && anchorId !== ""
+        ? anchorId
+        : undefined;
       const doc: ThreadDoc = {
         _id: threadId,
         pubId,
@@ -182,7 +186,7 @@ export default class DiscussionPubConcept {
         body,
         deleted: false,
         createdAt: now,
-        ...(anchorId !== undefined && { anchorId }),
+        ...(effectiveAnchorId !== undefined && { anchorId: effectiveAnchorId }),
       };
       await this.threads.insertOne(doc);
       // Support both return types for backward compatibility
