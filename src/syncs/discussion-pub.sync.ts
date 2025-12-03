@@ -222,7 +222,10 @@ export const DiscussionGetPubIdByPaperRequest: Sync = (
 });
 
 // _listThreads with anchorId filter, with session (access control)
-// Returns threads user has access to (public + private from their groups)
+// Returns threads user has access to, filtered by groupFilter:
+// - "all": all accessible threads (public + private from user's groups)
+// - "public": only public threads
+// - specific groupId: only threads from that group
 // If session is invalid, returns only public threads
 export const DiscussionListThreadsWithAnchorAndSessionRequest: Sync = (
   {
@@ -231,11 +234,13 @@ export const DiscussionListThreadsWithAnchorAndSessionRequest: Sync = (
     pubId,
     anchorId,
     includeDeleted,
+    groupFilter,
     thread,
     threads,
     user,
     hasAccess,
     hasUniversalAccess,
+    visibility,
   },
 ) => ({
   when: actions([Requesting.request, {
@@ -244,9 +249,12 @@ export const DiscussionListThreadsWithAnchorAndSessionRequest: Sync = (
     pubId,
     anchorId,
     includeDeleted,
+    groupFilter,
   }, { request }]),
   where: async (frames) => {
     const originalFrame = frames[0];
+    const groupFilterValue = originalFrame[groupFilter] as string | undefined;
+
     // Get all threads for this pub/anchor
     const threadFrames = await frames.query(DiscussionPub._listThreads, {
       pubId,
@@ -259,12 +267,10 @@ export const DiscussionListThreadsWithAnchorAndSessionRequest: Sync = (
     }
 
     // Try to resolve user from session
-    // Note: Sessioning._getUser returns [{ user }] on success or [{ error }] on failure
     const userFrames = await threadFrames.query(Sessioning._getUser, {
       session,
     }, { user });
 
-    // Check if session resolution failed (no user bound, or error returned)
     const hasValidUser = userFrames.length > 0 &&
       userFrames[0][user] !== undefined;
 
@@ -292,23 +298,56 @@ export const DiscussionListThreadsWithAnchorAndSessionRequest: Sync = (
       return publicFrames.collectAs([thread], threads);
     }
 
-    // Valid session - check access for each thread
+    // Valid session - check access and apply groupFilter
     const accessibleFrames: typeof userFrames = new Frames();
     for (const frame of userFrames) {
       const threadDoc = frame[thread] as { _id: string } | undefined;
       if (!threadDoc) continue;
-      // Get the user value directly from the frame to pass to _hasAccess
       const userValue = frame[user];
+
+      // First check if user has access
       const accessFrames = await new Frames(frame).query(
         AccessControl._hasAccess,
-        {
-          user: userValue,
-          resource: threadDoc._id,
-        },
+        { user: userValue, resource: threadDoc._id },
         { hasAccess },
       );
-      if (accessFrames.length > 0 && accessFrames[0][hasAccess] === true) {
+      if (accessFrames.length === 0 || accessFrames[0][hasAccess] !== true) {
+        continue;
+      }
+
+      // Apply groupFilter
+      if (!groupFilterValue || groupFilterValue === "all") {
+        // No filter - include all accessible threads
         accessibleFrames.push(frame);
+      } else if (groupFilterValue === "public") {
+        // Only public threads
+        const universalFrames = await new Frames(frame).query(
+          AccessControl._hasUniversalAccess,
+          { resource: threadDoc._id },
+          { hasUniversalAccess },
+        );
+        if (
+          universalFrames.length > 0 &&
+          universalFrames[0][hasUniversalAccess] === true
+        ) {
+          accessibleFrames.push(frame);
+        }
+      } else {
+        // Specific group - check if thread belongs to that group
+        const visibilityFrames = await new Frames(frame).query(
+          AccessControl._getResourceVisibility,
+          { resource: threadDoc._id },
+          { visibility },
+        );
+        if (visibilityFrames.length > 0) {
+          const vis = visibilityFrames[0][visibility] as {
+            isPublic: boolean;
+            groupId?: string;
+          } | undefined;
+          if (vis && !vis.isPublic && vis.groupId === groupFilterValue) {
+            accessibleFrames.push(frame);
+          }
+        }
       }
     }
 
@@ -321,18 +360,20 @@ export const DiscussionListThreadsWithAnchorAndSessionRequest: Sync = (
 });
 
 // _listThreads without anchorId, with session (access control)
-// If session is invalid, returns only public threads
+// Same filtering logic as above
 export const DiscussionListThreadsWithSessionRequest: Sync = (
   {
     request,
     session,
     pubId,
     includeDeleted,
+    groupFilter,
     thread,
     threads,
     user,
     hasAccess,
     hasUniversalAccess,
+    visibility,
   },
 ) => ({
   when: actions([Requesting.request, {
@@ -340,9 +381,12 @@ export const DiscussionListThreadsWithSessionRequest: Sync = (
     session,
     pubId,
     includeDeleted,
+    groupFilter,
   }, { request }]),
   where: async (frames) => {
     const originalFrame = frames[0];
+    const groupFilterValue = originalFrame[groupFilter] as string | undefined;
+
     // Get all threads for this pub
     const threadFrames = await frames.query(DiscussionPub._listThreads, {
       pubId,
@@ -354,12 +398,10 @@ export const DiscussionListThreadsWithSessionRequest: Sync = (
     }
 
     // Try to resolve user from session
-    // Note: Sessioning._getUser returns [{ user }] on success or [{ error }] on failure
     const userFrames = await threadFrames.query(Sessioning._getUser, {
       session,
     }, { user });
 
-    // Check if session resolution failed (no user bound, or error returned)
     const hasValidUser = userFrames.length > 0 &&
       userFrames[0][user] !== undefined;
 
@@ -387,23 +429,56 @@ export const DiscussionListThreadsWithSessionRequest: Sync = (
       return publicFrames.collectAs([thread], threads);
     }
 
-    // Valid session - check access for each thread
+    // Valid session - check access and apply groupFilter
     const accessibleFrames: typeof userFrames = new Frames();
     for (const frame of userFrames) {
       const threadDoc = frame[thread] as { _id: string } | undefined;
       if (!threadDoc) continue;
-      // Get the user value directly from the frame to pass to _hasAccess
       const userValue = frame[user];
+
+      // First check if user has access
       const accessFrames = await new Frames(frame).query(
         AccessControl._hasAccess,
-        {
-          user: userValue,
-          resource: threadDoc._id,
-        },
+        { user: userValue, resource: threadDoc._id },
         { hasAccess },
       );
-      if (accessFrames.length > 0 && accessFrames[0][hasAccess] === true) {
+      if (accessFrames.length === 0 || accessFrames[0][hasAccess] !== true) {
+        continue;
+      }
+
+      // Apply groupFilter
+      if (!groupFilterValue || groupFilterValue === "all") {
+        // No filter - include all accessible threads
         accessibleFrames.push(frame);
+      } else if (groupFilterValue === "public") {
+        // Only public threads
+        const universalFrames = await new Frames(frame).query(
+          AccessControl._hasUniversalAccess,
+          { resource: threadDoc._id },
+          { hasUniversalAccess },
+        );
+        if (
+          universalFrames.length > 0 &&
+          universalFrames[0][hasUniversalAccess] === true
+        ) {
+          accessibleFrames.push(frame);
+        }
+      } else {
+        // Specific group - check if thread belongs to that group
+        const visibilityFrames = await new Frames(frame).query(
+          AccessControl._getResourceVisibility,
+          { resource: threadDoc._id },
+          { visibility },
+        );
+        if (visibilityFrames.length > 0) {
+          const vis = visibilityFrames[0][visibility] as {
+            isPublic: boolean;
+            groupId?: string;
+          } | undefined;
+          if (vis && !vis.isPublic && vis.groupId === groupFilterValue) {
+            accessibleFrames.push(frame);
+          }
+        }
       }
     }
 

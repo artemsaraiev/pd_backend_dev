@@ -841,4 +841,39 @@ export default class AccessControlConcept {
       return [];
     }
   }
+
+  /**
+   * _getResourceVisibility(resource: Resource) : (visibility: { isPublic: boolean, groupId?: Group })
+   *
+   * **requires** nothing
+   * **effects** returns the visibility of a resource:
+   * - If resource has universal access: { isPublic: true }
+   * - If resource has private access: { isPublic: false, groupId: <groupId> }
+   * - If resource has no access configured: { isPublic: false } (shouldn't happen normally)
+   */
+  async _getResourceVisibility(
+    { resource }: { resource: Resource },
+  ): Promise<Array<{ visibility: { isPublic: boolean; groupId?: Group } }>> {
+    try {
+      // Check for universal access first
+      const universal = await this.universalAccesses.findOne({ resource });
+      if (universal) {
+        return [{ visibility: { isPublic: true } }];
+      }
+
+      // Check for private access
+      const privateAccess = await this.privateAccesses.findOne({ resource });
+      if (privateAccess) {
+        return [{
+          visibility: { isPublic: false, groupId: privateAccess.groupId },
+        }];
+      }
+
+      // No access configured (shouldn't happen normally)
+      return [{ visibility: { isPublic: false } }];
+    } catch {
+      // On error, return default (queries should not throw)
+      return [{ visibility: { isPublic: false } }];
+    }
+  }
 }
