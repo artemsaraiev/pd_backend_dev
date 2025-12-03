@@ -366,7 +366,7 @@
 }
 ```
 
-**Note:** The `session`, `anchorId`, and `includeDeleted` parameters are optional. If `session` is provided, threads will be filtered by access control (only threads the user has access to will be returned). If `session` is not provided, all threads are returned (backward compatibility).
+**Note:** The `session`, `anchorId`, and `includeDeleted` parameters are optional. If `session` is provided, threads will be filtered by access control (only threads the user has access to will be returned, including public threads and private threads from groups they belong to). If `session` is not provided, only **public threads** (those with universal access) will be returned.
 
 **Success Response Body (Query):**
 ```json

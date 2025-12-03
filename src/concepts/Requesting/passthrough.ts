@@ -181,6 +181,7 @@ export const exclusions: Array<string> = [
   "/api/AccessControl/_getMembershipsByGroup",
   "/api/AccessControl/_getMembershipsByUser",
   "/api/AccessControl/_hasAccess",
+  "/api/AccessControl/_hasUniversalAccess",
   "/api/AccessControl/_getGroupsForUser",
   "/api/AccessControl/_listPendingInvitationsByUser",
   "/api/AccessControl/_getInvitation",

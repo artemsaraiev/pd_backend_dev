@@ -764,6 +764,25 @@ export default class AccessControlConcept {
   }
 
   /**
+   * _hasUniversalAccess(resource: Resource) : (hasUniversalAccess: boolean)
+   *
+   * **requires** nothing
+   * **effects** returns an array with one dictionary containing whether the resource
+   * has universal access (is public). Used for filtering threads for unauthenticated users.
+   */
+  async _hasUniversalAccess(
+    { resource }: { resource: Resource },
+  ): Promise<Array<{ hasUniversalAccess: boolean }>> {
+    try {
+      const universal = await this.universalAccesses.findOne({ resource });
+      return [{ hasUniversalAccess: universal !== null }];
+    } catch {
+      // On error, return false (queries should not throw)
+      return [{ hasUniversalAccess: false }];
+    }
+  }
+
+  /**
    * _getGroupsForUser(user: User) : (group: Group)
    *
    * **requires** nothing

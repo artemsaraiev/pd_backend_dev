@@ -119,6 +119,11 @@ access, and recording invitation responses.
     has access to the resource. Returns true if the resource has universal access, or
     if the user is a member of a group that has private access to the resource.
     Returns an array with one dictionary containing `{ hasAccess: boolean }`.
+  + _hasUniversalAccess(resource: Resource) : (hasUniversalAccess: Boolean)
+    + **requires** nothing
+    + **effects** returns an array with one dictionary containing whether the resource
+    has universal access (is public). Used for filtering threads for unauthenticated
+    users. Returns `{ hasUniversalAccess: true }` if public, `{ hasUniversalAccess: false }` otherwise.
   + _listPendingInvitationsByUser(invitee: User) : (invitation: InvitationDoc)
     + **requires** nothing
     + **effects** returns an array of InvitationDoc dictionaries for the given user,
