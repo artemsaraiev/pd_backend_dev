@@ -91,7 +91,11 @@ Deno.test("Principle: Pub created, threads created in relation to context, repli
       1,
       "Query should return array with one dictionary per thread",
     );
-    assertEquals(threadsResult[0].thread._id, newThread, "Should be the created thread");
+    assertEquals(
+      threadsResult[0].thread._id,
+      newThread,
+      "Should be the created thread",
+    );
     assertEquals(
       threadsResult[0].thread.anchorId,
       anchor1,
@@ -104,7 +108,11 @@ Deno.test("Principle: Pub created, threads created in relation to context, repli
       1,
       "Query should return array with one dictionary per reply",
     );
-    assertEquals(repliesResult[0].reply._id, newReply, "Should be the created reply");
+    assertEquals(
+      repliesResult[0].reply._id,
+      newReply,
+      "Should be the created reply",
+    );
     assertEquals(
       repliesResult[0].reply.anchorId,
       anchor2,
@@ -221,7 +229,8 @@ Deno.test("Action: startThread successfully creates thread with all fields", asy
       1,
       "Query should return array with one dictionary per thread",
     );
-    const thread = threadsResult.find((t) => t.thread._id === newThread)?.thread;
+    const thread = threadsResult.find((t) => t.thread._id === newThread)
+      ?.thread;
     assertExists(thread, "Thread should exist");
     assertEquals(thread.author, userAlice, "author should be stored correctly");
     assertEquals(
@@ -325,7 +334,8 @@ Deno.test("Action: editThread successfully updates title and body", async () => 
       1,
       "Query should return array with one dictionary per thread",
     );
-    const thread = threadsResult.find((t) => t.thread._id === newThread)?.thread;
+    const thread = threadsResult.find((t) => t.thread._id === newThread)
+      ?.thread;
     assertExists(thread, "Thread should exist");
     assertEquals(thread.title, "Updated Title", "title should be updated");
     assertEquals(thread.body, "Updated body", "body should be updated");
@@ -835,13 +845,8 @@ Deno.test("Query: _getPubIdByPaper returns pub ID or null", async () => {
     const result1 = await concept._getPubIdByPaper({ paperId: paper1 });
     assertEquals(
       result1.length,
-      1,
-      "Query should return array with one dictionary",
-    );
-    assertEquals(
-      result1[0].result,
-      null,
-      "Should return null for non-existent paper",
+      0,
+      "Query should return empty array for non-existent paper",
     );
 
     // Create pub and query
@@ -856,7 +861,9 @@ Deno.test("Query: _getPubIdByPaper returns pub ID or null", async () => {
     );
     assertEquals(result2[0].result, newPub, "Should return pub ID");
 
-    console.log("  ✓ Returns pub ID when exists, null when doesn't exist");
+    console.log(
+      "  ✓ Returns pub ID when exists, empty array when doesn't exist",
+    );
   } finally {
     await client.close();
   }

@@ -174,6 +174,10 @@ export default class DiscussionPubConcept {
       if (!pub) throw new Error("Pub not found");
       const now = Date.now();
       const threadId = freshID() as Thread;
+      // Treat empty string as no anchor (for sync pattern matching compatibility)
+      const effectiveAnchorId = anchorId && anchorId !== ""
+        ? anchorId
+        : undefined;
       const doc: ThreadDoc = {
         _id: threadId,
         pubId,
@@ -182,7 +186,7 @@ export default class DiscussionPubConcept {
         body,
         deleted: false,
         createdAt: now,
-        ...(anchorId !== undefined && { anchorId }),
+        ...(effectiveAnchorId !== undefined && { anchorId: effectiveAnchorId }),
       };
       await this.threads.insertOne(doc);
       // Support both return types for backward compatibility
@@ -389,57 +393,56 @@ export default class DiscussionPubConcept {
   }
 
   /**
-   * _getThread(thread: Thread) : (thread: ThreadDoc | null)
+   * _getThread(thread: Thread) : (thread: ThreadDoc)
    *
    * **requires** nothing
-   * **effects** returns the thread document for the given thread, or null if it does not exist.
-   * Returns an array with one dictionary containing `{ thread: ThreadDoc | null }`.
+   * **effects** returns the thread document for the given thread. Returns an array with
+   * one dictionary if the thread exists, or an empty array if it does not exist.
    */
   async _getThread(
     { thread }: { thread: Thread },
-  ): Promise<Array<{ thread: ThreadDoc | null }>> {
+  ): Promise<Array<{ thread: ThreadDoc }>> {
     try {
       const doc = await this.threads.findOne({ _id: thread });
-      return [{ thread: doc ?? null }];
+      return doc ? [{ thread: doc }] : [];
     } catch {
-      return [{ thread: null }];
+      return [];
     }
   }
 
   /**
-   * _getReply(reply: Reply) : (reply: ReplyDoc | null)
+   * _getReply(reply: Reply) : (reply: ReplyDoc)
    *
    * **requires** nothing
-   * **effects** returns the reply document for the given reply, or null if it does not exist.
-   * Returns an array with one dictionary containing `{ reply: ReplyDoc | null }`.
+   * **effects** returns the reply document for the given reply. Returns an array with
+   * one dictionary if the reply exists, or an empty array if it does not exist.
    */
   async _getReply(
     { reply }: { reply: Reply },
-  ): Promise<Array<{ reply: ReplyDoc | null }>> {
+  ): Promise<Array<{ reply: ReplyDoc }>> {
     try {
       const doc = await this.replies.findOne({ _id: reply });
-      return [{ reply: doc ?? null }];
+      return doc ? [{ reply: doc }] : [];
     } catch {
-      return [{ reply: null }];
+      return [];
     }
   }
 
   /**
-   * _getPubIdByPaper(paperId: String) : (result: Pub | null)
+   * _getPubIdByPaper(paperId: String) : (result: Pub)
    *
    * **requires** nothing
-   * **effects** returns the Pub ID for the given paperId, or null if no pub exists
+   * **effects** returns the Pub ID for the given paperId. Returns an array with one
+   * dictionary if the pub exists, or an empty array if no pub exists.
    */
   async _getPubIdByPaper(
     { paperId }: { paperId: string },
-  ): Promise<Array<{ result: Pub | null }>> {
+  ): Promise<Array<{ result: Pub }>> {
     try {
       const doc = await this.pubs.findOne({ paperId });
-      // Queries must return an array of dictionaries
-      return [{ result: doc?._id ?? null }];
+      return doc ? [{ result: doc._id }] : [];
     } catch {
-      // On error, return array with null result (queries should not throw)
-      return [{ result: null }];
+      return [];
     }
   }
 
@@ -453,7 +456,11 @@ export default class DiscussionPubConcept {
    * editedAt. Returns an empty array if no threads exist.
    */
   async _listThreads(
-    { pubId, anchorId, includeDeleted }: { pubId: Pub; anchorId?: Anchor; includeDeleted?: boolean },
+    { pubId, anchorId, includeDeleted }: {
+      pubId: Pub;
+      anchorId?: Anchor;
+      includeDeleted?: boolean;
+    },
   ): Promise<
     Array<{
       thread: {
@@ -507,7 +514,10 @@ export default class DiscussionPubConcept {
    * replies exist.
    */
   async _listReplies(
-    { threadId, includeDeleted }: { threadId: Thread; includeDeleted?: boolean },
+    { threadId, includeDeleted }: {
+      threadId: Thread;
+      includeDeleted?: boolean;
+    },
   ): Promise<
     Array<{
       reply: {
@@ -558,7 +568,10 @@ export default class DiscussionPubConcept {
    * empty array if no replies exist.
    */
   async _listRepliesTree(
-    { threadId, includeDeleted }: { threadId: Thread; includeDeleted?: boolean },
+    { threadId, includeDeleted }: {
+      threadId: Thread;
+      includeDeleted?: boolean;
+    },
   ): Promise<Array<{ reply: ReplyTreeNode }>> {
     try {
       const filter: Record<string, unknown> = { threadId };

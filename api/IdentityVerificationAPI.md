@@ -162,7 +162,7 @@
 
 ---
 
-### POST /api/IdentityVerification/_getORCIDFromState
+### POST /api/IdentityVerification/getORCIDFromState
 
 **Description:** Retrieves the ORCID ID associated with an OAuth state token. This is useful during the OAuth callback flow when the frontend needs to determine which ORCID is being verified.
 
@@ -171,7 +171,7 @@
 
 **Effects:**
 - returns the ORCID ID associated with the given OAuth state
-- returns an empty result if the state is invalid or expired
+- returns null if the state is invalid or expired
 
 **Request Body:**
 ```json
@@ -185,11 +185,11 @@
 **Success Response Body (Query):**
 ```json
 {
-  "orcid": "string"
+  "orcid": "string" | null
 }
 ```
 
-**Note:** If the state is invalid or expired, the response will not include the `orcid` field, or it may be empty/null. The frontend should handle this case and show an appropriate error message.
+**Note:** If the state is invalid or expired, the response will have `orcid: null`. The frontend should handle this case and show an appropriate error message.
 
 **Error Response Body:**
 ```json
@@ -376,7 +376,7 @@
 
 ---
 
-### POST /api/IdentityVerification/_getByUser
+### POST /api/IdentityVerification/getByUser
 
 **Description:** Retrieves all ORCIDs, affiliations, and badges for a user.
 
@@ -384,7 +384,7 @@
 - nothing
 
 **Effects:**
-- The sync queries three separate queries (`_getORCIDsByUser`, `_getAffiliationsByUser`, `_getBadgesByUser`) and combines their results. Each query returns an array of dictionaries in fan-out format, and the sync collects them into arrays. Returns a single dictionary containing `{ orcids: ORCIDDoc[], affiliations: AffiliationDoc[], badges: BadgeDoc[] }`.
+- The sync queries three separate queries (`_getORCIDsByUser`, `_getAffiliationsByUser`, `_getBadgesByUser`) and combines their results. Each query returns an array of dictionaries in fan-out format, and the sync collects them into arrays. Returns a single dictionary containing `{ orcids: Array<{ orcid: ORCIDDoc }>, affiliations: Array<{ affiliation: AffiliationDoc }>, badges: Array<{ badge: BadgeDoc }> }`.
 
 **Request Body:**
 ```json
@@ -400,34 +400,38 @@
 {
   "orcids": [
     {
-      "_id": "string",
-      "user": "string",
-      "orcid": "string",
-      "verified": "boolean",
-      "verifiedAt": "Date (optional)",
-      "accessToken": "string (optional)"
+      "orcid": {
+        "_id": "string",
+        "user": "string",
+        "orcid": "string",
+        "verified": "boolean",
+        "verifiedAt": "Date (optional)",
+        "accessToken": "string (optional)"
+      }
     }
   ],
   "affiliations": [
-      {
+    {
+      "affiliation": {
         "_id": "string",
         "user": "string",
         "affiliation": "string"
       }
-    ],
-    "badges": [
-      {
+    }
+  ],
+  "badges": [
+    {
+      "badge": {
         "_id": "string",
         "user": "string",
         "badge": "string"
       }
-    ]
-  }
+    }
+  ]
 }
 ```
 
-**Note:** The sync combines results from three separate queries (`_getORCIDsByUser`, `_getAffiliationsByUser`, `_getBadgesByUser`) into a single response.
-```
+**Note:** The sync combines results from three separate queries (`_getORCIDsByUser`, `_getAffiliationsByUser`, `_getBadgesByUser`) into a single response. Each item in the arrays is wrapped in an object with a key matching the collected variable name (e.g., `{ orcid: {...} }`, `{ affiliation: {...} }`, `{ badge: {...} }`).
 
 **Error Response Body:**
 ```json

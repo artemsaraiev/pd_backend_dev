@@ -50,18 +50,20 @@ works as their own.
     UserLinks from secondary to primary (if a link for that user doesn't already exist
     on primary). Deletes the secondary Author.
 + **queries**
-  + _getAuthor(author: Author) : (author: AuthorDoc | null)
+  + _getAuthor(author: Author) : (author: AuthorDoc)
     + **requires** nothing
-    + **effects** returns the author document or null
-  + _getAuthorByUser(user: User) : (author: AuthorDoc | null)
+    + **effects** returns the author document. Returns an array with one dictionary if the
+    author exists, or an empty array if the author does not exist.
+  + _getAuthorByUser(user: User) : (author: AuthorDoc)
     + **requires** nothing
-    + **effects** returns the author linked to this user, or null if none
+    + **effects** returns the author linked to this user. Returns an array with one dictionary
+    if an author is linked, or an empty array if none.
   + _findAuthorsByName(nameQuery: String) : (author: AuthorDoc, matchType: String)
     + **requires** nothing
     + **effects** returns an array of dictionaries, each containing one author and its
     match type where the canonicalName or any NameVariation matches the query string
     (partial or exact). Returns an empty array if no matches are found.
-  + _resolveAuthor(exactName: String) : (author: AuthorDoc | null)
+  + _resolveAuthor(exactName: String) : (author: AuthorDoc)
     + **requires** nothing
-    + **effects** returns the author that owns this specific name string variation, if
-    any.
+    + **effects** returns the author that owns this specific name string variation.
+    Returns an array with one dictionary if found, or an empty array if not found.

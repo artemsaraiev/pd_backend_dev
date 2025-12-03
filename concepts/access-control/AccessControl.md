@@ -1,11 +1,14 @@
 # Concept: AccessControl
 
 + **concept** AccessControl [User, Resource]
-+ **purpose** control who can access which resources by organizing users into groups
-and granting permissions
-+ **principle** users can create groups, add and remove other users to groups, and
-get access to resources based on the groups they are in. Also provides a way to grant
-universal access to a resource to all users.
++ **purpose** control which users can access which resources by organizing members
+into named groups, handling invitation workflows, and granting group/private/universal
+permissions
++ **principle** users can create groups, invite prospective members by username,
+manage memberships, and gain access to resources through their memberships. The
+concept handles lifecycle events such as promoting/demoting admins, revoking
+membership (including voluntary leaves), granting/removing private or universal
+access, and recording invitation responses.
 + **state**
   + a set of Groups with
     + a name String
@@ -15,6 +18,12 @@ universal access to a resource to all users.
     + a group Group
     + a user User
     + a isAdmin Boolean
+  + a set of Invitations with
+    + a group Group
+    + an inviter User
+    + an invitee User
+    + a message String?
+    + a createdAt Date
   + a set of PrivateAccesses with
     + a group Group
     + a resource Resource
@@ -69,30 +78,63 @@ universal access to a resource to all users.
   + removeGroup(group: Group) : ()
     + **requires** the group is in the set of Groups
     + **effects** removes the group from the set of Groups. Also removes all
-    Memberships and Accesses associated with the group.
+    Memberships, PrivateAccesses, and Invitations associated with the group.
+  + inviteUser(group: Group, inviter: User, invitee: User, message?: String) :
+    (newInvitation: Invitation)
+    + **requires** inviter is an admin member of `group`; no pending invitation exists
+    for the same invitee/group pair; invitee is not a current member of the group
+    + **effects** creates a new invitation with the given group, inviter, invitee, and
+    message if provided, adds it to the set of Invitations and returns the new invitation
+  + removeInvitation(invitation: Invitation) : ()
+    + **requires** the invitation is in the set of Invitations
+    + **effects** removes the invitation from the set of Invitations
+  + acceptInvitation(invitation: Invitation) : (newMembership: Membership)
+    + **requires** the invitation is in the set of Invitations
+    + **effects** creates a new membership with the group, invitee, and isAdmin
+    set to false, adds it to the set of Memberships, removes the invitation from the
+    set of Invitations, and returns the new membership
 + **queries**
-  + _getGroup(group: Group) : (group: GroupDoc | null)
+  + _getGroup(group: Group) : (group: GroupDoc)
     + **requires** nothing
     + **effects** returns an array of dictionaries, each containing the group document
-    for the given group in the `group` field, or null if the group does not exist.
-    Returns an array with one dictionary containing `{ group: GroupDoc | null }`.
-  + _getMembershipsByGroup(group: Group) : (memberships: MembershipDoc[])
+    for the given group in the `group` field. Returns an array with one dictionary if the
+    group exists, or an empty array if the group does not exist.
+  + _getMembershipsByGroup(group: Group) : (membership: MembershipDoc)
     + **requires** nothing
-    + **effects** returns an array of dictionaries, each containing all memberships
-    for the given group in the `memberships` field. Each membership includes _id,
-    groupId,
-    user, and isAdmin. Returns an array with one dictionary containing
-    `{ memberships: MembershipDoc[] }`.
-  + _getMembershipsByUser(user: User) : (memberships: MembershipDoc[])
+    + **effects** returns an array of dictionaries, each containing one membership
+    for the given group in the `membership` field. Each membership includes _id,
+    groupId, user, and isAdmin. Returns an empty array if no memberships exist.
+  + _getMembershipsByUser(user: User) : (membership: MembershipDoc)
     + **requires** nothing
-    + **effects** returns an array of dictionaries, each containing all memberships
-    for the given user in the `memberships` field. Each membership includes _id,
-    groupId,
-    user, and isAdmin. Returns an array with one dictionary containing
-    `{ memberships: MembershipDoc[] }`.
+    + **effects** returns an array of dictionaries, each containing one membership
+    for the given user in the `membership` field. Each membership includes _id,
+    groupId, user, and isAdmin. Returns an empty array if no memberships exist.
+  + _getGroupsForUser(user: User) : (group: Group)
+    + **requires** nothing
+    + **effects** returns an array with one entry per group the user belongs to,
+    useful for frontend drop-downs.
   + _hasAccess(user: User, resource: Resource) : (hasAccess: Boolean)
     + **requires** nothing
     + **effects** returns an array of dictionaries, each containing whether the user
-    has access to the resource. Returns true if the resource has universal access,
-    or if the user is a member of a group that has private access to the resource.
+    has access to the resource. Returns true if the resource has universal access, or
+    if the user is a member of a group that has private access to the resource.
     Returns an array with one dictionary containing `{ hasAccess: boolean }`.
+  + _hasUniversalAccess(resource: Resource) : (hasUniversalAccess: Boolean)
+    + **requires** nothing
+    + **effects** returns an array with one dictionary containing whether the resource
+    has universal access (is public). Used for filtering threads for unauthenticated
+    users. Returns `{ hasUniversalAccess: true }` if public, `{ hasUniversalAccess: false }` otherwise.
+  + _listPendingInvitationsByUser(invitee: User) : (invitation: InvitationDoc)
+    + **requires** nothing
+    + **effects** returns an array of InvitationDoc dictionaries for the given user,
+    representing pending invitations
+  + _getInvitation(invitation: Invitation) : (invitation: InvitationDoc)
+    + **requires** nothing
+    + **effects** fetches a single invitation document if it exists, returns as a
+    single-element array.  If no invitation exists, returns an empty array.
+**Usage notes:**
+
++ In the private paper discussion feature, `Resource` will be instantiated with
+Discussion thread identifiers. Synchronizations between DiscussionPub and
+AccessControl create `PrivateAccesses` when a thread is restricted to a group, and
+queries such as `_hasAccess` gate which threads are returned to each user.

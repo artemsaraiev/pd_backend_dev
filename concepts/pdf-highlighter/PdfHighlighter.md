@@ -18,11 +18,12 @@ page of a paper, optionally capturing the text contained within those rectangles
     + **effects** creates a new Highlight with the given paper, page, rects, and quote
     (if provided), and returns its ID
 + **queries**
-  + _get(highlight: Highlight) : (highlight: HighlightDoc | null)
+  + _get(highlight: Highlight) : (highlight: HighlightDoc)
     + **requires** nothing
     + **effects** returns an array of dictionaries, each containing the highlight
-    document for the given highlight ID in the `highlight` field, or null if it does
-    not exist.
+    document for the given highlight ID in the `highlight` field. Returns an array with one
+    dictionary containing `{ highlight: HighlightDoc }` if the highlight exists, or an empty array if
+    it does not exist.
   + _listByPaper(paper: Paper) : (highlight: HighlightDoc)
     + **requires** nothing
     + **effects** returns an array of dictionaries, each containing one highlight

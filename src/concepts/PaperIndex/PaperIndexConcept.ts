@@ -252,44 +252,52 @@ export default class PaperIndexConcept {
   }
 
   /**
-   * _get(paper: Paper) : (paper: PaperDoc | null)
+   * _get(paper: Paper) : (paper: PaperDoc)
    *
    * **requires** nothing
    * **effects** returns an array of dictionaries, each containing the paper document
-   * for the given paper (by internal _id) in the `paper` field, or null if the paper does not exist.
-   * Returns an array with one dictionary containing `{ paper: PaperDoc | null }`.
+   * for the given paper (by internal _id) in the `paper` field. Returns an array with
+   * one dictionary containing `{ paper: PaperDoc }` if the paper exists, or an empty
+   * array if the paper does not exist.
    */
   async _get(
     { paper }: { paper: Paper },
-  ): Promise<Array<{ paper: PaperDoc | null }>> {
+  ): Promise<Array<{ paper: PaperDoc }>> {
     try {
       const result = await this.papers.findOne({ _id: paper });
+      if (!result) {
+        return [];
+      }
       // Queries must return an array of dictionaries
-      return [{ paper: result ?? null }];
+      return [{ paper: result }];
     } catch {
-      // On error, return array with null (queries should not throw)
-      return [{ paper: null }];
+      // On error, return empty array (queries should not throw)
+      return [];
     }
   }
 
   /**
-   * _getByPaperId(paperId: String) : (paper: PaperDoc | null)
+   * _getByPaperId(paperId: String) : (paper: PaperDoc)
    *
    * **requires** nothing
    * **effects** returns an array of dictionaries, each containing the paper document
-   * for the given external paperId in the `paper` field, or null if the paper does not exist.
-   * Returns an array with one dictionary containing `{ paper: PaperDoc | null }`.
+   * for the given external paperId in the `paper` field. Returns an array with one dictionary
+   * containing `{ paper: PaperDoc }` if the paper exists, or an empty array if the paper
+   * does not exist.
    */
   async _getByPaperId(
     { paperId }: { paperId: string },
-  ): Promise<Array<{ paper: PaperDoc | null }>> {
+  ): Promise<Array<{ paper: PaperDoc }>> {
     try {
       const result = await this.papers.findOne({ paperId });
+      if (!result) {
+        return [];
+      }
       // Queries must return an array of dictionaries
-      return [{ paper: result ?? null }];
+      return [{ paper: result }];
     } catch {
-      // On error, return array with null (queries should not throw)
-      return [{ paper: null }];
+      // On error, return empty array (queries should not throw)
+      return [];
     }
   }
 

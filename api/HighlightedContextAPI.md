@@ -47,7 +47,7 @@
 
 ---
 
-### POST /api/HighlightedContext/_getFilteredContexts
+### POST /api/HighlightedContext/getFilteredContexts
 
 **Description:** Retrieves contexts filtered by paper IDs and/or authors.
 
@@ -55,7 +55,7 @@
 - nothing
 
 **Effects:**
-- returns a subset of Contexts where the paperID is in the provided paperIds array (if provided) and/or the author is in the provided authors array (if provided). If both are provided, returns contexts matching both criteria. Returns all contexts if neither parameter is provided. Results are ordered by createdAt.
+- returns a subset of Contexts where the paperID is in the provided paperIds array (if provided) and/or the author is in the provided authors array (if provided). If both are provided, returns contexts matching both criteria. Returns all contexts if neither parameter is provided. Returns an empty array if no contexts match the criteria. Results are ordered by createdAt.
 
 **Request Body:**
 ```json
@@ -65,12 +65,14 @@
 }
 ```
 
+**Note:** This endpoint is public and does not require authentication.
+
 **Success Response Body (Query):**
 ```json
-[
-  {
-    "filteredContexts": [
-      {
+{
+  "filteredContexts": [
+    {
+      "filteredContext": {
         "_id": "string",
         "paperId": "string",
         "author": "string",
@@ -79,10 +81,12 @@
         "parentContext": "string",
         "createdAt": "number"
       }
-    ]
-  }
-]
+    }
+  ]
+}
 ```
+
+**Note:** The `filteredContexts` field contains an array where each item is wrapped in an object with a key matching the collected variable name (`filteredContext`). The query returns one frame per context, and `collectAs` collects them into this array format. If no contexts match the criteria, `filteredContexts` will be an empty array.
 
 **Error Response Body:**
 ```json

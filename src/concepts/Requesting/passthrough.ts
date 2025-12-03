@@ -31,27 +31,12 @@ export const inclusions: Record<string, string> = {
 
   // Public queries
   "/api/PaperIndex/_searchArxiv": "public search query",
-  "/api/PaperIndex/_searchBiorxiv": "public search query - bioRxiv via Europe PMC",
+  "/api/PaperIndex/_searchBiorxiv":
+    "public search query - bioRxiv via Europe PMC",
   "/api/PaperIndex/_listRecentBiorxiv": "public query - recent bioRxiv papers",
-
   // Public read queries - if paper data is public
-  "/api/PaperIndex/_get": "public query - paper data is public",
-  "/api/PaperIndex/_getByPaperId": "public query - paper data is public",
-  "/api/PaperIndex/_listRecent": "public query - paper list is public",
-
-  // Public read queries - if discussions are public
-  "/api/DiscussionPub/_getPubIdByPaper":
-    "public query - discussions are public",
-  "/api/DiscussionPub/_listThreads": "public query - discussions are public",
-  "/api/DiscussionPub/_listReplies": "public query - discussions are public",
-  "/api/DiscussionPub/_listRepliesTree":
-    "public query - discussions are public",
-  "/api/DiscussionPub/_getThread": "public query - discussions are public",
-  "/api/DiscussionPub/_getReply": "public query - discussions are public",
-
-  // Public read queries - if contexts are public
-  "/api/HighlightedContext/_getFilteredContexts":
-    "public query - contexts are public",
+  // Note: _get and _getByPaperId are handled via syncs (paths without underscores)
+  // _listRecent is handled via sync (path without underscore)
 };
 
 /**
@@ -74,16 +59,23 @@ export const exclusions: Array<string> = [
   "/api/PaperIndex/removeAuthors",
   "/api/PaperIndex/addLink",
   "/api/PaperIndex/removeLink",
-  // Legacy route names (handled via syncs)
+  // Queries handled via syncs (paths without underscores)
   "/api/PaperIndex/get",
+  "/api/PaperIndex/getByPaperId",
   "/api/PaperIndex/listRecent",
+  // Underscored query routes - handled via syncs
+  "/api/PaperIndex/_get",
+  "/api/PaperIndex/_getByPaperId",
+  "/api/PaperIndex/_listRecent",
 
   // HighlightedContext - mutations need auth, queries handled via syncs
   "/api/HighlightedContext/create",
+  "/api/HighlightedContext/_getFilteredContexts",
 
   // DiscussionPub - mutations need auth
   "/api/DiscussionPub/open",
   "/api/DiscussionPub/startThread",
+  "/api/DiscussionPub/startPrivateThread",
   "/api/DiscussionPub/reply",
   "/api/DiscussionPub/replyTo",
   "/api/DiscussionPub/makeReply",
@@ -92,6 +84,13 @@ export const exclusions: Array<string> = [
   "/api/DiscussionPub/editReply",
   "/api/DiscussionPub/deleteReply",
   "/api/DiscussionPub/initIndexes",
+  // Queries handled via syncs (paths without underscores)
+  "/api/DiscussionPub/_getPubIdByPaper",
+  "/api/DiscussionPub/_listThreads",
+  "/api/DiscussionPub/_listReplies",
+  "/api/DiscussionPub/_listRepliesTree",
+  "/api/DiscussionPub/_getThread",
+  "/api/DiscussionPub/_getReply",
 
   // Internal initialization methods - not public endpoints
   "/api/AccessControl/initIndexes",
@@ -109,8 +108,10 @@ export const exclusions: Array<string> = [
   "/api/IdentityVerification/updateAffiliation",
   "/api/IdentityVerification/addBadge",
   "/api/IdentityVerification/revokeBadge",
-  // User-specific queries need auth - used internally by syncs
-  "/api/IdentityVerification/_getByUser",
+  // User-specific queries need auth - handled via syncs (paths without underscores)
+  "/api/IdentityVerification/getByUser",
+  "/api/IdentityVerification/getORCIDFromState",
+  // Underscored query routes - handled via syncs
   "/api/IdentityVerification/_getORCIDsByUser",
   "/api/IdentityVerification/_getAffiliationsByUser",
   "/api/IdentityVerification/_getBadgesByUser",
@@ -146,6 +147,7 @@ export const exclusions: Array<string> = [
   "/api/AuthorRegistry/claimAuthor",
   "/api/AuthorRegistry/unclaimAuthor",
   "/api/AuthorRegistry/mergeAuthors",
+  // Queries handled via syncs (paths without underscores)
   "/api/AuthorRegistry/_getAuthor",
   "/api/AuthorRegistry/_getAuthorByUser",
   "/api/AuthorRegistry/_findAuthorsByName",
@@ -163,13 +165,34 @@ export const exclusions: Array<string> = [
   "/api/AccessControl/giveUniversalAccess",
   "/api/AccessControl/revokeUniversalAccess",
   "/api/AccessControl/removeGroup",
+  "/api/AccessControl/inviteUser",
+  "/api/AccessControl/removeInvitation",
+  "/api/AccessControl/acceptInvitation",
+  // Queries handled via syncs (paths without underscores)
+  "/api/AccessControl/getGroup",
+  "/api/AccessControl/getMembershipsByGroup",
+  "/api/AccessControl/getMembershipsByUser",
+  "/api/AccessControl/hasAccess",
+  "/api/AccessControl/getGroupsForUser",
+  "/api/AccessControl/listPendingInvitationsByUser",
+  "/api/AccessControl/getInvitation",
+  // Underscored query routes - handled via syncs
   "/api/AccessControl/_getGroup",
   "/api/AccessControl/_getMembershipsByGroup",
   "/api/AccessControl/_getMembershipsByUser",
   "/api/AccessControl/_hasAccess",
+  "/api/AccessControl/_hasUniversalAccess",
+  "/api/AccessControl/_getGroupsForUser",
+  "/api/AccessControl/_listPendingInvitationsByUser",
+  "/api/AccessControl/_getInvitation",
+  "/api/AccessControl/_getResourceVisibility",
 
   // PdfHighlighter - mutations need auth
   "/api/PdfHighlighter/createHighlight",
+  // Queries handled via syncs (paths without underscores)
+  "/api/PdfHighlighter/get",
+  "/api/PdfHighlighter/listByPaper",
+  // Underscored query routes - handled via syncs
   "/api/PdfHighlighter/_get",
   "/api/PdfHighlighter/_listByPaper",
 ];

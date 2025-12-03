@@ -30,12 +30,13 @@ Deno.test("Action: createHighlight creates text highlight (with quote)", async (
     assertExists(highlightId, "Should return highlight ID");
 
     const getResult = await concept._get({ highlight: highlightId });
+    assertEquals(getResult.length, 1, "Should return one result");
     const { highlight } = getResult[0];
     assertExists(highlight, "Highlight should exist");
-    assertEquals(highlight?.paper, paper1, "Paper ID should match");
-    assertEquals(highlight?.page, 1, "Page should match");
-    assertEquals(highlight?.rects.length, 2, "Should have 2 rects");
-    assertEquals(highlight?.quote, quote, "Quote should match");
+    assertEquals(highlight.paper, paper1, "Paper ID should match");
+    assertEquals(highlight.page, 1, "Page should match");
+    assertEquals(highlight.rects.length, 2, "Should have 2 rects");
+    assertEquals(highlight.quote, quote, "Quote should match");
 
     console.log("  ✓ Text highlight created correctly");
   } finally {
@@ -63,11 +64,12 @@ Deno.test("Action: createHighlight creates figure highlight (without quote)", as
     assertExists(highlightId, "Should return highlight ID");
 
     const getResult = await concept._get({ highlight: highlightId });
+    assertEquals(getResult.length, 1, "Should return one result");
     const { highlight } = getResult[0];
     assertExists(highlight, "Highlight should exist");
-    assertEquals(highlight?.paper, paper1, "Paper ID should match");
-    assertEquals(highlight?.page, 2, "Page should match");
-    assertEquals(highlight?.quote, undefined, "Quote should be undefined");
+    assertEquals(highlight.paper, paper1, "Paper ID should match");
+    assertEquals(highlight.page, 2, "Page should match");
+    assertEquals(highlight.quote, undefined, "Quote should be undefined");
 
     console.log("  ✓ Figure highlight created correctly");
   } finally {
@@ -114,16 +116,46 @@ Deno.test("Query: _listByPaper returns all highlights for a paper", async () => 
     // Verify each result has a highlight field
     for (const item of result) {
       assertExists(item.highlight, "Each result should have a highlight");
-      assertEquals(item.highlight.paper, paper1, "Highlight should belong to paper1");
+      assertEquals(
+        item.highlight.paper,
+        paper1,
+        "Highlight should belong to paper1",
+      );
     }
 
     // Test empty case - query for paper with no highlights
     const emptyResult = await concept._listByPaper({
       paper: "nonexistent:paper" as ID,
     });
-    assertEquals(emptyResult.length, 0, "Should return empty array when no highlights found");
+    assertEquals(
+      emptyResult.length,
+      0,
+      "Should return empty array when no highlights found",
+    );
 
     console.log("  ✓ Correctly lists highlights by paper");
+  } finally {
+    await client.close();
+  }
+});
+
+Deno.test("Query: _get returns empty array when highlight does not exist", async () => {
+  const [db, client] = await testDb();
+  const concept = new PdfHighlighterConcept(db);
+
+  try {
+    console.log("Testing _get query - nonexistent highlight");
+
+    const nonexistentId = "nonexistent:highlight" as ID;
+    const result = await concept._get({ highlight: nonexistentId });
+
+    assertEquals(
+      result.length,
+      0,
+      "Should return empty array when highlight does not exist",
+    );
+
+    console.log("  ✓ Correctly returns empty array for nonexistent highlight");
   } finally {
     await client.close();
   }

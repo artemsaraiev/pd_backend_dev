@@ -61,7 +61,7 @@ Deno.test("Principle: Authors have variations, users claim authors", async () =>
     assertEquals(userAuthorResult.length, 1, "Query should return array");
     assertExists(userAuthorResult[0].author, "Author should be found for user");
     assertEquals(
-      userAuthorResult[0].author!._id.toString(),
+      userAuthorResult[0].author._id.toString(),
       authorId,
       "User should be linked to correct author",
     );
@@ -70,14 +70,16 @@ Deno.test("Principle: Authors have variations, users claim authors", async () =>
     // 5. Verify name variations resolve to the author
     console.log("  Step 5: Verify name resolution");
     const resolveCanonical = await concept._resolveAuthor({ exactName: "John Doe" });
+    assertEquals(resolveCanonical.length, 1, "Query should return array");
     assertEquals(
-      resolveCanonical[0].author?._id.toString(),
+      resolveCanonical[0].author._id.toString(),
       authorId,
       "Canonical name should resolve",
     );
     const resolveVariation = await concept._resolveAuthor({ exactName: "J. Doe" });
+    assertEquals(resolveVariation.length, 1, "Query should return array");
     assertEquals(
-      resolveVariation[0].author?._id.toString(),
+      resolveVariation[0].author._id.toString(),
       authorId,
       "Variation should resolve",
     );
@@ -103,14 +105,16 @@ Deno.test("Action: createAuthor creates author and canonical variation", async (
     const { newAuthor } = result as { newAuthor: ID };
 
     const getResult = await concept._getAuthor({ author: newAuthor });
+    assertEquals(getResult.length, 1, "Query should return array");
     const author = getResult[0].author;
     assertExists(author, "Author should exist");
-    assertEquals(author!.canonicalName, "Jane Smith", "Canonical name matches");
-    assertEquals(author!.affiliations, ["Stanford"], "Affiliations match");
+    assertEquals(author.canonicalName, "Jane Smith", "Canonical name matches");
+    assertEquals(author.affiliations, ["Stanford"], "Affiliations match");
 
     // Check canonical variation exists
     const resolve = await concept._resolveAuthor({ exactName: "Jane Smith" });
-    assertEquals(resolve[0].author?._id.toString(), newAuthor, "Canonical variation exists");
+    assertEquals(resolve.length, 1, "Query should return array");
+    assertEquals(resolve[0].author._id.toString(), newAuthor, "Canonical variation exists");
     console.log("    Author and canonical variation created");
   } finally {
     await client.close();
@@ -147,7 +151,8 @@ Deno.test("Action: addNameVariation requires author exists and unique name", asy
 
     // Verify effect
     const resolve = await concept._resolveAuthor({ exactName: "A. One" });
-    assertEquals(resolve[0].author?._id.toString(), newAuthor, "Variation added");
+    assertEquals(resolve.length, 1, "Query should return array");
+    assertEquals(resolve[0].author._id.toString(), newAuthor, "Variation added");
     console.log("    Requirements checked and effect verified");
   } finally {
     await client.close();
@@ -197,7 +202,7 @@ Deno.test("Action: removeNameVariation requires author, existing variation, not 
     assertNotEquals("error" in result, true, "Should succeed");
 
     const resolve = await concept._resolveAuthor({ exactName: "Variation" });
-    assertEquals(resolve[0].author, null, "Variation removed");
+    assertEquals(resolve.length, 0, "Variation removed");
     console.log("    Requirements checked and effect verified");
   } finally {
     await client.close();
@@ -222,7 +227,10 @@ Deno.test("Action: updateAuthorProfile updates fields if provided", async () => 
       author: newAuthor,
       website: "example.com",
     });
-    let author = (await concept._getAuthor({ author: newAuthor }))[0].author!;
+    let getResult = await concept._getAuthor({ author: newAuthor });
+    assertEquals(getResult.length, 1, "Query should return array");
+    let author = getResult[0].author;
+    assertExists(author, "Author should exist");
     assertEquals(author.website, "example.com", "Website updated");
     assertEquals(author.affiliations, ["Old Affiliation"], "Affiliations unchanged");
 
@@ -231,7 +239,10 @@ Deno.test("Action: updateAuthorProfile updates fields if provided", async () => 
       author: newAuthor,
       affiliations: ["New Affiliation"],
     });
-    author = (await concept._getAuthor({ author: newAuthor }))[0].author!;
+    getResult = await concept._getAuthor({ author: newAuthor });
+    assertEquals(getResult.length, 1, "Query should return array");
+    author = getResult[0].author;
+    assertExists(author, "Author should exist");
     assertEquals(author.affiliations, ["New Affiliation"], "Affiliations updated");
     assertEquals(author.website, "example.com", "Website unchanged");
 
@@ -271,7 +282,8 @@ Deno.test("Action: claimAuthor requires user/author exist, no existing link", as
 
     // Verify effect
     const linked = await concept._getAuthorByUser({ user: userAlice });
-    assertEquals(linked[0].author?._id.toString(), newAuthor, "Link created");
+    assertEquals(linked.length, 1, "Query should return array");
+    assertEquals(linked[0].author._id.toString(), newAuthor, "Link created");
     console.log("    Requirements checked and effect verified");
   } finally {
     await client.close();
@@ -308,7 +320,7 @@ Deno.test("Action: unclaimAuthor requires link exists, removes it", async () => 
 
     // Verify effect
     const linked = await concept._getAuthorByUser({ user: userAlice });
-    assertEquals(linked[0].author, null, "Link removed");
+    assertEquals(linked.length, 0, "Link removed");
     console.log("    Requirements checked and effect verified");
   } finally {
     await client.close();
@@ -347,29 +359,32 @@ Deno.test("Action: mergeAuthors moves variations and links, deletes secondary", 
 
     // Verify variations moved
     const resolveSec = await concept._resolveAuthor({ exactName: "Secondary" });
+    assertEquals(resolveSec.length, 1, "Query should return array");
     assertEquals(
-      resolveSec[0].author?._id.toString(),
+      resolveSec[0].author._id.toString(),
       idA,
       "Secondary name moved to Primary",
     );
     const resolveVar = await concept._resolveAuthor({ exactName: "Sec Var" });
+    assertEquals(resolveVar.length, 1, "Query should return array");
     assertEquals(
-      resolveVar[0].author?._id.toString(),
+      resolveVar[0].author._id.toString(),
       idA,
       "Secondary variation moved to Primary",
     );
 
     // Verify user link moved
     const userAuthor = await concept._getAuthorByUser({ user: userBob });
+    assertEquals(userAuthor.length, 1, "Query should return array");
     assertEquals(
-      userAuthor[0].author?._id.toString(),
+      userAuthor[0].author._id.toString(),
       idA,
       "User link moved to Primary",
     );
 
     // Verify secondary deleted
     const getB = await concept._getAuthor({ author: idB });
-    assertEquals(getB[0].author, null, "Secondary author deleted");
+    assertEquals(getB.length, 0, "Secondary author deleted");
 
     console.log("    Merge logic verified");
   } finally {

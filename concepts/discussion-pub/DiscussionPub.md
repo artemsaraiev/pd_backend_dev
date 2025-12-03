@@ -64,12 +64,11 @@ relation to a thread
     + **effects** sets the deleted flag of the reply to true and sets the editedAt to
     current timestamp
 + **queries**
-  + _getPubIdByPaper(paperId: String) : (result: Pub | null)
+  + _getPubIdByPaper(paperId: String) : (result: Pub)
     + **requires** nothing
-    + **effects** returns an array of dictionaries, each containing the Pub ID for the
-    given paperId in the `result` field, or null if no pub exists. Returns an array
-    with
-    one dictionary containing `{ result: Pub | null }`.
+    + **effects** returns the Pub ID for the given paperId in the `result` field.
+    Returns an array with one dictionary if the pub exists, or an empty array if no
+    pub exists.
   + _listThreads(pub: Pub, anchor?: Anchor) : (thread: Thread)
     + **requires** nothing
     + **effects** returns an array of dictionaries, each containing one non-deleted

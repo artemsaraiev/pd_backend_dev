@@ -1,5 +1,10 @@
 import { actions, Frames, Sync } from "@engine";
-import { AccessControl, Requesting, Sessioning } from "@concepts";
+import {
+  AccessControl,
+  Requesting,
+  Sessioning,
+  UserAuthentication,
+} from "@concepts";
 
 // AccessControl Actions
 export const AccessControlCreateGroupRequest: Sync = (
@@ -21,14 +26,24 @@ export const AccessControlCreateGroupRequest: Sync = (
   }]),
 });
 
-export const AccessControlCreateGroupResponse: Sync = (
-  { request, newGroup, error },
+export const AccessControlCreateGroupResponseSuccess: Sync = (
+  { request, newGroup },
 ) => ({
   when: actions(
     [Requesting.request, { path: "/AccessControl/createGroup" }, { request }],
-    [AccessControl.createGroup, {}, { newGroup, error }],
+    [AccessControl.createGroup, {}, { newGroup }],
   ),
-  then: actions([Requesting.respond, { request, newGroup, error }]),
+  then: actions([Requesting.respond, { request, newGroup }]),
+});
+
+export const AccessControlCreateGroupResponseError: Sync = (
+  { request, error },
+) => ({
+  when: actions(
+    [Requesting.request, { path: "/AccessControl/createGroup" }, { request }],
+    [AccessControl.createGroup, {}, { error }],
+  ),
+  then: actions([Requesting.respond, { request, error }]),
 });
 
 export const AccessControlUpdateGroupRequest: Sync = (
@@ -44,10 +59,27 @@ export const AccessControlUpdateGroupRequest: Sync = (
   where: async (frames) => {
     return await frames.query(Sessioning._getUser, { session }, { user });
   },
-  then: actions([AccessControl.updateGroup, { group, name, description }], [
-    Requesting.respond,
-    { request, ok: true },
-  ]),
+  then: actions([AccessControl.updateGroup, { group, name, description }]),
+});
+
+export const AccessControlUpdateGroupResponseSuccess: Sync = (
+  { request, ok },
+) => ({
+  when: actions(
+    [Requesting.request, { path: "/AccessControl/updateGroup" }, { request }],
+    [AccessControl.updateGroup, {}, { ok }],
+  ),
+  then: actions([Requesting.respond, { request, ok }]),
+});
+
+export const AccessControlUpdateGroupResponseError: Sync = (
+  { request, error },
+) => ({
+  when: actions(
+    [Requesting.request, { path: "/AccessControl/updateGroup" }, { request }],
+    [AccessControl.updateGroup, {}, { error }],
+  ),
+  then: actions([Requesting.respond, { request, error }]),
 });
 
 export const AccessControlAddUserRequest: Sync = (
@@ -65,14 +97,24 @@ export const AccessControlAddUserRequest: Sync = (
   then: actions([AccessControl.addUser, { group, user: userToAdd }]),
 });
 
-export const AccessControlAddUserResponse: Sync = (
-  { request, newMembership, error },
+export const AccessControlAddUserResponseSuccess: Sync = (
+  { request, newMembership },
 ) => ({
   when: actions(
     [Requesting.request, { path: "/AccessControl/addUser" }, { request }],
-    [AccessControl.addUser, {}, { newMembership, error }],
+    [AccessControl.addUser, {}, { newMembership }],
   ),
-  then: actions([Requesting.respond, { request, newMembership, error }]),
+  then: actions([Requesting.respond, { request, newMembership }]),
+});
+
+export const AccessControlAddUserResponseError: Sync = (
+  { request, error },
+) => ({
+  when: actions(
+    [Requesting.request, { path: "/AccessControl/addUser" }, { request }],
+    [AccessControl.addUser, {}, { error }],
+  ),
+  then: actions([Requesting.respond, { request, error }]),
 });
 
 export const AccessControlRevokeMembershipRequest: Sync = (
@@ -86,10 +128,31 @@ export const AccessControlRevokeMembershipRequest: Sync = (
   where: async (frames) => {
     return await frames.query(Sessioning._getUser, { session }, { user });
   },
-  then: actions([AccessControl.revokeMembership, { membership }], [
-    Requesting.respond,
-    { request, ok: true },
-  ]),
+  then: actions([AccessControl.revokeMembership, { membership }]),
+});
+
+export const AccessControlRevokeMembershipResponseSuccess: Sync = (
+  { request, ok },
+) => ({
+  when: actions(
+    [Requesting.request, { path: "/AccessControl/revokeMembership" }, {
+      request,
+    }],
+    [AccessControl.revokeMembership, {}, { ok }],
+  ),
+  then: actions([Requesting.respond, { request, ok }]),
+});
+
+export const AccessControlRevokeMembershipResponseError: Sync = (
+  { request, error },
+) => ({
+  when: actions(
+    [Requesting.request, { path: "/AccessControl/revokeMembership" }, {
+      request,
+    }],
+    [AccessControl.revokeMembership, {}, { error }],
+  ),
+  then: actions([Requesting.respond, { request, error }]),
 });
 
 export const AccessControlPromoteUserRequest: Sync = (
@@ -103,10 +166,27 @@ export const AccessControlPromoteUserRequest: Sync = (
   where: async (frames) => {
     return await frames.query(Sessioning._getUser, { session }, { user });
   },
-  then: actions([AccessControl.promoteUser, { membership }], [
-    Requesting.respond,
-    { request, ok: true },
-  ]),
+  then: actions([AccessControl.promoteUser, { membership }]),
+});
+
+export const AccessControlPromoteUserResponseSuccess: Sync = (
+  { request, ok },
+) => ({
+  when: actions(
+    [Requesting.request, { path: "/AccessControl/promoteUser" }, { request }],
+    [AccessControl.promoteUser, {}, { ok }],
+  ),
+  then: actions([Requesting.respond, { request, ok }]),
+});
+
+export const AccessControlPromoteUserResponseError: Sync = (
+  { request, error },
+) => ({
+  when: actions(
+    [Requesting.request, { path: "/AccessControl/promoteUser" }, { request }],
+    [AccessControl.promoteUser, {}, { error }],
+  ),
+  then: actions([Requesting.respond, { request, error }]),
 });
 
 export const AccessControlDemoteUserRequest: Sync = (
@@ -120,10 +200,27 @@ export const AccessControlDemoteUserRequest: Sync = (
   where: async (frames) => {
     return await frames.query(Sessioning._getUser, { session }, { user });
   },
-  then: actions([AccessControl.demoteUser, { membership }], [
-    Requesting.respond,
-    { request, ok: true },
-  ]),
+  then: actions([AccessControl.demoteUser, { membership }]),
+});
+
+export const AccessControlDemoteUserResponseSuccess: Sync = (
+  { request, ok },
+) => ({
+  when: actions(
+    [Requesting.request, { path: "/AccessControl/demoteUser" }, { request }],
+    [AccessControl.demoteUser, {}, { ok }],
+  ),
+  then: actions([Requesting.respond, { request, ok }]),
+});
+
+export const AccessControlDemoteUserResponseError: Sync = (
+  { request, error },
+) => ({
+  when: actions(
+    [Requesting.request, { path: "/AccessControl/demoteUser" }, { request }],
+    [AccessControl.demoteUser, {}, { error }],
+  ),
+  then: actions([Requesting.respond, { request, error }]),
 });
 
 export const AccessControlGivePrivateAccessRequest: Sync = (
@@ -141,16 +238,28 @@ export const AccessControlGivePrivateAccessRequest: Sync = (
   then: actions([AccessControl.givePrivateAccess, { group, resource }]),
 });
 
-export const AccessControlGivePrivateAccessResponse: Sync = (
-  { request, newPrivateAccess, error },
+export const AccessControlGivePrivateAccessResponseSuccess: Sync = (
+  { request, newPrivateAccess },
 ) => ({
   when: actions(
     [Requesting.request, { path: "/AccessControl/givePrivateAccess" }, {
       request,
     }],
-    [AccessControl.givePrivateAccess, {}, { newPrivateAccess, error }],
+    [AccessControl.givePrivateAccess, {}, { newPrivateAccess }],
   ),
-  then: actions([Requesting.respond, { request, newPrivateAccess, error }]),
+  then: actions([Requesting.respond, { request, newPrivateAccess }]),
+});
+
+export const AccessControlGivePrivateAccessResponseError: Sync = (
+  { request, error },
+) => ({
+  when: actions(
+    [Requesting.request, { path: "/AccessControl/givePrivateAccess" }, {
+      request,
+    }],
+    [AccessControl.givePrivateAccess, {}, { error }],
+  ),
+  then: actions([Requesting.respond, { request, error }]),
 });
 
 export const AccessControlRevokePrivateAccessRequest: Sync = (
@@ -164,10 +273,31 @@ export const AccessControlRevokePrivateAccessRequest: Sync = (
   where: async (frames) => {
     return await frames.query(Sessioning._getUser, { session }, { user });
   },
-  then: actions([AccessControl.revokePrivateAccess, { privateAccess }], [
-    Requesting.respond,
-    { request, ok: true },
-  ]),
+  then: actions([AccessControl.revokePrivateAccess, { privateAccess }]),
+});
+
+export const AccessControlRevokePrivateAccessResponseSuccess: Sync = (
+  { request, ok },
+) => ({
+  when: actions(
+    [Requesting.request, { path: "/AccessControl/revokePrivateAccess" }, {
+      request,
+    }],
+    [AccessControl.revokePrivateAccess, {}, { ok }],
+  ),
+  then: actions([Requesting.respond, { request, ok }]),
+});
+
+export const AccessControlRevokePrivateAccessResponseError: Sync = (
+  { request, error },
+) => ({
+  when: actions(
+    [Requesting.request, { path: "/AccessControl/revokePrivateAccess" }, {
+      request,
+    }],
+    [AccessControl.revokePrivateAccess, {}, { error }],
+  ),
+  then: actions([Requesting.respond, { request, error }]),
 });
 
 export const AccessControlGiveUniversalAccessRequest: Sync = (
@@ -184,16 +314,28 @@ export const AccessControlGiveUniversalAccessRequest: Sync = (
   then: actions([AccessControl.giveUniversalAccess, { resource }]),
 });
 
-export const AccessControlGiveUniversalAccessResponse: Sync = (
-  { request, newUniversalAccess, error },
+export const AccessControlGiveUniversalAccessResponseSuccess: Sync = (
+  { request, newUniversalAccess },
 ) => ({
   when: actions(
     [Requesting.request, { path: "/AccessControl/giveUniversalAccess" }, {
       request,
     }],
-    [AccessControl.giveUniversalAccess, {}, { newUniversalAccess, error }],
+    [AccessControl.giveUniversalAccess, {}, { newUniversalAccess }],
   ),
-  then: actions([Requesting.respond, { request, newUniversalAccess, error }]),
+  then: actions([Requesting.respond, { request, newUniversalAccess }]),
+});
+
+export const AccessControlGiveUniversalAccessResponseError: Sync = (
+  { request, error },
+) => ({
+  when: actions(
+    [Requesting.request, { path: "/AccessControl/giveUniversalAccess" }, {
+      request,
+    }],
+    [AccessControl.giveUniversalAccess, {}, { error }],
+  ),
+  then: actions([Requesting.respond, { request, error }]),
 });
 
 export const AccessControlRevokeUniversalAccessRequest: Sync = (
@@ -207,10 +349,31 @@ export const AccessControlRevokeUniversalAccessRequest: Sync = (
   where: async (frames) => {
     return await frames.query(Sessioning._getUser, { session }, { user });
   },
-  then: actions([AccessControl.revokeUniversalAccess, { universalAccess }], [
-    Requesting.respond,
-    { request, ok: true },
-  ]),
+  then: actions([AccessControl.revokeUniversalAccess, { universalAccess }]),
+});
+
+export const AccessControlRevokeUniversalAccessResponseSuccess: Sync = (
+  { request, ok },
+) => ({
+  when: actions(
+    [Requesting.request, { path: "/AccessControl/revokeUniversalAccess" }, {
+      request,
+    }],
+    [AccessControl.revokeUniversalAccess, {}, { ok }],
+  ),
+  then: actions([Requesting.respond, { request, ok }]),
+});
+
+export const AccessControlRevokeUniversalAccessResponseError: Sync = (
+  { request, error },
+) => ({
+  when: actions(
+    [Requesting.request, { path: "/AccessControl/revokeUniversalAccess" }, {
+      request,
+    }],
+    [AccessControl.revokeUniversalAccess, {}, { error }],
+  ),
+  then: actions([Requesting.respond, { request, error }]),
 });
 
 export const AccessControlRemoveGroupRequest: Sync = (
@@ -224,39 +387,64 @@ export const AccessControlRemoveGroupRequest: Sync = (
   where: async (frames) => {
     return await frames.query(Sessioning._getUser, { session }, { user });
   },
-  then: actions([AccessControl.removeGroup, { group }], [Requesting.respond, {
-    request,
-    ok: true,
-  }]),
+  then: actions([AccessControl.removeGroup, { group }]),
+});
+
+export const AccessControlRemoveGroupResponseSuccess: Sync = (
+  { request, ok },
+) => ({
+  when: actions(
+    [Requesting.request, { path: "/AccessControl/removeGroup" }, { request }],
+    [AccessControl.removeGroup, {}, { ok }],
+  ),
+  then: actions([Requesting.respond, { request, ok }]),
+});
+
+export const AccessControlRemoveGroupResponseError: Sync = (
+  { request, error },
+) => ({
+  when: actions(
+    [Requesting.request, { path: "/AccessControl/removeGroup" }, { request }],
+    [AccessControl.removeGroup, {}, { error }],
+  ),
+  then: actions([Requesting.respond, { request, error }]),
 });
 
 // AccessControl Queries
-export const AccessControlGetGroupRequest: Sync = ({ request, group }) => ({
+export const AccessControlGetGroupRequest: Sync = (
+  { request, groupId, group },
+) => ({
   when: actions([Requesting.request, {
-    path: "/AccessControl/_getGroup",
-    group,
+    path: "/AccessControl/getGroup",
+    group: groupId,
   }, { request }]),
-  then: actions([AccessControl._getGroup, { group }]),
-});
-
-export const AccessControlGetGroupResponse: Sync = ({ request, result }) => ({
-  when: actions(
-    [Requesting.request, { path: "/AccessControl/_getGroup" }, { request }],
-    [AccessControl._getGroup, {}, { result }],
-  ),
-  then: actions([Requesting.respond, { request, result }]),
+  where: async (frames) => {
+    const originalFrame = frames[0];
+    frames = await frames.query(AccessControl._getGroup, { group: groupId }, {
+      group,
+    });
+    if (frames.length === 0) {
+      return new Frames({ ...originalFrame, [group]: null });
+    }
+    return frames;
+  },
+  then: actions([Requesting.respond, { request, group }]),
 });
 
 export const AccessControlGetMembershipsByGroupRequest: Sync = (
   { request, group, membership, memberships },
 ) => ({
   when: actions([Requesting.request, {
-    path: "/AccessControl/_getMembershipsByGroup",
+    path: "/AccessControl/getMembershipsByGroup",
     group,
   }, { request }]),
   where: async (frames) => {
     const originalFrame = frames[0];
-    frames = await frames.query(AccessControl._getMembershipsByGroup, { group }, { membership });
+    frames = await frames.query(
+      AccessControl._getMembershipsByGroup,
+      { group },
+      { membership },
+    );
     if (frames.length === 0) {
       return new Frames({ ...originalFrame, [memberships]: [] });
     }
@@ -269,13 +457,15 @@ export const AccessControlGetMembershipsByUserRequest: Sync = (
   { request, session, user, membership, memberships },
 ) => ({
   when: actions([Requesting.request, {
-    path: "/AccessControl/_getMembershipsByUser",
+    path: "/AccessControl/getMembershipsByUser",
     session,
   }, { request }]),
   where: async (frames) => {
     const originalFrame = frames[0];
     frames = await frames.query(Sessioning._getUser, { session }, { user });
-    frames = await frames.query(AccessControl._getMembershipsByUser, { user }, { membership });
+    frames = await frames.query(AccessControl._getMembershipsByUser, { user }, {
+      membership,
+    });
     if (frames.length === 0) {
       return new Frames({ ...originalFrame, [memberships]: [] });
     }
@@ -285,20 +475,270 @@ export const AccessControlGetMembershipsByUserRequest: Sync = (
 });
 
 export const AccessControlHasAccessRequest: Sync = (
-  { request, user, resource },
+  { request, user, resource, hasAccess },
 ) => ({
   when: actions([Requesting.request, {
-    path: "/AccessControl/_hasAccess",
+    path: "/AccessControl/hasAccess",
     user,
     resource,
   }, { request }]),
-  then: actions([AccessControl._hasAccess, { user, resource }]),
+  where: async (frames) => {
+    const originalFrame = frames[0];
+    frames = await frames.query(AccessControl._hasAccess, { user, resource }, {
+      hasAccess,
+    });
+    if (frames.length === 0) {
+      return new Frames({ ...originalFrame, [hasAccess]: false });
+    }
+    return frames;
+  },
+  then: actions([Requesting.respond, { request, hasAccess }]),
 });
 
-export const AccessControlHasAccessResponse: Sync = ({ request, result }) => ({
+// Invitation Actions
+export const AccessControlInviteUserRequest: Sync = (
+  { request, session, group, invitee, message, user, inviteeUser },
+) => ({
+  when: actions([Requesting.request, {
+    path: "/AccessControl/inviteUser",
+    session,
+    group,
+    invitee,
+    message,
+  }, { request }]),
+  where: async (frames) => {
+    // Resolve session to get the inviter (user)
+    frames = await frames.query(Sessioning._getUser, { session }, { user });
+    if (frames.length === 0) {
+      // Session invalid - return empty to prevent action
+      return new Frames();
+    }
+    // Resolve username (invitee) to user ID
+    frames = await frames.query(UserAuthentication._getUserByUsername, {
+      username: invitee,
+    }, { user: inviteeUser });
+    // Filter out frames where username resolution failed (no user found)
+    // If all frames are filtered out, the action won't fire and we'll need a separate error sync
+    return frames.filter(($) => $[inviteeUser] !== undefined);
+  },
+  then: actions([AccessControl.inviteUser, {
+    group,
+    inviter: user,
+    invitee: inviteeUser,
+    message,
+  }]),
+});
+
+// Handle username resolution failure for inviteUser
+export const AccessControlInviteUserUsernameNotFoundError: Sync = (
+  { request, session, group, invitee, message, user, inviteeUserCheck },
+) => ({
+  when: actions([Requesting.request, {
+    path: "/AccessControl/inviteUser",
+    session,
+    group,
+    invitee,
+    message,
+  }, { request }]),
+  where: async (frames) => {
+    // Check if session is valid
+    frames = await frames.query(Sessioning._getUser, { session }, { user });
+    if (frames.length === 0) {
+      // Session invalid - don't handle here, let other syncs handle it
+      return new Frames();
+    }
+    // Check if username resolution failed
+    const usernameFrames = await frames.query(
+      UserAuthentication._getUserByUsername,
+      { username: invitee },
+      { user: inviteeUserCheck },
+    );
+    if (usernameFrames.length === 0) {
+      // Username not found - return frame to trigger error response
+      return frames;
+    }
+    // Username found - don't handle here (let the main request sync handle it)
+    return new Frames();
+  },
+  then: actions([Requesting.respond, {
+    request,
+    error: `User with username "${String(invitee)}" not found`,
+  }]),
+});
+
+export const AccessControlInviteUserResponseSuccess: Sync = (
+  { request, newInvitation },
+) => ({
   when: actions(
-    [Requesting.request, { path: "/AccessControl/_hasAccess" }, { request }],
-    [AccessControl._hasAccess, {}, { result }],
+    [Requesting.request, { path: "/AccessControl/inviteUser" }, { request }],
+    [AccessControl.inviteUser, {}, { newInvitation }],
   ),
-  then: actions([Requesting.respond, { request, result }]),
+  then: actions([Requesting.respond, { request, newInvitation }]),
+});
+
+export const AccessControlInviteUserResponseError: Sync = (
+  { request, error },
+) => ({
+  when: actions(
+    [Requesting.request, { path: "/AccessControl/inviteUser" }, { request }],
+    [AccessControl.inviteUser, {}, { error }],
+  ),
+  then: actions([Requesting.respond, { request, error }]),
+});
+
+export const AccessControlRemoveInvitationRequest: Sync = (
+  { request, session, invitation, user },
+) => ({
+  when: actions([Requesting.request, {
+    path: "/AccessControl/removeInvitation",
+    session,
+    invitation,
+  }, { request }]),
+  where: async (frames) => {
+    return await frames.query(Sessioning._getUser, { session }, { user });
+  },
+  then: actions([AccessControl.removeInvitation, { invitation }]),
+});
+
+export const AccessControlRemoveInvitationResponseSuccess: Sync = (
+  { request, ok },
+) => ({
+  when: actions(
+    [Requesting.request, { path: "/AccessControl/removeInvitation" }, {
+      request,
+    }],
+    [AccessControl.removeInvitation, {}, { ok }],
+  ),
+  then: actions([Requesting.respond, { request, ok }]),
+});
+
+export const AccessControlRemoveInvitationResponseError: Sync = (
+  { request, error },
+) => ({
+  when: actions(
+    [Requesting.request, { path: "/AccessControl/removeInvitation" }, {
+      request,
+    }],
+    [AccessControl.removeInvitation, {}, { error }],
+  ),
+  then: actions([Requesting.respond, { request, error }]),
+});
+
+export const AccessControlAcceptInvitationRequest: Sync = (
+  { request, session, invitation, user, invDoc },
+) => ({
+  when: actions([Requesting.request, {
+    path: "/AccessControl/acceptInvitation",
+    session,
+    invitation,
+  }, { request }]),
+  where: async (frames) => {
+    frames = await frames.query(Sessioning._getUser, { session }, { user });
+    // Verify that the user accepting is the invitee
+    frames = await frames.query(AccessControl._getInvitation, { invitation }, {
+      invitation: invDoc,
+    });
+    return frames.filter(($) => {
+      const doc = $[invDoc] as { invitee: typeof user } | undefined;
+      return doc && $[user] === doc.invitee;
+    });
+  },
+  then: actions([AccessControl.acceptInvitation, { invitation }]),
+});
+
+export const AccessControlAcceptInvitationResponseSuccess: Sync = (
+  { request, newMembership },
+) => ({
+  when: actions(
+    [Requesting.request, { path: "/AccessControl/acceptInvitation" }, {
+      request,
+    }],
+    [AccessControl.acceptInvitation, {}, { newMembership }],
+  ),
+  then: actions([Requesting.respond, { request, newMembership }]),
+});
+
+export const AccessControlAcceptInvitationResponseError: Sync = (
+  { request, error },
+) => ({
+  when: actions(
+    [Requesting.request, { path: "/AccessControl/acceptInvitation" }, {
+      request,
+    }],
+    [AccessControl.acceptInvitation, {}, { error }],
+  ),
+  then: actions([Requesting.respond, { request, error }]),
+});
+
+// Invitation Queries
+export const AccessControlListPendingInvitationsByUserRequest: Sync = (
+  { request, session, user, invitation, invitations },
+) => ({
+  when: actions([Requesting.request, {
+    path: "/AccessControl/listPendingInvitationsByUser",
+    session,
+  }, { request }]),
+  where: async (frames) => {
+    const originalFrame = frames[0];
+    frames = await frames.query(Sessioning._getUser, { session }, { user });
+    if (frames.length === 0) {
+      return new Frames({ ...originalFrame, [invitations]: [] });
+    }
+    frames = await frames.query(
+      AccessControl._listPendingInvitationsByUser,
+      { invitee: user },
+      { invitation },
+    );
+    if (frames.length === 0) {
+      return new Frames({ ...originalFrame, [invitations]: [] });
+    }
+    return frames.collectAs([invitation], invitations);
+  },
+  then: actions([Requesting.respond, { request, invitations }]),
+});
+
+export const AccessControlGetInvitationRequest: Sync = (
+  { request, invitationId, invitation },
+) => ({
+  when: actions([Requesting.request, {
+    path: "/AccessControl/getInvitation",
+    invitation: invitationId,
+  }, { request }]),
+  where: async (frames) => {
+    const originalFrame = frames[0];
+    frames = await frames.query(AccessControl._getInvitation, {
+      invitation: invitationId,
+    }, {
+      invitation,
+    });
+    if (frames.length === 0) {
+      return new Frames({ ...originalFrame, [invitation]: null });
+    }
+    return frames;
+  },
+  then: actions([Requesting.respond, { request, invitation }]),
+});
+
+export const AccessControlGetGroupsForUserRequest: Sync = (
+  { request, session, user, group, groups },
+) => ({
+  when: actions([Requesting.request, {
+    path: "/AccessControl/getGroupsForUser",
+    session,
+  }, { request }]),
+  where: async (frames) => {
+    const originalFrame = frames[0];
+    frames = await frames.query(Sessioning._getUser, { session }, { user });
+    if (frames.length === 0) {
+      return new Frames({ ...originalFrame, [groups]: [] });
+    }
+    frames = await frames.query(AccessControl._getGroupsForUser, { user }, {
+      group,
+    });
+    if (frames.length === 0) {
+      return new Frames({ ...originalFrame, [groups]: [] });
+    }
+    return frames.collectAs([group], groups);
+  },
+  then: actions([Requesting.respond, { request, groups }]),
 });

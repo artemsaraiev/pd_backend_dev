@@ -70,29 +70,41 @@ Deno.test("Principle: User provides location and kind, context can be referenced
     const allContexts = await concept._getFilteredContexts({});
     assertEquals(
       allContexts.length,
-      1,
-      "Query should return one result dictionary",
-    );
-    const { filteredContexts } = allContexts[0];
-    assertEquals(
-      filteredContexts.length,
       2,
-      "Should find both contexts for the paper",
+      "Query should return one dictionary per context",
     );
 
     // Verify contexts have correct fields and can be referenced by ID
-    const ctx1 = filteredContexts.find((c) => c._id === context1);
-    const ctx2 = filteredContexts.find((c) => c._id === context2);
+    const ctx1 = allContexts.find((c) => c.filteredContext._id === context1)
+      ?.filteredContext;
+    const ctx2 = allContexts.find((c) => c.filteredContext._id === context2)
+      ?.filteredContext;
     assertExists(ctx1, "Context 1 should be retrievable by ID");
     assertExists(ctx2, "Context 2 should be retrievable by ID");
-    assertEquals(ctx1.paperId, paper1, "Context 1 should reference correct paper");
-    assertEquals(ctx2.paperId, paper1, "Context 2 should reference correct paper");
-    assertEquals(ctx1.author, userAlice, "Context 1 should have correct author");
-    assertEquals(ctx2.author, userBob, "Context 2 should have correct author");
-    assertEquals(ctx1.location, highlight1, "Context 1 should have correct location");
-    assertEquals(ctx2.location, highlight2, "Context 2 should have correct location");
-    assertEquals(ctx1.kind, "Section", "Context 1 should have Section kind");
-    assertEquals(ctx2.kind, "Figure", "Context 2 should have Figure kind");
+    assertEquals(
+      ctx1?.paperId,
+      paper1,
+      "Context 1 should reference correct paper",
+    );
+    assertEquals(
+      ctx2?.paperId,
+      paper1,
+      "Context 2 should reference correct paper",
+    );
+    assertEquals(ctx1?.author, userAlice, "Context 1 should have correct author");
+    assertEquals(ctx2?.author, userBob, "Context 2 should have correct author");
+    assertEquals(
+      ctx1?.location,
+      highlight1,
+      "Context 1 should have correct location",
+    );
+    assertEquals(
+      ctx2?.location,
+      highlight2,
+      "Context 2 should have correct location",
+    );
+    assertEquals(ctx1?.kind, "Section", "Context 1 should have Section kind");
+    assertEquals(ctx2?.kind, "Figure", "Context 2 should have Figure kind");
     console.log("    Both contexts are retrievable and have correct fields - principle fulfilled");
   } finally {
     await client.close();
@@ -123,16 +135,25 @@ Deno.test("Action: create successfully creates context with all fields", async (
 
     // Verify effects: context exists with correct fields
     const allContexts = await concept._getFilteredContexts({});
-    const { filteredContexts } = allContexts[0];
-    const created = filteredContexts.find((c) => c._id === newContext);
+    const created = allContexts.find((c) => c.filteredContext._id === newContext)
+      ?.filteredContext;
     assertExists(created, "Created context should exist in state");
-    assertEquals(created.paperId, paper1, "paperId should be stored correctly");
-    assertEquals(created.author, userAlice, "author should be stored correctly");
-    assertEquals(created.location, highlight1, "location should be stored correctly");
-    assertEquals(created.kind, "Lines", "kind should be stored correctly");
-    assertExists(created.createdAt, "createdAt should be set");
     assertEquals(
-      created.createdAt >= beforeTime && created.createdAt <= afterTime,
+      created?.paperId,
+      paper1,
+      "paperId should be stored correctly",
+    );
+    assertEquals(created?.author, userAlice, "author should be stored correctly");
+    assertEquals(
+      created?.location,
+      highlight1,
+      "location should be stored correctly",
+    );
+    assertEquals(created?.kind, "Lines", "kind should be stored correctly");
+    assertExists(created?.createdAt, "createdAt should be set");
+    assertEquals(
+      created?.createdAt && created.createdAt >= beforeTime &&
+        created.createdAt <= afterTime,
       true,
       "createdAt should be current timestamp",
     );
@@ -170,15 +191,24 @@ Deno.test("Action: create with optional fields", async () => {
 
     // Verify both contexts exist
     const allContexts = await concept._getFilteredContexts({});
-    const { filteredContexts } = allContexts[0];
-    const created1 = filteredContexts.find((c) => c._id === ctx1);
-    const created2 = filteredContexts.find((c) => c._id === ctx2);
+    const created1 = allContexts.find((c) => c.filteredContext._id === ctx1)
+      ?.filteredContext;
+    const created2 = allContexts.find((c) => c.filteredContext._id === ctx2)
+      ?.filteredContext;
 
     assertExists(created1, "Context without kind should exist");
-    assertEquals(created1.kind, undefined, "Context without kind should have undefined kind");
+    assertEquals(
+      created1.kind,
+      undefined,
+      "Context without kind should have undefined kind",
+    );
 
     assertExists(created2, "Context with kind should exist");
-    assertEquals(created2.kind, "Section", "Context with kind should store it correctly");
+    assertEquals(
+      created2.kind,
+      "Section",
+      "Context with kind should store it correctly",
+    );
 
     console.log("  ✓ Optional fields handled correctly");
   } finally {
@@ -238,8 +268,8 @@ Deno.test("Action: create requires parentContext to exist if provided", async ()
 
     // Verify child has parentContext set
     const allContexts = await concept._getFilteredContexts({});
-    const { filteredContexts } = allContexts[0];
-    const child = filteredContexts.find((c) => c._id === childId);
+    const child = allContexts.find((c) => c.filteredContext._id === childId)
+      ?.filteredContext;
     assertExists(child, "Child context should exist");
     assertEquals(child.parentContext, parentId, "Child should reference parent");
 
@@ -277,30 +307,28 @@ Deno.test("Query: _getFilteredContexts filters by paperIds", async () => {
 
     // Filter by paper1 only
     const result = await concept._getFilteredContexts({ paperIds: [paper1] });
-    assertEquals(result.length, 1, "Should return one result dictionary");
-    const { filteredContexts } = result[0];
     assertEquals(
-      filteredContexts.length,
+      result.length,
       2,
-      "Should find 2 contexts for paper1",
+      "Should return one dictionary per context (2 contexts for paper1)",
     );
     assertEquals(
-      filteredContexts.every((c) => c.paperId === paper1),
+      result.every((c) => c.filteredContext.paperId === paper1),
       true,
       "All results should be for paper1",
     );
     assertEquals(
-      filteredContexts.some((c) => c._id === ctx1),
+      result.some((c) => c.filteredContext._id === ctx1),
       true,
       "Should include ctx1",
     );
     assertEquals(
-      filteredContexts.some((c) => c._id === ctx3),
+      result.some((c) => c.filteredContext._id === ctx3),
       true,
       "Should include ctx3",
     );
     assertEquals(
-      filteredContexts.some((c) => c._id === ctx2),
+      result.some((c) => c.filteredContext._id === ctx2),
       false,
       "Should not include ctx2 (different paper)",
     );
@@ -339,30 +367,28 @@ Deno.test("Query: _getFilteredContexts filters by authors", async () => {
 
     // Filter by userAlice only
     const result = await concept._getFilteredContexts({ authors: [userAlice] });
-    assertEquals(result.length, 1, "Should return one result dictionary");
-    const { filteredContexts } = result[0];
     assertEquals(
-      filteredContexts.length,
+      result.length,
       2,
-      "Should find 2 contexts by userAlice",
+      "Should return one dictionary per context (2 contexts by userAlice)",
     );
     assertEquals(
-      filteredContexts.every((c) => c.author === userAlice),
+      result.every((c) => c.filteredContext.author === userAlice),
       true,
       "All results should be by userAlice",
     );
     assertEquals(
-      filteredContexts.some((c) => c._id === ctx1),
+      result.some((c) => c.filteredContext._id === ctx1),
       true,
       "Should include ctx1",
     );
     assertEquals(
-      filteredContexts.some((c) => c._id === ctx3),
+      result.some((c) => c.filteredContext._id === ctx3),
       true,
       "Should include ctx3",
     );
     assertEquals(
-      filteredContexts.some((c) => c._id === ctx2),
+      result.some((c) => c.filteredContext._id === ctx2),
       false,
       "Should not include ctx2 (different author)",
     );
@@ -404,16 +430,15 @@ Deno.test("Query: _getFilteredContexts filters by both paperIds and authors", as
       paperIds: [paper1],
       authors: [userAlice],
     });
-    assertEquals(result.length, 1, "Should return one result dictionary");
-    const { filteredContexts } = result[0];
     assertEquals(
-      filteredContexts.length,
+      result.length,
       1,
-      "Should find exactly 1 context matching both criteria",
+      "Should return one dictionary per context (1 context matching both criteria)",
     );
-    assertEquals(filteredContexts[0]._id, ctx1, "Should be ctx1");
+    assertEquals(result[0].filteredContext._id, ctx1, "Should be ctx1");
     assertEquals(
-      filteredContexts[0].paperId === paper1 && filteredContexts[0].author === userAlice,
+      result[0].filteredContext.paperId === paper1 &&
+        result[0].filteredContext.author === userAlice,
       true,
       "Should match both criteria",
     );
@@ -452,25 +477,23 @@ Deno.test("Query: _getFilteredContexts returns all contexts when no filters prov
 
     // Query with no filters
     const result = await concept._getFilteredContexts({});
-    assertEquals(result.length, 1, "Should return one result dictionary");
-    const { filteredContexts } = result[0];
     assertEquals(
-      filteredContexts.length,
+      result.length,
       3,
-      "Should return all 3 contexts",
+      "Should return one dictionary per context (all 3 contexts)",
     );
     assertEquals(
-      filteredContexts.some((c) => c._id === ctx1),
+      result.some((c) => c.filteredContext._id === ctx1),
       true,
       "Should include ctx1",
     );
     assertEquals(
-      filteredContexts.some((c) => c._id === ctx2),
+      result.some((c) => c.filteredContext._id === ctx2),
       true,
       "Should include ctx2",
     );
     assertEquals(
-      filteredContexts.some((c) => c._id === ctx3),
+      result.some((c) => c.filteredContext._id === ctx3),
       true,
       "Should include ctx3",
     );
@@ -511,12 +534,12 @@ Deno.test("Query: _getFilteredContexts results are ordered by createdAt", async 
 
     // Query all contexts
     const result = await concept._getFilteredContexts({});
-    const { filteredContexts } = result[0];
 
     // Verify ordering: createdAt should be ascending
-    for (let i = 1; i < filteredContexts.length; i++) {
+    for (let i = 1; i < result.length; i++) {
       assertEquals(
-        filteredContexts[i].createdAt >= filteredContexts[i - 1].createdAt,
+        result[i].filteredContext.createdAt >=
+          result[i - 1].filteredContext.createdAt,
         true,
         `Context at index ${i} should have createdAt >= previous context`,
       );
@@ -524,7 +547,7 @@ Deno.test("Query: _getFilteredContexts results are ordered by createdAt", async 
 
     // Verify first context is the one created first
     assertEquals(
-      filteredContexts[0]._id,
+      result[0].filteredContext._id,
       ctx1,
       "First result should be the first created context",
     );
