@@ -75,6 +75,7 @@ export const exclusions: Array<string> = [
   // DiscussionPub - mutations need auth
   "/api/DiscussionPub/open",
   "/api/DiscussionPub/startThread",
+  "/api/DiscussionPub/startPrivateThread",
   "/api/DiscussionPub/reply",
   "/api/DiscussionPub/replyTo",
   "/api/DiscussionPub/makeReply",

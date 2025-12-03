@@ -22,28 +22,9 @@ export const DiscussionOpenResponse: Sync = ({ request, result }) => ({
   then: actions([Requesting.respond, { request, result }]),
 });
 
-// startThread - basic (no anchorId, no groupId) -> public thread
-export const DiscussionStartThreadBasicRequest: Sync = (
-  { request, session, pubId, body, user },
-) => ({
-  when: actions([Requesting.request, {
-    path: "/DiscussionPub/startThread",
-    session,
-    pubId,
-    body,
-  }, { request }]),
-  where: async (frames) => {
-    return await frames.query(Sessioning._getUser, { session }, { user });
-  },
-  then: actions([DiscussionPub.startThread, {
-    pubId,
-    author: user,
-    body,
-  }]),
-});
-
-// startThread - with anchorId only -> public thread
-export const DiscussionStartThreadWithAnchorRequest: Sync = (
+// PUBLIC THREAD: /DiscussionPub/startThread (no groupId)
+// Handles optional anchorId
+export const DiscussionStartThreadPublicRequest: Sync = (
   { request, session, pubId, body, anchorId, user },
 ) => ({
   when: actions([Requesting.request, {
@@ -51,7 +32,6 @@ export const DiscussionStartThreadWithAnchorRequest: Sync = (
     session,
     pubId,
     body,
-    anchorId,
   }, { request }]),
   where: async (frames) => {
     return await frames.query(Sessioning._getUser, { session }, { user });
@@ -64,37 +44,29 @@ export const DiscussionStartThreadWithAnchorRequest: Sync = (
   }]),
 });
 
-// startThread - with groupId only -> private thread
-export const DiscussionStartThreadWithGroupRequest: Sync = (
-  { request, session, pubId, body, groupId, user },
+// Grant universal access for public threads
+export const DiscussionStartThreadPublicGrantAccess: Sync = (
+  { request, newThread },
 ) => ({
-  when: actions([Requesting.request, {
-    path: "/DiscussionPub/startThread",
-    session,
-    pubId,
-    body,
-    groupId,
-  }, { request }]),
-  where: async (frames) => {
-    return await frames.query(Sessioning._getUser, { session }, { user });
-  },
-  then: actions([DiscussionPub.startThread, {
-    pubId,
-    author: user,
-    body,
+  when: actions(
+    [Requesting.request, { path: "/DiscussionPub/startThread" }, { request }],
+    [DiscussionPub.startThread, {}, { newThread, result: newThread }],
+  ),
+  then: actions([AccessControl.giveUniversalAccess, {
+    resource: newThread,
   }]),
 });
 
-// startThread - with both anchorId and groupId -> private thread
-export const DiscussionStartThreadWithAnchorAndGroupRequest: Sync = (
+// PRIVATE THREAD: /DiscussionPub/startPrivateThread (requires groupId)
+// Handles optional anchorId
+export const DiscussionStartThreadPrivateRequest: Sync = (
   { request, session, pubId, body, anchorId, groupId, user },
 ) => ({
   when: actions([Requesting.request, {
-    path: "/DiscussionPub/startThread",
+    path: "/DiscussionPub/startPrivateThread",
     session,
     pubId,
     body,
-    anchorId,
     groupId,
   }, { request }]),
   where: async (frames) => {
@@ -108,55 +80,16 @@ export const DiscussionStartThreadWithAnchorAndGroupRequest: Sync = (
   }]),
 });
 
-// After public thread is created (no groupId), grant universal access - basic
-export const DiscussionStartThreadGrantUniversalAccessBasic: Sync = (
-  { request, session, pubId, body, newThread },
+// Grant private access for private threads
+export const DiscussionStartThreadPrivateGrantAccess: Sync = (
+  { request, groupId, newThread },
 ) => ({
   when: actions(
-    [Requesting.request, {
-      path: "/DiscussionPub/startThread",
-      session,
-      pubId,
-      body,
-    }, { request }],
-    [DiscussionPub.startThread, {}, { newThread, result: newThread }],
-  ),
-  then: actions([AccessControl.giveUniversalAccess, {
-    resource: newThread,
-  }]),
-});
-
-// After public thread is created (with anchorId, no groupId), grant universal access
-export const DiscussionStartThreadGrantUniversalAccessWithAnchor: Sync = (
-  { request, session, pubId, body, anchorId, newThread },
-) => ({
-  when: actions(
-    [Requesting.request, {
-      path: "/DiscussionPub/startThread",
-      session,
-      pubId,
-      body,
-      anchorId,
-    }, { request }],
-    [DiscussionPub.startThread, {}, { newThread, result: newThread }],
-  ),
-  then: actions([AccessControl.giveUniversalAccess, {
-    resource: newThread,
-  }]),
-});
-
-// After private thread is created (with groupId only), grant private access
-export const DiscussionStartThreadGrantPrivateAccessBasic: Sync = (
-  { request, session, pubId, body, groupId, newThread },
-) => ({
-  when: actions(
-    [Requesting.request, {
-      path: "/DiscussionPub/startThread",
-      session,
-      pubId,
-      body,
-      groupId,
-    }, { request }],
+    [
+      Requesting.request,
+      { path: "/DiscussionPub/startPrivateThread", groupId },
+      { request },
+    ],
     [DiscussionPub.startThread, {}, { newThread, result: newThread }],
   ),
   then: actions([AccessControl.givePrivateAccess, {
@@ -165,28 +98,8 @@ export const DiscussionStartThreadGrantPrivateAccessBasic: Sync = (
   }]),
 });
 
-// After private thread is created (with both anchorId and groupId), grant private access
-export const DiscussionStartThreadGrantPrivateAccessWithAnchor: Sync = (
-  { request, session, pubId, body, anchorId, groupId, newThread },
-) => ({
-  when: actions(
-    [Requesting.request, {
-      path: "/DiscussionPub/startThread",
-      session,
-      pubId,
-      body,
-      anchorId,
-      groupId,
-    }, { request }],
-    [DiscussionPub.startThread, {}, { newThread, result: newThread }],
-  ),
-  then: actions([AccessControl.givePrivateAccess, {
-    group: groupId,
-    resource: newThread,
-  }]),
-});
-
-export const DiscussionStartThreadResponseSuccess: Sync = (
+// Response syncs for public thread
+export const DiscussionStartThreadPublicResponseSuccess: Sync = (
   { request, result },
 ) => ({
   when: actions(
@@ -196,11 +109,36 @@ export const DiscussionStartThreadResponseSuccess: Sync = (
   then: actions([Requesting.respond, { request, result }]),
 });
 
-export const DiscussionStartThreadResponseError: Sync = (
+export const DiscussionStartThreadPublicResponseError: Sync = (
   { request, error },
 ) => ({
   when: actions(
     [Requesting.request, { path: "/DiscussionPub/startThread" }, { request }],
+    [DiscussionPub.startThread, {}, { error }],
+  ),
+  then: actions([Requesting.respond, { request, error }]),
+});
+
+// Response syncs for private thread
+export const DiscussionStartThreadPrivateResponseSuccess: Sync = (
+  { request, result },
+) => ({
+  when: actions(
+    [Requesting.request, { path: "/DiscussionPub/startPrivateThread" }, {
+      request,
+    }],
+    [DiscussionPub.startThread, {}, { result }],
+  ),
+  then: actions([Requesting.respond, { request, result }]),
+});
+
+export const DiscussionStartThreadPrivateResponseError: Sync = (
+  { request, error },
+) => ({
+  when: actions(
+    [Requesting.request, { path: "/DiscussionPub/startPrivateThread" }, {
+      request,
+    }],
     [DiscussionPub.startThread, {}, { error }],
   ),
   then: actions([Requesting.respond, { request, error }]),

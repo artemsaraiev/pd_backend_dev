@@ -44,13 +44,55 @@
 
 ### POST /api/DiscussionPub/startThread
 
-**Description:** Creates a new discussion thread in a pub.
+**Description:** Creates a new **public** discussion thread in a pub. The thread will be visible to all users.
 
 **Requirements:**
 - the pub is in the set of Pubs
 
 **Effects:**
 - inserts a new thread with the given pub, author, anchor, title, body, current timestamp, deleted flag set to false and editedAt set to null and returns it
+- grants universal access to the thread (visible to all users)
+
+**Request Body:**
+```json
+{
+  "session": "string",
+  "pubId": "string",
+  "body": "string",
+  "anchorId": "string"
+}
+```
+
+**Note:** This endpoint requires authentication. The `session` parameter is required. The `author` field is automatically set from the session. The `anchorId` parameter is optional. For private threads, use `/api/DiscussionPub/startPrivateThread` instead.
+
+**Success Response Body (Action):**
+```json
+{
+  "newThread": "string",
+  "result": "string"
+}
+```
+
+**Error Response Body:**
+```json
+{
+  "error": "string"
+}
+```
+
+---
+
+### POST /api/DiscussionPub/startPrivateThread
+
+**Description:** Creates a new **private** discussion thread in a pub. The thread will only be visible to members of the specified group.
+
+**Requirements:**
+- the pub is in the set of Pubs
+- the groupId must be a valid group
+
+**Effects:**
+- inserts a new thread with the given pub, author, anchor, title, body, current timestamp, deleted flag set to false and editedAt set to null and returns it
+- grants private access to the thread for the specified group
 
 **Request Body:**
 ```json
@@ -63,7 +105,7 @@
 }
 ```
 
-**Note:** This endpoint requires authentication. The `session` parameter is required. The `author` field is automatically set from the session. The `anchorId` and `groupId` parameters are optional. If `groupId` is provided, the thread will be private to that group. If `groupId` is not provided, the thread will be public (universal access).
+**Note:** This endpoint requires authentication. The `session` parameter and `groupId` are required. The `author` field is automatically set from the session. The `anchorId` parameter is optional. For public threads, use `/api/DiscussionPub/startThread` instead.
 
 **Success Response Body (Action):**
 ```json
