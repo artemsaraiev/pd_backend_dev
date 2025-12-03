@@ -58,11 +58,12 @@
   "session": "string",
   "pubId": "string",
   "body": "string",
-  "anchorId": "string"
+  "anchorId": "string",
+  "groupId": "string"
 }
 ```
 
-**Note:** This endpoint requires authentication. The `session` parameter is required. The `author` field is automatically set from the session. The `anchorId` parameter is optional.
+**Note:** This endpoint requires authentication. The `session` parameter is required. The `author` field is automatically set from the session. The `anchorId` and `groupId` parameters are optional. If `groupId` is provided, the thread will be private to that group. If `groupId` is not provided, the thread will be public (universal access).
 
 **Success Response Body (Action):**
 ```json
@@ -316,13 +317,14 @@
 **Request Body:**
 ```json
 {
+  "session": "string",
   "pubId": "string",
   "anchorId": "string",
   "includeDeleted": "boolean"
 }
 ```
 
-**Note:** The `anchorId` and `includeDeleted` parameters are optional.
+**Note:** The `session`, `anchorId`, and `includeDeleted` parameters are optional. If `session` is provided, threads will be filtered by access control (only threads the user has access to will be returned). If `session` is not provided, all threads are returned (backward compatibility).
 
 **Success Response Body (Query):**
 ```json

@@ -1,5 +1,10 @@
 import { actions, Frames, Sync } from "@engine";
-import { AccessControl, Requesting, Sessioning } from "@concepts";
+import {
+  AccessControl,
+  Requesting,
+  Sessioning,
+  UserAuthentication,
+} from "@concepts";
 
 // AccessControl Actions
 export const AccessControlCreateGroupRequest: Sync = (
@@ -492,7 +497,7 @@ export const AccessControlHasAccessRequest: Sync = (
 
 // Invitation Actions
 export const AccessControlInviteUserRequest: Sync = (
-  { request, session, group, invitee, message, user },
+  { request, session, group, invitee, message, user, inviteeUser },
 ) => ({
   when: actions([Requesting.request, {
     path: "/AccessControl/inviteUser",
@@ -502,13 +507,62 @@ export const AccessControlInviteUserRequest: Sync = (
     message,
   }, { request }]),
   where: async (frames) => {
-    return await frames.query(Sessioning._getUser, { session }, { user });
+    // Resolve session to get the inviter (user)
+    frames = await frames.query(Sessioning._getUser, { session }, { user });
+    if (frames.length === 0) {
+      // Session invalid - return empty to prevent action
+      return new Frames();
+    }
+    // Resolve username (invitee) to user ID
+    frames = await frames.query(UserAuthentication._getUserByUsername, {
+      username: invitee,
+    }, { user: inviteeUser });
+    // Filter out frames where username resolution failed (no user found)
+    // If all frames are filtered out, the action won't fire and we'll need a separate error sync
+    return frames.filter(($) => $[inviteeUser] !== undefined);
   },
   then: actions([AccessControl.inviteUser, {
     group,
     inviter: user,
+    invitee: inviteeUser,
+    message,
+  }]),
+});
+
+// Handle username resolution failure for inviteUser
+export const AccessControlInviteUserUsernameNotFoundError: Sync = (
+  { request, session, group, invitee, message, user, inviteeUserCheck },
+) => ({
+  when: actions([Requesting.request, {
+    path: "/AccessControl/inviteUser",
+    session,
+    group,
     invitee,
     message,
+  }, { request }]),
+  where: async (frames) => {
+    // Check if session is valid
+    frames = await frames.query(Sessioning._getUser, { session }, { user });
+    if (frames.length === 0) {
+      // Session invalid - don't handle here, let other syncs handle it
+      return new Frames();
+    }
+    // Check if username resolution failed
+    const usernameFrames = await frames.query(
+      UserAuthentication._getUserByUsername,
+      { username: invitee },
+      { user: inviteeUserCheck },
+    );
+    if (usernameFrames.length === 0) {
+      // Username not found - return frame to trigger error response
+      return frames;
+    }
+    // Username found - don't handle here (let the main request sync handle it)
+    return new Frames();
+  },
+  then: actions([Requesting.respond, {
+    request,
+    error: `User with username "${String(invitee)}" not found`,
   }]),
 });
 

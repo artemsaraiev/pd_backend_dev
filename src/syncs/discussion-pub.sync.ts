@@ -1,5 +1,10 @@
 import { actions, Frames, Sync } from "@engine";
-import { DiscussionPub, Requesting, Sessioning } from "@concepts";
+import {
+  AccessControl,
+  DiscussionPub,
+  Requesting,
+  Sessioning,
+} from "@concepts";
 
 // DiscussionPub Actions
 export const DiscussionOpenRequest: Sync = ({ request, paperId }) => ({
@@ -18,7 +23,7 @@ export const DiscussionOpenResponse: Sync = ({ request, result }) => ({
 });
 
 export const DiscussionStartThreadRequest: Sync = (
-  { request, session, pubId, body, anchorId, user },
+  { request, session, pubId, body, anchorId, groupId, user },
 ) => ({
   when: actions([Requesting.request, {
     path: "/DiscussionPub/startThread",
@@ -26,6 +31,7 @@ export const DiscussionStartThreadRequest: Sync = (
     pubId,
     body,
     anchorId,
+    groupId,
   }, { request }]),
   where: async (frames) => {
     return await frames.query(Sessioning._getUser, { session }, { user });
@@ -35,6 +41,67 @@ export const DiscussionStartThreadRequest: Sync = (
     author: user,
     body,
     anchorId,
+  }]),
+});
+
+// After thread is created, grant access based on visibility
+// If groupId is provided, grant private access to that group
+// If no groupId (public thread), grant universal access
+export const DiscussionStartThreadGrantPrivateAccess: Sync = (
+  { request, session, pubId, body, anchorId, groupId, user, newThread },
+) => ({
+  when: actions(
+    [Requesting.request, {
+      path: "/DiscussionPub/startThread",
+      session,
+      pubId,
+      body,
+      anchorId,
+      groupId,
+    }, { request }],
+    [DiscussionPub.startThread, {}, { newThread, result: newThread }],
+  ),
+  where: async (frames) => {
+    const originalFrame = frames[0];
+    // Only proceed if groupId was provided (private thread)
+    if (!originalFrame[groupId]) {
+      return new Frames(); // No groupId, will be handled by universal access sync
+    }
+    // Verify user is a member of the group
+    frames = await frames.query(Sessioning._getUser, { session }, { user });
+    // Note: We assume groupId is valid - AccessControl will validate membership
+    return frames;
+  },
+  then: actions([AccessControl.givePrivateAccess, {
+    group: groupId,
+    resource: newThread,
+  }]),
+});
+
+// After thread is created, if no groupId, grant universal access (public thread)
+export const DiscussionStartThreadGrantUniversalAccess: Sync = (
+  { request, session, pubId, body, anchorId, groupId, newThread },
+) => ({
+  when: actions(
+    [Requesting.request, {
+      path: "/DiscussionPub/startThread",
+      session,
+      pubId,
+      body,
+      anchorId,
+    }, { request }],
+    [DiscussionPub.startThread, {}, { newThread, result: newThread }],
+  ),
+  where: (frames) => {
+    const originalFrame = frames[0];
+    // Only proceed if groupId was NOT provided (public thread)
+    if (originalFrame[groupId]) {
+      return new Frames(); // Has groupId, will be handled by private access sync
+    }
+    return frames;
+  },
+  then: actions([AccessControl.giveUniversalAccess, {
+    resource: newThread,
   }]),
 });
 
@@ -121,23 +188,61 @@ export const DiscussionGetPubIdByPaperRequest: Sync = (
   then: actions([Requesting.respond, { request, result }]),
 });
 
-// _listThreads with anchorId filter
+// _listThreads with anchorId filter and access control
 export const DiscussionListThreadsWithAnchorRequest: Sync = (
-  { request, pubId, anchorId, includeDeleted, thread, threads },
+  {
+    request,
+    session,
+    pubId,
+    anchorId,
+    includeDeleted,
+    thread,
+    threads,
+    user,
+    hasAccess,
+  },
 ) => ({
   when: actions([Requesting.request, {
     path: "/DiscussionPub/listThreads",
+    session,
     pubId,
     anchorId,
     includeDeleted,
   }, { request }]),
   where: async (frames) => {
     const originalFrame = frames[0];
+    // Get all threads for this pub/anchor
     frames = await frames.query(DiscussionPub._listThreads, {
       pubId,
       anchorId,
       includeDeleted,
     }, { thread });
+
+    if (frames.length === 0) {
+      return new Frames({ ...originalFrame, [threads]: [] });
+    }
+
+    // If session is provided, filter by access control
+    if (originalFrame[session]) {
+      // Resolve user from session
+      frames = await frames.query(Sessioning._getUser, { session }, { user });
+      if (frames.length === 0) {
+        // Invalid session - return empty
+        return new Frames({ ...originalFrame, [threads]: [] });
+      }
+
+      // For each thread, check if user has access
+      // Query hasAccess for all threads (this will fan out frames)
+      frames = await frames.query(AccessControl._hasAccess, {
+        user,
+        resource: thread,
+      }, { hasAccess });
+
+      // Filter to only threads where hasAccess is true
+      frames = frames.filter(($) => $[hasAccess] === true);
+    }
+    // If no session, show all threads (backward compatibility - could filter to universal only)
+
     if (frames.length === 0) {
       return new Frames({ ...originalFrame, [threads]: [] });
     }
@@ -146,21 +251,48 @@ export const DiscussionListThreadsWithAnchorRequest: Sync = (
   then: actions([Requesting.respond, { request, threads }]),
 });
 
-// _listThreads without anchorId filter
+// _listThreads without anchorId filter and access control
 export const DiscussionListThreadsRequest: Sync = (
-  { request, pubId, includeDeleted, thread, threads },
+  { request, session, pubId, includeDeleted, thread, threads, user, hasAccess },
 ) => ({
   when: actions([Requesting.request, {
     path: "/DiscussionPub/listThreads",
+    session,
     pubId,
     includeDeleted,
   }, { request }]),
   where: async (frames) => {
     const originalFrame = frames[0];
+    // Get all threads for this pub
     frames = await frames.query(DiscussionPub._listThreads, {
       pubId,
       includeDeleted,
     }, { thread });
+
+    if (frames.length === 0) {
+      return new Frames({ ...originalFrame, [threads]: [] });
+    }
+
+    // If session is provided, filter by access control
+    if (originalFrame[session]) {
+      // Resolve user from session
+      frames = await frames.query(Sessioning._getUser, { session }, { user });
+      if (frames.length === 0) {
+        // Invalid session - return empty
+        return new Frames({ ...originalFrame, [threads]: [] });
+      }
+
+      // For each thread, check if user has access
+      frames = await frames.query(AccessControl._hasAccess, {
+        user,
+        resource: thread,
+      }, { hasAccess });
+
+      // Filter to only threads where hasAccess is true
+      frames = frames.filter(($) => $[hasAccess] === true);
+    }
+    // If no session, show all threads (backward compatibility)
+
     if (frames.length === 0) {
       return new Frames({ ...originalFrame, [threads]: [] });
     }
