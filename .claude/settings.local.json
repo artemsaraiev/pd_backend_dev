@@ -6,7 +6,11 @@
       "Bash(npm run:*)",
       "Bash(npx tsc:*)",
       "Bash(deno check:*)",
-      "Bash(deno install)"
+      "Bash(deno install)",
+      "Bash(git restore:*)",
+      "Bash(deno install:*)",
+      "Bash(npm install:*)",
+      "Bash(deno task start:*)"
     ],
     "deny": [],
     "ask": []
