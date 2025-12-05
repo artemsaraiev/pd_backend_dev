@@ -83,6 +83,8 @@ export const exclusions: Array<string> = [
   "/api/DiscussionPub/deleteThread",
   "/api/DiscussionPub/editReply",
   "/api/DiscussionPub/deleteReply",
+  "/api/DiscussionPub/voteThread",
+  "/api/DiscussionPub/voteReply",
   "/api/DiscussionPub/initIndexes",
   // Queries handled via syncs (paths without underscores)
   "/api/DiscussionPub/_getPubIdByPaper",

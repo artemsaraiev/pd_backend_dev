@@ -50,6 +50,8 @@ interface ThreadDoc {
   deleted: boolean;
   createdAt: number;
   editedAt?: number;
+  upvotes: number;
+  downvotes: number;
 }
 
 /**
@@ -73,6 +75,8 @@ interface ReplyDoc {
   deleted: boolean;
   createdAt: number;
   editedAt?: number;
+  upvotes: number;
+  downvotes: number;
 }
 
 interface ReplyTreeNode {
@@ -85,6 +89,21 @@ interface ReplyTreeNode {
   parentId?: Reply;
   children: ReplyTreeNode[];
   deleted?: boolean;
+  upvotes: number;
+  downvotes: number;
+}
+
+/**
+ * UserVote tracks which users have voted on threads/replies
+ * to prevent double voting
+ */
+interface UserVoteDoc {
+  _id: string; // composite key: `${userId}:${type}:${targetId}` where type is 'thread' or 'reply'
+  userId: User;
+  type: 'thread' | 'reply';
+  targetId: Thread | Reply;
+  vote: 1 | -1; // 1 for upvote, -1 for downvote
+  createdAt: number;
 }
 
 export default class DiscussionPubConcept {
@@ -102,6 +121,9 @@ export default class DiscussionPubConcept {
   private get replies(): Collection<ReplyDoc> {
     return this.db.collection("replies");
   }
+  private get userVotes(): Collection<UserVoteDoc> {
+    return this.db.collection("userVotes");
+  }
 
   private async initIndexes(): Promise<void> {
     try {
@@ -109,6 +131,7 @@ export default class DiscussionPubConcept {
       await this.threads.createIndex({ pubId: 1 });
       await this.replies.createIndex({ threadId: 1 });
       await this.replies.createIndex({ parentId: 1 });
+      await this.userVotes.createIndex({ userId: 1, type: 1, targetId: 1 }, { unique: true });
     } catch {
       // best-effort
     }
@@ -186,6 +209,8 @@ export default class DiscussionPubConcept {
         body,
         deleted: false,
         createdAt: now,
+        upvotes: 0,
+        downvotes: 0,
         ...(effectiveAnchorId !== undefined && { anchorId: effectiveAnchorId }),
       };
       await this.threads.insertOne(doc);
@@ -244,6 +269,8 @@ export default class DiscussionPubConcept {
         body,
         deleted: false,
         createdAt: now,
+        upvotes: 0,
+        downvotes: 0,
         ...(anchorId !== undefined && { anchorId }),
         ...(parentReply !== undefined && { parentId: parentReply }),
       };
@@ -262,13 +289,14 @@ export default class DiscussionPubConcept {
    * @deprecated Use makeReply instead. This method is kept for backward compatibility.
    */
   async reply(
-    { threadId, author, body }: {
+    { threadId, author, body, anchorId }: {
       threadId: Thread;
       author: User;
       body: string;
+      anchorId?: Anchor;
     },
   ): Promise<{ result: Reply } | { error: string }> {
-    const result = await this.makeReply({ threadId, author, body });
+    const result = await this.makeReply({ threadId, author, body, anchorId });
     if ("error" in result) return result;
     // makeReply returns both newReply and result for compatibility
     const replyResult = result as { newReply: Reply; result: Reply };
@@ -279,17 +307,19 @@ export default class DiscussionPubConcept {
    * @deprecated Use makeReply instead. This method is kept for backward compatibility.
    */
   async replyTo(
-    { threadId, parentId, author, body }: {
+    { threadId, parentId, author, body, anchorId }: {
       threadId: Thread;
       parentId?: Reply;
       author: User;
       body: string;
+      anchorId?: Anchor;
     },
   ): Promise<{ result: Reply } | { error: string }> {
     const result = await this.makeReply({
       threadId,
       author,
       body,
+      anchorId,
       parentReply: parentId,
     });
     if ("error" in result) return result;
@@ -393,6 +423,220 @@ export default class DiscussionPubConcept {
   }
 
   /**
+   * voteThread(threadId: Thread, userId: User, vote: 1 | -1) : (ok: true)
+   *
+   * **requires** the thread exists
+   * **effects** records the user's vote on the thread, updating vote counts.
+   * If the user already voted, updates their vote. If voting the same way again, removes the vote.
+   */
+  async voteThread(
+    { threadId, userId, vote }: { threadId: Thread; userId: User; vote: 1 | -1 },
+  ): Promise<{ ok: true; upvotes: number; downvotes: number; userVote: 1 | -1 | null } | { error: string }> {
+    try {
+      console.log(`\nDiscussionPub.voteThread { threadId: '${threadId}', userId: '${userId}', vote: ${vote} }`);
+      const thread = await this.threads.findOne({ _id: threadId });
+      if (!thread) throw new Error("Thread not found");
+      console.log(`  => { ok: true, upvotes: ${thread.upvotes ?? 0}, downvotes: ${thread.downvotes ?? 0} }`);
+
+      const voteKey = `${userId}:thread:${threadId}`;
+      const existingVote = await this.userVotes.findOne({
+        userId,
+        type: 'thread',
+        targetId: threadId,
+      });
+
+      let upvoteDelta = 0;
+      let downvoteDelta = 0;
+      let finalUserVote: 1 | -1 | null = vote;
+
+      if (existingVote) {
+        // User already voted
+        if (existingVote.vote === vote) {
+          // Same vote - remove it
+          await this.userVotes.deleteOne({ _id: voteKey });
+          if (vote === 1) {
+            upvoteDelta = -1;
+          } else {
+            downvoteDelta = -1;
+          }
+          finalUserVote = null;
+        } else {
+          // Different vote - change it
+          await this.userVotes.updateOne(
+            { _id: voteKey },
+            { $set: { vote, createdAt: Date.now() } },
+          );
+          if (vote === 1) {
+            upvoteDelta = 1;
+            downvoteDelta = -1;
+          } else {
+            upvoteDelta = -1;
+            downvoteDelta = 1;
+          }
+        }
+      } else {
+        // New vote
+        await this.userVotes.insertOne({
+          _id: voteKey,
+          userId,
+          type: 'thread',
+          targetId: threadId,
+          vote,
+          createdAt: Date.now(),
+        });
+        if (vote === 1) {
+          upvoteDelta = 1;
+        } else {
+          downvoteDelta = 1;
+        }
+      }
+
+      // Update thread vote counts
+      const update: Record<string, number> = {};
+      if (upvoteDelta !== 0) {
+        update.upvotes = Math.max(0, (thread.upvotes ?? 0) + upvoteDelta);
+      }
+      if (downvoteDelta !== 0) {
+        update.downvotes = Math.max(0, (thread.downvotes ?? 0) + downvoteDelta);
+      }
+      await this.threads.updateOne({ _id: threadId }, { $set: update });
+
+      const updated = await this.threads.findOne({ _id: threadId });
+      const result = {
+        ok: true,
+        upvotes: updated?.upvotes ?? 0,
+        downvotes: updated?.downvotes ?? 0,
+        userVote: finalUserVote,
+      };
+      console.log(`DiscussionPub.voteThread { threadId: '${threadId}', userId: '${userId}', vote: ${vote} }`);
+      console.log(`  => { ok: true, upvotes: ${result.upvotes}, downvotes: ${result.downvotes}, userVote: ${result.userVote} }`);
+      return result;
+    } catch (e) {
+      const error = e instanceof Error ? e.message : String(e);
+      console.log(`DiscussionPub.voteThread { threadId: '${threadId}', userId: '${userId}', vote: ${vote} }`);
+      console.log(`  => { error: '${error}' }`);
+      return { error };
+    }
+  }
+
+  /**
+   * voteReply(replyId: Reply, userId: User, vote: 1 | -1) : (ok: true)
+   *
+   * **requires** the reply exists
+   * **effects** records the user's vote on the reply, updating vote counts.
+   * If the user already voted, updates their vote. If voting the same way again, removes the vote.
+   */
+  async voteReply(
+    { replyId, userId, vote }: { replyId: Reply; userId: User; vote: 1 | -1 },
+  ): Promise<{ ok: true; upvotes: number; downvotes: number; userVote: 1 | -1 | null } | { error: string }> {
+    try {
+      console.log(`\nDiscussionPub.voteReply { replyId: '${replyId}', userId: '${userId}', vote: ${vote} }`);
+      const reply = await this.replies.findOne({ _id: replyId });
+      if (!reply) throw new Error("Reply not found");
+
+      const voteKey = `${userId}:reply:${replyId}`;
+      const existingVote = await this.userVotes.findOne({
+        userId,
+        type: 'reply',
+        targetId: replyId,
+      });
+
+      let upvoteDelta = 0;
+      let downvoteDelta = 0;
+      let finalUserVote: 1 | -1 | null = vote;
+
+      if (existingVote) {
+        // User already voted
+        if (existingVote.vote === vote) {
+          // Same vote - remove it
+          await this.userVotes.deleteOne({ _id: voteKey });
+          if (vote === 1) {
+            upvoteDelta = -1;
+          } else {
+            downvoteDelta = -1;
+          }
+          finalUserVote = null;
+        } else {
+          // Different vote - change it
+          await this.userVotes.updateOne(
+            { _id: voteKey },
+            { $set: { vote, createdAt: Date.now() } },
+          );
+          if (vote === 1) {
+            upvoteDelta = 1;
+            downvoteDelta = -1;
+          } else {
+            upvoteDelta = -1;
+            downvoteDelta = 1;
+          }
+        }
+      } else {
+        // New vote
+        await this.userVotes.insertOne({
+          _id: voteKey,
+          userId,
+          type: 'reply',
+          targetId: replyId,
+          vote,
+          createdAt: Date.now(),
+        });
+        if (vote === 1) {
+          upvoteDelta = 1;
+        } else {
+          downvoteDelta = 1;
+        }
+      }
+
+      // Update reply vote counts
+      const update: Record<string, number> = {};
+      if (upvoteDelta !== 0) {
+        update.upvotes = Math.max(0, (reply.upvotes ?? 0) + upvoteDelta);
+      }
+      if (downvoteDelta !== 0) {
+        update.downvotes = Math.max(0, (reply.downvotes ?? 0) + downvoteDelta);
+      }
+      await this.replies.updateOne({ _id: replyId }, { $set: update });
+
+      const updated = await this.replies.findOne({ _id: replyId });
+      const result = {
+        ok: true,
+        upvotes: updated?.upvotes ?? 0,
+        downvotes: updated?.downvotes ?? 0,
+        userVote: finalUserVote,
+      };
+      console.log(`DiscussionPub.voteReply { replyId: '${replyId}', userId: '${userId}', vote: ${vote} }`);
+      console.log(`  => { ok: true, upvotes: ${result.upvotes}, downvotes: ${result.downvotes}, userVote: ${result.userVote} }`);
+      return result;
+    } catch (e) {
+      const error = e instanceof Error ? e.message : String(e);
+      console.log(`DiscussionPub.voteReply { replyId: '${replyId}', userId: '${userId}', vote: ${vote} }`);
+      console.log(`  => { error: '${error}' }`);
+      return { error };
+    }
+  }
+
+  /**
+   * _getUserVote(userId: User, type: 'thread' | 'reply', targetId: Thread | Reply) : (vote: 1 | -1 | null)
+   *
+   * **requires** nothing
+   * **effects** returns the user's vote on the target, or null if they haven't voted
+   */
+  async _getUserVote(
+    { userId, type, targetId }: { userId: User; type: 'thread' | 'reply'; targetId: Thread | Reply },
+  ): Promise<Array<{ vote: 1 | -1 | null }>> {
+    try {
+      const voteDoc = await this.userVotes.findOne({
+        userId,
+        type,
+        targetId,
+      });
+      return [{ vote: voteDoc?.vote ?? null }];
+    } catch {
+      return [{ vote: null }];
+    }
+  }
+
+  /**
    * _getThread(thread: Thread) : (thread: ThreadDoc)
    *
    * **requires** nothing
@@ -447,19 +691,21 @@ export default class DiscussionPubConcept {
   }
 
   /**
-   * _listThreads(pub: Pub, anchor?: Anchor) : (thread: Thread)
+   * _listThreads(pub: Pub, anchor?: Anchor, sortBy?: string) : (thread: Thread)
    *
    * **requires** nothing
    * **effects** returns an array of dictionaries, each containing one non-deleted
    * thread for the given pub, optionally filtered by anchor. Results are ordered by
-   * createdAt. Each thread includes _id, author, title, body, anchorId, createdAt, and
-   * editedAt. Returns an empty array if no threads exist.
+   * sortBy (default: createdAt). Each thread includes _id, author, title, body, anchorId, createdAt,
+   * editedAt, upvotes, and downvotes. Returns an empty array if no threads exist.
+   * sortBy can be: 'createdAt', 'votes' (net votes = upvotes - downvotes), 'upvotes', 'downvotes'
    */
   async _listThreads(
-    { pubId, anchorId, includeDeleted }: {
+    { pubId, anchorId, includeDeleted, sortBy }: {
       pubId: Pub;
       anchorId?: Anchor;
       includeDeleted?: boolean;
+      sortBy?: string;
     },
   ): Promise<
     Array<{
@@ -472,6 +718,8 @@ export default class DiscussionPubConcept {
         createdAt: number;
         editedAt?: number;
         deleted?: boolean;
+        upvotes: number;
+        downvotes: number;
       };
     }>
   > {
@@ -483,7 +731,16 @@ export default class DiscussionPubConcept {
         filter.$or = [{ deleted: false }, { deleted: { $exists: false } }];
       }
       if (anchorId !== undefined) filter.anchorId = anchorId;
-      const cur = this.threads.find(filter).sort({ createdAt: 1 });
+      
+      // Determine sort order
+      let sort: Record<string, 1 | -1> = { createdAt: -1 }; // default: newest first (Recent)
+      if (sortBy === 'oldest') {
+        sort = { createdAt: 1 }; // Oldest first
+      } else if (sortBy === 'createdAt') {
+        sort = { createdAt: -1 }; // Newest first (Recent)
+      }
+      
+      const cur = this.threads.find(filter).sort(sort);
       const items = await cur.toArray();
       // Queries must return an array of dictionaries, one per thread
       return items.map((t) => ({
@@ -496,6 +753,8 @@ export default class DiscussionPubConcept {
           createdAt: t.createdAt,
           editedAt: t.editedAt,
           deleted: t.deleted ?? false,
+          upvotes: t.upvotes ?? 0,
+          downvotes: t.downvotes ?? 0,
         },
       }));
     } catch {
@@ -505,18 +764,20 @@ export default class DiscussionPubConcept {
   }
 
   /**
-   * _listReplies(thread: Thread) : (reply: Reply)
+   * _listReplies(thread: Thread, sortBy?: string) : (reply: Reply)
    *
    * **requires** nothing
    * **effects** returns an array of dictionaries, each containing one non-deleted
-   * reply for the given thread, ordered by createdAt. Each reply includes _id, author,
-   * body, anchorId, parentId, createdAt, and editedAt. Returns an empty array if no
+   * reply for the given thread, ordered by sortBy (default: createdAt). Each reply includes _id, author,
+   * body, anchorId, parentId, createdAt, editedAt, upvotes, and downvotes. Returns an empty array if no
    * replies exist.
+   * sortBy can be: 'createdAt', 'votes' (net votes = upvotes - downvotes), 'upvotes', 'downvotes'
    */
   async _listReplies(
-    { threadId, includeDeleted }: {
+    { threadId, includeDeleted, sortBy }: {
       threadId: Thread;
       includeDeleted?: boolean;
+      sortBy?: string;
     },
   ): Promise<
     Array<{
@@ -529,6 +790,8 @@ export default class DiscussionPubConcept {
         createdAt: number;
         editedAt?: number;
         deleted?: boolean;
+        upvotes: number;
+        downvotes: number;
       };
     }>
   > {
@@ -537,7 +800,41 @@ export default class DiscussionPubConcept {
       if (!includeDeleted) {
         filter.$or = [{ deleted: false }, { deleted: { $exists: false } }];
       }
-      const cur = this.replies.find(filter).sort({ createdAt: 1 });
+      
+      // Determine sort order
+      let sort: Record<string, 1 | -1> = { createdAt: 1 }; // default
+      if (sortBy === 'votes') {
+        // Sort by net votes (upvotes - downvotes), then by createdAt
+        const items = await this.replies.find(filter).toArray();
+        items.sort((a, b) => {
+          const netA = (a.upvotes ?? 0) - (a.downvotes ?? 0);
+          const netB = (b.upvotes ?? 0) - (b.downvotes ?? 0);
+          if (netB !== netA) return netB - netA; // Higher net votes first
+          return a.createdAt - b.createdAt; // Then by date
+        });
+        return items.map((r) => ({
+          reply: {
+            _id: r._id,
+            author: r.author,
+            body: r.body,
+            anchorId: r.anchorId,
+            parentId: r.parentId,
+            createdAt: r.createdAt,
+            editedAt: r.editedAt,
+            deleted: r.deleted ?? false,
+            upvotes: r.upvotes ?? 0,
+            downvotes: r.downvotes ?? 0,
+          },
+        }));
+      } else if (sortBy === 'upvotes') {
+        sort = { upvotes: -1, createdAt: 1 };
+      } else if (sortBy === 'downvotes') {
+        sort = { downvotes: -1, createdAt: 1 };
+      } else if (sortBy === 'createdAt') {
+        sort = { createdAt: 1 };
+      }
+      
+      const cur = this.replies.find(filter).sort(sort);
       const items = await cur.toArray();
       // Queries must return an array of dictionaries, one per reply
       return items.map((r) => ({
@@ -550,6 +847,8 @@ export default class DiscussionPubConcept {
           createdAt: r.createdAt,
           editedAt: r.editedAt,
           deleted: r.deleted ?? false,
+          upvotes: r.upvotes ?? 0,
+          downvotes: r.downvotes ?? 0,
         },
       }));
     } catch {
@@ -594,6 +893,8 @@ export default class DiscussionPubConcept {
           parentId: r.parentId,
           children: [],
           deleted: r.deleted ?? false,
+          upvotes: r.upvotes ?? 0,
+          downvotes: r.downvotes ?? 0,
         };
       }
       const roots: ReplyTreeNode[] = [];

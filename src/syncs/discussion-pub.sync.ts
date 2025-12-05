@@ -148,18 +148,19 @@ export const DiscussionStartThreadPrivateResponseError: Sync = (
 
 // Reply - handles with or without session
 export const DiscussionReplyRequest: Sync = (
-  { request, session, threadId, body, user },
+  { request, session, threadId, body, anchorId, user },
 ) => ({
   when: actions([Requesting.request, {
     path: "/DiscussionPub/reply",
     session,
     threadId,
     body,
+    anchorId,
   }, { request }]),
   where: async (frames) => {
     return await frames.query(Sessioning._getUser, { session }, { user });
   },
-  then: actions([DiscussionPub.reply, { threadId, author: user, body }]),
+  then: actions([DiscussionPub.reply, { threadId, author: user, body, anchorId }]),
 });
 
 export const DiscussionReplyResponse: Sync = ({ request, result }) => ({
@@ -172,7 +173,7 @@ export const DiscussionReplyResponse: Sync = ({ request, result }) => ({
 
 // Support nested replies
 export const DiscussionReplyToRequest: Sync = (
-  { request, session, threadId, parentId, body, user },
+  { request, session, threadId, parentId, body, anchorId, user },
 ) => ({
   when: actions([Requesting.request, {
     path: "/DiscussionPub/replyTo",
@@ -180,6 +181,7 @@ export const DiscussionReplyToRequest: Sync = (
     threadId,
     parentId,
     body,
+    anchorId,
   }, { request }]),
   where: async (frames) => {
     return await frames.query(Sessioning._getUser, { session }, { user });
@@ -189,6 +191,7 @@ export const DiscussionReplyToRequest: Sync = (
     parentId,
     author: user,
     body,
+    anchorId,
   }]),
 });
 
@@ -235,6 +238,7 @@ export const DiscussionListThreadsWithAnchorAndSessionRequest: Sync = (
     anchorId,
     includeDeleted,
     groupFilter,
+    sortBy,
     thread,
     threads,
     user,
@@ -250,16 +254,19 @@ export const DiscussionListThreadsWithAnchorAndSessionRequest: Sync = (
     anchorId,
     includeDeleted,
     groupFilter,
+    sortBy,
   }, { request }]),
   where: async (frames) => {
     const originalFrame = frames[0];
     const groupFilterValue = originalFrame[groupFilter] as string | undefined;
+    const sortByValue = originalFrame[sortBy] as string | undefined;
 
     // Get all threads for this pub/anchor
     const threadFrames = await frames.query(DiscussionPub._listThreads, {
       pubId,
       anchorId,
       includeDeleted,
+      sortBy: sortByValue,
     }, { thread });
 
     if (threadFrames.length === 0) {
@@ -368,6 +375,7 @@ export const DiscussionListThreadsWithSessionRequest: Sync = (
     pubId,
     includeDeleted,
     groupFilter,
+    sortBy,
     thread,
     threads,
     user,
@@ -382,15 +390,18 @@ export const DiscussionListThreadsWithSessionRequest: Sync = (
     pubId,
     includeDeleted,
     groupFilter,
+    sortBy,
   }, { request }]),
   where: async (frames) => {
     const originalFrame = frames[0];
     const groupFilterValue = originalFrame[groupFilter] as string | undefined;
+    const sortByValue = originalFrame[sortBy] as string | undefined;
 
     // Get all threads for this pub
     const threadFrames = await frames.query(DiscussionPub._listThreads, {
       pubId,
       includeDeleted,
+      sortBy: sortByValue,
     }, { thread });
 
     if (threadFrames.length === 0) {
@@ -637,6 +648,72 @@ export const DiscussionDeleteReplyRequest: Sync = (
     Requesting.respond,
     { request, ok: true },
   ]),
+});
+
+// Vote Thread
+export const DiscussionVoteThreadRequest: Sync = (
+  { request, session, threadId, userId, vote, user },
+) => ({
+  when: actions([Requesting.request, {
+    path: "/DiscussionPub/voteThread",
+    session,
+    threadId,
+    userId,
+    vote,
+  }, { request }]),
+  where: async (frames) => {
+    return await frames.query(Sessioning._getUser, { session }, { user });
+  },
+  then: actions([DiscussionPub.voteThread, { threadId, userId: user, vote }]),
+});
+
+export const DiscussionVoteThreadResponseSuccess: Sync = ({ request, ok, upvotes, downvotes, userVote }) => ({
+  when: actions(
+    [Requesting.request, { path: "/DiscussionPub/voteThread" }, { request }],
+    [DiscussionPub.voteThread, {}, { ok, upvotes, downvotes, userVote }],
+  ),
+  then: actions([Requesting.respond, { request, ok, upvotes, downvotes, userVote }]),
+});
+
+export const DiscussionVoteThreadResponseError: Sync = ({ request, error }) => ({
+  when: actions(
+    [Requesting.request, { path: "/DiscussionPub/voteThread" }, { request }],
+    [DiscussionPub.voteThread, {}, { error }],
+  ),
+  then: actions([Requesting.respond, { request, error }]),
+});
+
+// Vote Reply
+export const DiscussionVoteReplyRequest: Sync = (
+  { request, session, replyId, userId, vote, user },
+) => ({
+  when: actions([Requesting.request, {
+    path: "/DiscussionPub/voteReply",
+    session,
+    replyId,
+    userId,
+    vote,
+  }, { request }]),
+  where: async (frames) => {
+    return await frames.query(Sessioning._getUser, { session }, { user });
+  },
+  then: actions([DiscussionPub.voteReply, { replyId, userId: user, vote }]),
+});
+
+export const DiscussionVoteReplyResponseSuccess: Sync = ({ request, ok, upvotes, downvotes, userVote }) => ({
+  when: actions(
+    [Requesting.request, { path: "/DiscussionPub/voteReply" }, { request }],
+    [DiscussionPub.voteReply, {}, { ok, upvotes, downvotes, userVote }],
+  ),
+  then: actions([Requesting.respond, { request, ok, upvotes, downvotes, userVote }]),
+});
+
+export const DiscussionVoteReplyResponseError: Sync = ({ request, error }) => ({
+  when: actions(
+    [Requesting.request, { path: "/DiscussionPub/voteReply" }, { request }],
+    [DiscussionPub.voteReply, {}, { error }],
+  ),
+  then: actions([Requesting.respond, { request, error }]),
 });
 
 // makeReply with all optional parameters
