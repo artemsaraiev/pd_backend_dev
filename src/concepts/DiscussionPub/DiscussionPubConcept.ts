@@ -879,6 +879,8 @@ export default class DiscussionPubConcept {
       }
       const cur = this.replies.find(filter).sort({ createdAt: 1 });
       const items = await cur.toArray();
+      console.log(`[_listRepliesTree] Raw replies from DB for thread ${threadId}:`, 
+        items.map(r => ({ _id: r._id, body: r.body?.slice(0, 20), anchorId: r.anchorId })));
       // Build id->node
       const nodeById: Record<string, ReplyTreeNode> = {};
       for (const r of items) {
@@ -905,6 +907,8 @@ export default class DiscussionPubConcept {
           roots.push(n);
         }
       }
+      console.log(`[_listRepliesTree] Returning tree roots:`, 
+        roots.map(r => ({ _id: r._id, body: r.body?.slice(0, 20), anchorId: r.anchorId })));
       // Queries must return an array of dictionaries, one per root reply
       return roots.map((reply) => ({ reply }));
     } catch {
