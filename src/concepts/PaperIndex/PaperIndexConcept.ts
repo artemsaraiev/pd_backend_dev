@@ -62,12 +62,39 @@ export default class PaperIndexConcept {
     try {
       const query = q.trim();
       if (!query) return [];
-      const url = `http://export.arxiv.org/api/query?search_query=all:${
+      const url = `https://export.arxiv.org/api/query?search_query=all:${
         encodeURIComponent(query)
       }&start=0&max_results=10`;
-      const res = await fetch(url);
-      if (!res.ok) throw new Error(`arXiv API error: ${res.status}`);
-      const xml = await res.text();
+      
+      // Retry logic for rate limiting (429 errors)
+      let res: Response;
+      let retries = 3;
+      let delay = 2000; // Start with 2 seconds
+      
+      while (retries > 0) {
+        res = await fetch(url);
+        
+        if (res.status === 429) {
+          // Rate limited - wait and retry
+          retries--;
+          if (retries > 0) {
+            console.warn(`[PaperIndex._searchArxiv] Rate limited (429), retrying in ${delay}ms... (${retries} retries left)`);
+            await new Promise(resolve => setTimeout(resolve, delay));
+            delay *= 2; // Exponential backoff: 2s, 4s, 8s
+          } else {
+            console.error(`[PaperIndex._searchArxiv] Rate limited (429) after retries for query "${query}"`);
+            return [];
+          }
+        } else if (!res.ok) {
+          console.error(`[PaperIndex._searchArxiv] arXiv API error: ${res.status} for query "${query}"`);
+          return [];
+        } else {
+          // Success - break out of retry loop
+          break;
+        }
+      }
+      
+      const xml = await res!.text();
       const items: Array<{ id: string; title?: string }> = [];
       const entryRegex = /<entry[\s\S]*?<\/entry>/g;
       const entries = xml.match(entryRegex) ?? [];
@@ -83,10 +110,12 @@ export default class PaperIndexConcept {
           : undefined;
         items.push({ id, title });
       }
+      console.log(`[PaperIndex._searchArxiv] Found ${items.length} results for query "${query}"`);
       // Queries must return an array of dictionaries, one per result
       return items.map((result) => ({ result }));
-    } catch {
-      // On error, return empty array (queries should not throw)
+    } catch (e) {
+      // On error, log and return empty array (queries should not throw)
+      console.error(`[PaperIndex._searchArxiv] Error searching arXiv for "${q}":`, e);
       return [];
     }
   }

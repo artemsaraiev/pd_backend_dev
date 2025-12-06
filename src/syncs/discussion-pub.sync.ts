@@ -25,7 +25,7 @@ export const DiscussionOpenResponse: Sync = ({ request, result }) => ({
 // PUBLIC THREAD: /DiscussionPub/startThread (no groupId)
 // anchorId is required in the request (can be empty string for no anchor)
 export const DiscussionStartThreadPublicRequest: Sync = (
-  { request, session, pubId, body, anchorId, user },
+  { request, session, pubId, body, anchorId, isAnonymous, user },
 ) => ({
   when: actions([Requesting.request, {
     path: "/DiscussionPub/startThread",
@@ -33,6 +33,7 @@ export const DiscussionStartThreadPublicRequest: Sync = (
     pubId,
     body,
     anchorId,
+    isAnonymous,
   }, { request }]),
   where: async (frames) => {
     return await frames.query(Sessioning._getUser, { session }, { user });
@@ -42,6 +43,7 @@ export const DiscussionStartThreadPublicRequest: Sync = (
     author: user,
     body,
     anchorId,
+    isAnonymous,
   }]),
 });
 
@@ -61,7 +63,7 @@ export const DiscussionStartThreadPublicGrantAccess: Sync = (
 // PRIVATE THREAD: /DiscussionPub/startPrivateThread (requires groupId)
 // anchorId is required in the request (can be empty string for no anchor)
 export const DiscussionStartThreadPrivateRequest: Sync = (
-  { request, session, pubId, body, anchorId, groupId, user },
+  { request, session, pubId, body, anchorId, groupId, isAnonymous, user },
 ) => ({
   when: actions([Requesting.request, {
     path: "/DiscussionPub/startPrivateThread",
@@ -70,6 +72,7 @@ export const DiscussionStartThreadPrivateRequest: Sync = (
     body,
     anchorId,
     groupId,
+    isAnonymous,
   }, { request }]),
   where: async (frames) => {
     return await frames.query(Sessioning._getUser, { session }, { user });
@@ -79,6 +82,7 @@ export const DiscussionStartThreadPrivateRequest: Sync = (
     author: user,
     body,
     anchorId,
+    isAnonymous,
   }]),
 });
 
@@ -146,9 +150,9 @@ export const DiscussionStartThreadPrivateResponseError: Sync = (
   then: actions([Requesting.respond, { request, error }]),
 });
 
-// Reply - handles with or without session
+// Reply - anchorId is always passed (empty string if no anchor)
 export const DiscussionReplyRequest: Sync = (
-  { request, session, threadId, body, anchorId, user },
+  { request, session, threadId, body, anchorId, isAnonymous, user },
 ) => ({
   when: actions([Requesting.request, {
     path: "/DiscussionPub/reply",
@@ -156,11 +160,12 @@ export const DiscussionReplyRequest: Sync = (
     threadId,
     body,
     anchorId,
+    isAnonymous,
   }, { request }]),
   where: async (frames) => {
     return await frames.query(Sessioning._getUser, { session }, { user });
   },
-  then: actions([DiscussionPub.reply, { threadId, author: user, body, anchorId }]),
+  then: actions([DiscussionPub.reply, { threadId, author: user, body, anchorId, isAnonymous }]),
 });
 
 export const DiscussionReplyResponse: Sync = ({ request, result }) => ({
@@ -171,9 +176,9 @@ export const DiscussionReplyResponse: Sync = ({ request, result }) => ({
   then: actions([Requesting.respond, { request, result }]),
 });
 
-// Support nested replies
+// Support nested replies - anchorId is always passed (empty string if no anchor)
 export const DiscussionReplyToRequest: Sync = (
-  { request, session, threadId, parentId, body, anchorId, user },
+  { request, session, threadId, parentId, body, anchorId, isAnonymous, user },
 ) => ({
   when: actions([Requesting.request, {
     path: "/DiscussionPub/replyTo",
@@ -182,6 +187,7 @@ export const DiscussionReplyToRequest: Sync = (
     parentId,
     body,
     anchorId,
+    isAnonymous,
   }, { request }]),
   where: async (frames) => {
     return await frames.query(Sessioning._getUser, { session }, { user });
@@ -192,6 +198,7 @@ export const DiscussionReplyToRequest: Sync = (
     author: user,
     body,
     anchorId,
+    isAnonymous,
   }]),
 });
 
@@ -718,7 +725,7 @@ export const DiscussionVoteReplyResponseError: Sync = ({ request, error }) => ({
 
 // makeReply with all optional parameters
 export const DiscussionMakeReplyWithAllRequest: Sync = (
-  { request, session, threadId, anchorId, body, parentReply, user },
+  { request, session, threadId, anchorId, body, parentReply, isAnonymous, user },
 ) => ({
   when: actions([Requesting.request, {
     path: "/DiscussionPub/makeReply",
@@ -727,6 +734,7 @@ export const DiscussionMakeReplyWithAllRequest: Sync = (
     anchorId,
     body,
     parentReply,
+    isAnonymous,
   }, { request }]),
   where: async (frames) => {
     return await frames.query(Sessioning._getUser, { session }, { user });
@@ -737,28 +745,30 @@ export const DiscussionMakeReplyWithAllRequest: Sync = (
     anchorId,
     body,
     parentReply,
+    isAnonymous,
   }]),
 });
 
 // makeReply without anchorId and parentReply
 export const DiscussionMakeReplyRequest: Sync = (
-  { request, session, threadId, body, user },
+  { request, session, threadId, body, isAnonymous, user },
 ) => ({
   when: actions([Requesting.request, {
     path: "/DiscussionPub/makeReply",
     session,
     threadId,
     body,
+    isAnonymous,
   }, { request }]),
   where: async (frames) => {
     return await frames.query(Sessioning._getUser, { session }, { user });
   },
-  then: actions([DiscussionPub.makeReply, { threadId, author: user, body }]),
+  then: actions([DiscussionPub.makeReply, { threadId, author: user, body, isAnonymous }]),
 });
 
 // makeReply with anchorId only
 export const DiscussionMakeReplyWithAnchorRequest: Sync = (
-  { request, session, threadId, anchorId, body, user },
+  { request, session, threadId, anchorId, body, isAnonymous, user },
 ) => ({
   when: actions([Requesting.request, {
     path: "/DiscussionPub/makeReply",
@@ -766,6 +776,7 @@ export const DiscussionMakeReplyWithAnchorRequest: Sync = (
     threadId,
     anchorId,
     body,
+    isAnonymous,
   }, { request }]),
   where: async (frames) => {
     return await frames.query(Sessioning._getUser, { session }, { user });
@@ -775,12 +786,13 @@ export const DiscussionMakeReplyWithAnchorRequest: Sync = (
     author: user,
     anchorId,
     body,
+    isAnonymous,
   }]),
 });
 
 // makeReply with parentReply only
 export const DiscussionMakeReplyWithParentRequest: Sync = (
-  { request, session, threadId, body, parentReply, user },
+  { request, session, threadId, body, parentReply, isAnonymous, user },
 ) => ({
   when: actions([Requesting.request, {
     path: "/DiscussionPub/makeReply",
@@ -788,6 +800,7 @@ export const DiscussionMakeReplyWithParentRequest: Sync = (
     threadId,
     body,
     parentReply,
+    isAnonymous,
   }, { request }]),
   where: async (frames) => {
     return await frames.query(Sessioning._getUser, { session }, { user });
@@ -797,6 +810,7 @@ export const DiscussionMakeReplyWithParentRequest: Sync = (
     author: user,
     body,
     parentReply,
+    isAnonymous,
   }]),
 });
 
@@ -808,4 +822,24 @@ export const DiscussionMakeReplyResponse: Sync = (
     [DiscussionPub.makeReply, {}, { newReply, result, error }],
   ),
   then: actions([Requesting.respond, { request, newReply, result, error }]),
+});
+
+// Get anonymous pseudonym for a user on a specific pub
+export const DiscussionGetAnonymousPseudonymRequest: Sync = (
+  { request, userId, pubId, pseudonym },
+) => ({
+  when: actions([Requesting.request, {
+    path: "/DiscussionPub/getAnonymousPseudonym",
+    userId,
+    pubId,
+  }, { request }]),
+  where: async (frames) => {
+    const originalFrame = frames[0];
+    frames = await frames.query(DiscussionPub._getAnonymousPseudonym, { userId, pubId }, { pseudonym });
+    if (frames.length === 0) {
+      return new Frames({ ...originalFrame, [pseudonym]: null });
+    }
+    return frames;
+  },
+  then: actions([Requesting.respond, { request, pseudonym }]),
 });

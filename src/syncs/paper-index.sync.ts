@@ -37,14 +37,26 @@ export const PaperIndexEnsureResponseError: Sync = ({ request, error }) => ({
   then: actions([Requesting.respond, { request, error }]),
 });
 
+// updateMeta accepts either:
+// - { paper: internal_id, title } - direct internal ID
+// - { id: external_paperId, title } - external paper ID (looked up)
 export const PaperIndexUpdateMetaRequest: Sync = (
-  { request, paper, title },
+  { request, id, paper, title, paperDoc },
 ) => ({
   when: actions([Requesting.request, {
     path: "/PaperIndex/updateMeta",
-    paper,
+    id, // Frontend sends external paperId as 'id'
     title,
   }, { request }]),
+  where: async (frames) => {
+    // Look up internal paper ID from external paperId
+    frames = await frames.query(PaperIndex._getByPaperId, { paperId: id }, { paper: paperDoc });
+    // Extract the internal _id from the paper document
+    return frames.map(($) => ({
+      ...$,
+      [paper]: $[paperDoc]?._id,
+    }));
+  },
   then: actions([PaperIndex.updateMeta, { paper, title }]),
 });
 

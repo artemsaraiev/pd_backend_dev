@@ -9,6 +9,41 @@ type Pub = ID;
 type Thread = ID;
 type Reply = ID;
 
+// Pseudonym generation for anonymous posting
+const PSEUDONYM_ADJECTIVES = [
+  "Curious", "Thoughtful", "Eager", "Brilliant", "Insightful",
+  "Methodical", "Analytical", "Creative", "Diligent", "Skeptical",
+  "Passionate", "Inquisitive", "Focused", "Determined", "Rigorous",
+  "Innovative", "Perceptive", "Attentive", "Inspired", "Dedicated"
+];
+
+const PSEUDONYM_NOUNS = [
+  "Researcher", "Scholar", "Thinker", "Analyst", "Explorer",
+  "Reviewer", "Reader", "Observer", "Theorist", "Contributor",
+  "Investigator", "Learner", "Critic", "Collaborator", "Scientist", "Fellow"
+];
+
+/**
+ * Generate a deterministic pseudonym for anonymous posting.
+ * Same userId + pubId always produces the same pseudonym.
+ */
+function generatePseudonym(userId: string, pubId: string): string {
+  // Simple hash function for deterministic selection
+  const combined = `${userId}:${pubId}:anonymous_salt_2024`;
+  let hash = 0;
+  for (let i = 0; i < combined.length; i++) {
+    const char = combined.charCodeAt(i);
+    hash = ((hash << 5) - hash) + char;
+    hash = hash & hash; // Convert to 32bit integer
+  }
+  hash = Math.abs(hash);
+  
+  const adjIndex = hash % PSEUDONYM_ADJECTIVES.length;
+  const nounIndex = Math.floor(hash / PSEUDONYM_ADJECTIVES.length) % PSEUDONYM_NOUNS.length;
+  
+  return `${PSEUDONYM_ADJECTIVES[adjIndex]} ${PSEUDONYM_NOUNS[nounIndex]}`;
+}
+
 /**
  * @concept DiscussionPub [User, Anchor]
  * @purpose per-paper forum with threads and replies, anchored to some context
@@ -39,6 +74,7 @@ interface PubDoc {
  *   a deleted Boolean
  *   a createdAt Date
  *   an editedAt Date?
+ *   an isAnonymous Boolean?
  */
 interface ThreadDoc {
   _id: Thread;
@@ -52,6 +88,7 @@ interface ThreadDoc {
   editedAt?: number;
   upvotes: number;
   downvotes: number;
+  isAnonymous?: boolean;
 }
 
 /**
@@ -64,6 +101,7 @@ interface ThreadDoc {
  *   a createdAt Date
  *   a parent Reply?
  *   an editedAt Date?
+ *   an isAnonymous Boolean?
  */
 interface ReplyDoc {
   _id: Reply;
@@ -77,6 +115,7 @@ interface ReplyDoc {
   editedAt?: number;
   upvotes: number;
   downvotes: number;
+  isAnonymous?: boolean;
 }
 
 interface ReplyTreeNode {
@@ -91,6 +130,7 @@ interface ReplyTreeNode {
   deleted?: boolean;
   upvotes: number;
   downvotes: number;
+  isAnonymous?: boolean;
 }
 
 /**
@@ -169,7 +209,7 @@ export default class DiscussionPubConcept {
   }
 
   /**
-   * startThread(pub: Pub, author: User, anchor: Anchor, title: String, body: String) : (newThread: Thread)
+   * startThread(pub: Pub, author: User, anchor: Anchor, title: String, body: String, isAnonymous?: Boolean) : (newThread: Thread)
    *
    * **requires** the pub is in the set of Pubs
    * **effects** inserts a new thread with the given pub, author, anchor, title, body,
@@ -184,12 +224,14 @@ export default class DiscussionPubConcept {
       anchorId,
       title,
       body,
+      isAnonymous,
     }: {
       pubId: Pub;
       author: User;
       anchorId?: Anchor;
       title?: string; // Optional for backward compatibility
       body: string;
+      isAnonymous?: boolean;
     },
   ): Promise<{ newThread: Thread } | { result: Thread } | { error: string }> {
     try {
@@ -212,6 +254,7 @@ export default class DiscussionPubConcept {
         upvotes: 0,
         downvotes: 0,
         ...(effectiveAnchorId !== undefined && { anchorId: effectiveAnchorId }),
+        ...(isAnonymous && { isAnonymous: true }),
       };
       await this.threads.insertOne(doc);
       // Support both return types for backward compatibility
@@ -225,7 +268,7 @@ export default class DiscussionPubConcept {
   }
 
   /**
-   * makeReply(thread: Thread, author: User, anchor: Anchor, body: String, parentReply?: Reply) : (newReply: Reply)
+   * makeReply(thread: Thread, author: User, anchor: Anchor, body: String, parentReply?: Reply, isAnonymous?: Boolean) : (newReply: Reply)
    *
    * **requires** the thread is in the set of Threads; the parentReply, if provided,
    * should be in the set of Replies and the thread of the parentReply should be the
@@ -242,12 +285,14 @@ export default class DiscussionPubConcept {
       anchorId,
       body,
       parentReply,
+      isAnonymous,
     }: {
       threadId: Thread;
       author: User;
       anchorId?: Anchor;
       body: string;
       parentReply?: Reply;
+      isAnonymous?: boolean;
     },
   ): Promise<{ newReply: Reply } | { result: Reply } | { error: string }> {
     try {
@@ -273,6 +318,7 @@ export default class DiscussionPubConcept {
         downvotes: 0,
         ...(anchorId !== undefined && { anchorId }),
         ...(parentReply !== undefined && { parentId: parentReply }),
+        ...(isAnonymous && { isAnonymous: true }),
       };
       await this.replies.insertOne(doc);
       // Support both return types for backward compatibility
@@ -289,14 +335,15 @@ export default class DiscussionPubConcept {
    * @deprecated Use makeReply instead. This method is kept for backward compatibility.
    */
   async reply(
-    { threadId, author, body, anchorId }: {
+    { threadId, author, body, anchorId, isAnonymous }: {
       threadId: Thread;
       author: User;
       body: string;
       anchorId?: Anchor;
+      isAnonymous?: boolean;
     },
   ): Promise<{ result: Reply } | { error: string }> {
-    const result = await this.makeReply({ threadId, author, body, anchorId });
+    const result = await this.makeReply({ threadId, author, body, anchorId, isAnonymous });
     if ("error" in result) return result;
     // makeReply returns both newReply and result for compatibility
     const replyResult = result as { newReply: Reply; result: Reply };
@@ -307,12 +354,13 @@ export default class DiscussionPubConcept {
    * @deprecated Use makeReply instead. This method is kept for backward compatibility.
    */
   async replyTo(
-    { threadId, parentId, author, body, anchorId }: {
+    { threadId, parentId, author, body, anchorId, isAnonymous }: {
       threadId: Thread;
       parentId?: Reply;
       author: User;
       body: string;
       anchorId?: Anchor;
+      isAnonymous?: boolean;
     },
   ): Promise<{ result: Reply } | { error: string }> {
     const result = await this.makeReply({
@@ -321,6 +369,7 @@ export default class DiscussionPubConcept {
       body,
       anchorId,
       parentReply: parentId,
+      isAnonymous,
     });
     if ("error" in result) return result;
     // makeReply returns both newReply and result for compatibility
@@ -697,7 +746,7 @@ export default class DiscussionPubConcept {
    * **effects** returns an array of dictionaries, each containing one non-deleted
    * thread for the given pub, optionally filtered by anchor. Results are ordered by
    * sortBy (default: createdAt). Each thread includes _id, author, title, body, anchorId, createdAt,
-   * editedAt, upvotes, and downvotes. Returns an empty array if no threads exist.
+   * editedAt, upvotes, downvotes, and isAnonymous. Returns an empty array if no threads exist.
    * sortBy can be: 'createdAt', 'votes' (net votes = upvotes - downvotes), 'upvotes', 'downvotes'
    */
   async _listThreads(
@@ -720,6 +769,7 @@ export default class DiscussionPubConcept {
         deleted?: boolean;
         upvotes: number;
         downvotes: number;
+        isAnonymous?: boolean;
       };
     }>
   > {
@@ -755,6 +805,7 @@ export default class DiscussionPubConcept {
           deleted: t.deleted ?? false,
           upvotes: t.upvotes ?? 0,
           downvotes: t.downvotes ?? 0,
+          isAnonymous: t.isAnonymous ?? false,
         },
       }));
     } catch {
@@ -769,7 +820,7 @@ export default class DiscussionPubConcept {
    * **requires** nothing
    * **effects** returns an array of dictionaries, each containing one non-deleted
    * reply for the given thread, ordered by sortBy (default: createdAt). Each reply includes _id, author,
-   * body, anchorId, parentId, createdAt, editedAt, upvotes, and downvotes. Returns an empty array if no
+   * body, anchorId, parentId, createdAt, editedAt, upvotes, downvotes, and isAnonymous. Returns an empty array if no
    * replies exist.
    * sortBy can be: 'createdAt', 'votes' (net votes = upvotes - downvotes), 'upvotes', 'downvotes'
    */
@@ -792,6 +843,7 @@ export default class DiscussionPubConcept {
         deleted?: boolean;
         upvotes: number;
         downvotes: number;
+        isAnonymous?: boolean;
       };
     }>
   > {
@@ -824,6 +876,7 @@ export default class DiscussionPubConcept {
             deleted: r.deleted ?? false,
             upvotes: r.upvotes ?? 0,
             downvotes: r.downvotes ?? 0,
+            isAnonymous: r.isAnonymous ?? false,
           },
         }));
       } else if (sortBy === 'upvotes') {
@@ -849,6 +902,7 @@ export default class DiscussionPubConcept {
           deleted: r.deleted ?? false,
           upvotes: r.upvotes ?? 0,
           downvotes: r.downvotes ?? 0,
+          isAnonymous: r.isAnonymous ?? false,
         },
       }));
     } catch {
@@ -897,6 +951,7 @@ export default class DiscussionPubConcept {
           deleted: r.deleted ?? false,
           upvotes: r.upvotes ?? 0,
           downvotes: r.downvotes ?? 0,
+          isAnonymous: r.isAnonymous ?? false,
         };
       }
       const roots: ReplyTreeNode[] = [];
@@ -915,5 +970,19 @@ export default class DiscussionPubConcept {
       // On error, return empty array (queries should not throw)
       return [];
     }
+  }
+
+  /**
+   * _getAnonymousPseudonym(userId: User, pubId: Pub) : (pseudonym: String)
+   *
+   * **requires** nothing
+   * **effects** returns a deterministic pseudonym for the given userId and pubId.
+   * The same userId + pubId will always produce the same pseudonym.
+   */
+  async _getAnonymousPseudonym(
+    { userId, pubId }: { userId: User; pubId: Pub },
+  ): Promise<Array<{ pseudonym: string }>> {
+    const pseudonym = generatePseudonym(userId, pubId);
+    return [{ pseudonym }];
   }
 }
