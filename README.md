@@ -1,5 +1,8 @@
 # PubDiscuss Backend
 
+## User Testing Submission
+- [Submission](USER_TESTING.md)
+
 ## Team Beta Submission
 - [Screencast](https://www.youtube.com/watch?v=58Qpkjjo2IE)
 - [Updated Development Plan](betaSubmission/updatedDevelopmentPlan.md)
