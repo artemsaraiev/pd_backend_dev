@@ -350,10 +350,35 @@ export function startRequestingServer(
     }
   });
 
-  // bioRxiv PDF proxy - disabled per bioRxiv's TDM terms
-  // Their S3 bucket is for bulk TDM only, not individual article serving
-  // Users must access bioRxiv PDFs directly from bioRxiv's website
+  // bioRxiv PDF proxy - enabled to automatically fetch PDFs for users
+  // Uses caching to reduce rate limits and respect bioRxiv's servers
   const biorxivPdfRoute = `${REQUESTING_BASE_URL}/biorxiv-pdf/:suffix`;
+  
+  // In-memory cache for bioRxiv PDFs to reduce rate limits
+  // Conservative caching: short TTL to avoid re-hosting concerns at scale
+  // At scale, consider streaming directly without caching or using a CDN
+  const pdfCache = new Map<string, { data: Uint8Array; timestamp: number; contentType: string }>();
+  const CACHE_TTL = 60 * 60 * 1000; // 1 hour in milliseconds (reduced from 7 days to avoid re-hosting)
+  const MAX_CACHE_SIZE = 50; // Reduced cache size to minimize memory footprint
+
+  // Clean up old cache entries periodically
+  setInterval(() => {
+    const now = Date.now();
+    for (const [key, value] of pdfCache.entries()) {
+      if (now - value.timestamp > CACHE_TTL) {
+        pdfCache.delete(key);
+      }
+    }
+    // If cache is still too large, remove oldest entries
+    if (pdfCache.size > MAX_CACHE_SIZE) {
+      const entries = Array.from(pdfCache.entries())
+        .sort((a, b) => a[1].timestamp - b[1].timestamp);
+      for (let i = 0; i < pdfCache.size - MAX_CACHE_SIZE; i++) {
+        pdfCache.delete(entries[i][0]);
+      }
+    }
+  }, 60 * 60 * 1000); // Run cleanup every hour
+
   app.options(biorxivPdfRoute, (c) => {
     return c.text("", 204, {
       "Access-Control-Allow-Origin": REQUESTING_ALLOWED_DOMAIN,
@@ -365,24 +390,107 @@ export function startRequestingServer(
     });
   });
 
-  app.get(biorxivPdfRoute, (c) => {
+  app.get(biorxivPdfRoute, async (c) => {
     const suffix = c.req.param("suffix");
-    const doi = `10.1101/${suffix}`;
-    const biorxivUrl = `https://www.biorxiv.org/content/${doi}`;
 
-    return c.text(
-      `bioRxiv PDFs must be accessed directly from bioRxiv per their terms of service. ` +
-        `Please visit: ${biorxivUrl}`,
-      403,
-      {
+    if (!suffix) {
+      return c.text("Missing DOI suffix", 400, {
+        "Access-Control-Allow-Origin": REQUESTING_ALLOWED_DOMAIN,
+      });
+    }
+
+    // Check cache first
+    const cached = pdfCache.get(suffix);
+    const now = Date.now();
+    if (cached && (now - cached.timestamp) < CACHE_TTL) {
+      // Serve from cache
+      const headers: Record<string, string> = {
+        "Content-Type": cached.contentType,
+        "Cache-Control": "public, max-age=86400", // 24 hours for browser cache
+        "X-Cache": "HIT",
+        "Access-Control-Allow-Origin": REQUESTING_ALLOWED_DOMAIN,
+        "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+        "Access-Control-Allow-Headers": "Content-Type, Range",
+        "Access-Control-Expose-Headers":
+          "Accept-Ranges, Content-Length, Content-Range, X-Cache",
+        "Vary": "Origin",
+      };
+      return new Response(cached.data, { status: 200, headers });
+    }
+
+    // Construct full DOI: 10.1101/{suffix}
+    const doi = `10.1101/${suffix}`;
+
+    try {
+      // bioRxiv PDF URL pattern: https://www.biorxiv.org/content/{doi}.full.pdf
+      // Use a browser-like User-Agent to avoid Cloudflare blocking
+      const upstream = await fetch(
+        `https://www.biorxiv.org/content/${doi}.full.pdf`,
+        {
+          redirect: "follow",
+          headers: {
+            "User-Agent":
+              "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+            "Accept": "application/pdf,*/*",
+          },
+        },
+      );
+      if (!upstream.ok || !upstream.body) {
+        return c.text(`Upstream error (${upstream.status})`, upstream.status, {
+          "Access-Control-Allow-Origin": REQUESTING_ALLOWED_DOMAIN,
+          "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+          "Access-Control-Allow-Headers": "Content-Type, Range",
+          "Access-Control-Expose-Headers":
+            "Accept-Ranges, Content-Length, Content-Range",
+          "Vary": "Origin",
+        });
+      }
+
+      // Read the PDF into memory for caching
+      const contentType = upstream.headers.get("content-type") || "application/pdf";
+      const arrayBuffer = await upstream.arrayBuffer();
+      const pdfData = new Uint8Array(arrayBuffer);
+
+      // Cache the PDF (only if not too large - PDFs can be big)
+      if (pdfData.length < 50 * 1024 * 1024) { // Only cache PDFs < 50MB
+        // Clean up old entries if cache is getting full
+        if (pdfCache.size >= MAX_CACHE_SIZE) {
+          const oldest = Array.from(pdfCache.entries())
+            .sort((a, b) => a[1].timestamp - b[1].timestamp)[0];
+          if (oldest) pdfCache.delete(oldest[0]);
+        }
+        pdfCache.set(suffix, { data: pdfData, timestamp: now, contentType });
+      }
+
+      const acceptRanges = upstream.headers.get("accept-ranges") ?? "bytes";
+      const contentLength = upstream.headers.get("content-length") ?? undefined;
+      const contentRange = upstream.headers.get("content-range") ?? undefined;
+      const headers: Record<string, string> = {
+        "Content-Type": contentType,
+        "Cache-Control": "public, max-age=86400", // 24 hours for browser cache
+        "X-Cache": "MISS",
+        "Accept-Ranges": acceptRanges,
+        "Access-Control-Allow-Origin": REQUESTING_ALLOWED_DOMAIN,
+        "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+        "Access-Control-Allow-Headers": "Content-Type, Range",
+        "Access-Control-Expose-Headers":
+          "Accept-Ranges, Content-Length, Content-Range, X-Cache",
+        "Vary": "Origin",
+      };
+      if (contentLength) headers["Content-Length"] = contentLength;
+      if (contentRange) headers["Content-Range"] = contentRange;
+      return new Response(pdfData, { status: upstream.status, headers });
+    } catch (e) {
+      console.error("[Requesting] bioRxiv PDF proxy error:", e);
+      return c.text("Failed to fetch PDF", 502, {
         "Access-Control-Allow-Origin": REQUESTING_ALLOWED_DOMAIN,
         "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
         "Access-Control-Allow-Headers": "Content-Type, Range",
         "Access-Control-Expose-Headers":
           "Accept-Ranges, Content-Length, Content-Range",
         "Vary": "Origin",
-      },
-    );
+      });
+    }
   });
 
   /**
