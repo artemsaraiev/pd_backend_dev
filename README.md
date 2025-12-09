@@ -1,5 +1,10 @@
 # PubDiscuss Backend
 
+## Final Submission
+- [Design Summary](finalSubmission/designSummary.md)
+- [Reflection](finalSubmission/reflection.md)
+- [Demo Video (TODO)]()
+
 ## User Testing Submission
 - [Submission](USER_TESTING.md)
 
