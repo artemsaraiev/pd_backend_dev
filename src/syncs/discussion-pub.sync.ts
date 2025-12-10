@@ -268,25 +268,33 @@ export const DiscussionListThreadsWithAnchorAndSessionRequest: Sync = (
     const groupFilterValue = originalFrame[groupFilter] as string | undefined;
     const sortByValue = originalFrame[sortBy] as string | undefined;
 
-    // Get all threads for this pub/anchor
+    // Try to resolve user from session first
+    const userResolutionFrames = await frames.query(Sessioning._getUser, {
+      session,
+    }, { user });
+
+    const hasValidUser = userResolutionFrames.length > 0 &&
+      userResolutionFrames[0][user] !== undefined;
+
+    const resolvedUser = hasValidUser ? userResolutionFrames[0][user] : undefined;
+
+    // Get all threads for this pub/anchor, passing userId if available
     const threadFrames = await frames.query(DiscussionPub._listThreads, {
       pubId,
       anchorId,
       includeDeleted,
       sortBy: sortByValue,
+      userId: resolvedUser,
     }, { thread });
 
     if (threadFrames.length === 0) {
       return new Frames({ ...originalFrame, [threads]: [] });
     }
 
-    // Try to resolve user from session
-    const userFrames = await threadFrames.query(Sessioning._getUser, {
-      session,
-    }, { user });
-
-    const hasValidUser = userFrames.length > 0 &&
-      userFrames[0][user] !== undefined;
+    // Propagate user to thread frames for access control checks
+    const userFrames = hasValidUser
+      ? threadFrames.map(frame => ({ ...frame, [user]: resolvedUser }))
+      : threadFrames;
 
     if (!hasValidUser) {
       // Invalid session - fall back to public threads only
@@ -404,24 +412,32 @@ export const DiscussionListThreadsWithSessionRequest: Sync = (
     const groupFilterValue = originalFrame[groupFilter] as string | undefined;
     const sortByValue = originalFrame[sortBy] as string | undefined;
 
-    // Get all threads for this pub
+    // Try to resolve user from session first
+    const userResolutionFrames = await frames.query(Sessioning._getUser, {
+      session,
+    }, { user });
+
+    const hasValidUser = userResolutionFrames.length > 0 &&
+      userResolutionFrames[0][user] !== undefined;
+
+    const resolvedUser = hasValidUser ? userResolutionFrames[0][user] : undefined;
+
+    // Get all threads for this pub, passing userId if available
     const threadFrames = await frames.query(DiscussionPub._listThreads, {
       pubId,
       includeDeleted,
       sortBy: sortByValue,
+      userId: resolvedUser,
     }, { thread });
 
     if (threadFrames.length === 0) {
       return new Frames({ ...originalFrame, [threads]: [] });
     }
 
-    // Try to resolve user from session
-    const userFrames = await threadFrames.query(Sessioning._getUser, {
-      session,
-    }, { user });
-
-    const hasValidUser = userFrames.length > 0 &&
-      userFrames[0][user] !== undefined;
+    // Propagate user to thread frames for access control checks
+    const userFrames = hasValidUser
+      ? threadFrames.map(frame => ({ ...frame, [user]: resolvedUser }))
+      : threadFrames;
 
     if (!hasValidUser) {
       // Invalid session - fall back to public threads only

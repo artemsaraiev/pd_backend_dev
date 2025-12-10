@@ -552,7 +552,7 @@ export default class DiscussionPubConcept {
 
       const updated = await this.threads.findOne({ _id: threadId });
       const result = {
-        ok: true,
+        ok: true as const,
         upvotes: updated?.upvotes ?? 0,
         downvotes: updated?.downvotes ?? 0,
         userVote: finalUserVote,
@@ -648,7 +648,7 @@ export default class DiscussionPubConcept {
 
       const updated = await this.replies.findOne({ _id: replyId });
       const result = {
-        ok: true,
+        ok: true as const,
         upvotes: updated?.upvotes ?? 0,
         downvotes: updated?.downvotes ?? 0,
         userVote: finalUserVote,
@@ -750,11 +750,12 @@ export default class DiscussionPubConcept {
    * sortBy can be: 'createdAt', 'votes' (net votes = upvotes - downvotes), 'upvotes', 'downvotes'
    */
   async _listThreads(
-    { pubId, anchorId, includeDeleted, sortBy }: {
+    { pubId, anchorId, includeDeleted, sortBy, userId }: {
       pubId: Pub;
       anchorId?: Anchor;
       includeDeleted?: boolean;
       sortBy?: string;
+      userId?: User;
     },
   ): Promise<
     Array<{
@@ -770,6 +771,7 @@ export default class DiscussionPubConcept {
         upvotes: number;
         downvotes: number;
         isAnonymous?: boolean;
+        userVote?: 1 | -1 | null;
       };
     }>
   > {
@@ -781,17 +783,53 @@ export default class DiscussionPubConcept {
         filter.$or = [{ deleted: false }, { deleted: { $exists: false } }];
       }
       if (anchorId !== undefined) filter.anchorId = anchorId;
-      
-      // Determine sort order
-      let sort: Record<string, 1 | -1> = { createdAt: -1 }; // default: newest first (Recent)
-      if (sortBy === 'oldest') {
-        sort = { createdAt: 1 }; // Oldest first
-      } else if (sortBy === 'createdAt') {
-        sort = { createdAt: -1 }; // Newest first (Recent)
+
+      let items;
+
+      // For upvotes sorting, use aggregation to compute net score
+      if (sortBy === 'upvotes') {
+        const pipeline: any[] = [
+          { $match: filter },
+          {
+            $addFields: {
+              netScore: {
+                $subtract: [
+                  { $ifNull: ['$upvotes', 0] },
+                  { $ifNull: ['$downvotes', 0] }
+                ]
+              }
+            }
+          },
+          { $sort: { netScore: -1, createdAt: -1 } }
+        ];
+        items = await this.threads.aggregate(pipeline).toArray();
+      } else {
+        // Determine sort order for simple cases
+        let sort: Record<string, 1 | -1> = { createdAt: -1 }; // default: newest first (Recent)
+        if (sortBy === 'oldest') {
+          sort = { createdAt: 1 }; // Oldest first
+        } else if (sortBy === 'createdAt') {
+          sort = { createdAt: -1 }; // Newest first (Recent)
+        }
+
+        const cur = this.threads.find(filter).sort(sort);
+        items = await cur.toArray();
       }
-      
-      const cur = this.threads.find(filter).sort(sort);
-      const items = await cur.toArray();
+
+      // If userId is provided, fetch user votes for all threads at once
+      let userVotesMap: Map<string, 1 | -1> = new Map();
+      if (userId) {
+        const threadIds = items.map(t => t._id);
+        const votes = await this.userVotes.find({
+          userId,
+          type: 'thread',
+          targetId: { $in: threadIds }
+        }).toArray();
+        votes.forEach(v => {
+          userVotesMap.set(v.targetId, v.vote);
+        });
+      }
+
       // Queries must return an array of dictionaries, one per thread
       return items.map((t) => ({
         thread: {
@@ -806,6 +844,7 @@ export default class DiscussionPubConcept {
           upvotes: t.upvotes ?? 0,
           downvotes: t.downvotes ?? 0,
           isAnonymous: t.isAnonymous ?? false,
+          userVote: userId ? (userVotesMap.get(t._id) ?? null) : undefined,
         },
       }));
     } catch {

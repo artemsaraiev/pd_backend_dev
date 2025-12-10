@@ -3,7 +3,7 @@
 ## Final Submission
 - [Design Summary](finalSubmission/designSummary.md)
 - [Reflection](finalSubmission/reflection.md)
-- [Demo Video (TODO)]()
+- [Demo Video](https://www.youtube.com/watch?v=YXG7IvVQ1ds)
 - [Weekly Mentor Meeting Notes](projectUpdates)
 
 ## User Testing Submission

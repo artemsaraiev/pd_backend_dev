@@ -10,7 +10,8 @@
       "Bash(git restore:*)",
       "Bash(deno install:*)",
       "Bash(npm install:*)",
-      "Bash(deno task start:*)"
+      "Bash(deno task start:*)",
+      "Bash(deno task:*)"
     ],
     "deny": [],
     "ask": []
