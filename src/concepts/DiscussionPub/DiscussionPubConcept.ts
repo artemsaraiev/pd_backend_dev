@@ -913,6 +913,74 @@ export default class DiscussionPubConcept {
   }
 
   /**
+   * _listPapersDiscussedByUser(user: User)
+   *   : (result: { paperId: String })
+   *
+   * **requires** nothing
+   * **effects** returns all paperIds for which the given user has authored at least
+   * one non-deleted thread or reply.
+   */
+  async _listPapersDiscussedByUser(
+    { user }: { user: User },
+  ): Promise<Array<{ result: { paperId: string } }>> {
+    try {
+      const threadFilter: Record<string, unknown> = {
+        author: user,
+      };
+      threadFilter.$or = [{ deleted: false }, { deleted: { $exists: false } }];
+
+      const replyFilter: Record<string, unknown> = {
+        author: user,
+      };
+      replyFilter.$or = [{ deleted: false }, { deleted: { $exists: false } }];
+
+      const [userThreads, userReplies] = await Promise.all([
+        this.threads.find(threadFilter).toArray(),
+        this.replies.find(replyFilter).toArray(),
+      ]);
+
+      if (userThreads.length === 0 && userReplies.length === 0) {
+        return [];
+      }
+
+      // Collect all threadIds where the user has participated
+      const threadIds = new Set<Thread>();
+      for (const t of userThreads) {
+        threadIds.add(t._id);
+      }
+      for (const r of userReplies) {
+        threadIds.add(r.threadId);
+      }
+
+      const participatingThreads = await this.threads.find({
+        _id: { $in: Array.from(threadIds) },
+      }).toArray();
+
+      if (participatingThreads.length === 0) {
+        return [];
+      }
+
+      // Map threads to pubs, then pubs to paperIds
+      const pubIds = Array.from(
+        new Set(participatingThreads.map((t) => t.pubId)),
+      );
+      const pubs = await this.pubs.find(
+        { _id: { $in: pubIds } },
+        { projection: { _id: 1, paperId: 1 } },
+      ).toArray();
+
+      const paperIdSet = new Set<string>();
+      for (const p of pubs) {
+        paperIdSet.add(p.paperId);
+      }
+
+      return Array.from(paperIdSet).map((paperId) => ({ result: { paperId } }));
+    } catch {
+      return [];
+    }
+  }
+
+  /**
    * _listThreads(pub: Pub, anchor?: Anchor, sortBy?: string) : (thread: Thread)
    *
    * **requires** nothing

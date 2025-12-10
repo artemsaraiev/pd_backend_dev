@@ -36,6 +36,8 @@ export const inclusions: Record<string, string> = {
   "/api/PaperIndex/_listRecentBiorxiv": "public query - recent bioRxiv papers",
   "/api/DiscussionPub/_listPaperDiscussionStats":
     "public query - aggregated discussion stats per paper for home feed",
+  "/api/DiscussionPub/_listPapersDiscussedByUser":
+    "public query - list of paperIds a given user has discussed",
   // Public read queries - if paper data is public
   // Note: _get and _getByPaperId are handled via syncs (paths without underscores)
   // _listRecent is handled via sync (path without underscore)
