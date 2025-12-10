@@ -740,6 +740,179 @@ export default class DiscussionPubConcept {
   }
 
   /**
+   * _listPaperDiscussionStats(limit?: Number, sortBy?: String, order?: String)
+   *   : (result: { paperId: String, pubId: Pub, threads: Number, replies: Number, totalMessages: Number, lastReplyAt?: Number, lastActivityAt: Number })
+   *
+   * **requires** nothing
+   * **effects** aggregates discussion activity per paper across all pubs.
+   *   - most discussed = sort by totalMessages (threads + replies) descending
+   *   - recently discussed = sort by lastActivityAt (max of thread createdAt and reply createdAt) descending
+   *   - order can be "desc" (default) or "asc"
+   * Returns at most `limit` results (if provided), or all by default.
+   */
+  async _listPaperDiscussionStats(
+    { limit, sortBy, order }: {
+      limit?: number;
+      sortBy?: string;
+      order?: "asc" | "desc";
+    },
+  ): Promise<
+    Array<{
+      result: {
+        paperId: string;
+        pubId: Pub;
+        threads: number;
+        replies: number;
+        totalMessages: number;
+        lastReplyAt?: number;
+        lastActivityAt: number;
+      };
+    }>
+  > {
+    try {
+      // 1) Load all non-deleted threads and replies
+      const threadFilter: Record<string, unknown> = {};
+      threadFilter.$or = [{ deleted: false }, { deleted: { $exists: false } }];
+      const replyFilter: Record<string, unknown> = {};
+      replyFilter.$or = [{ deleted: false }, { deleted: { $exists: false } }];
+
+      const [threads, replies] = await Promise.all([
+        this.threads.find(threadFilter).toArray(),
+        this.replies.find(replyFilter).toArray(),
+      ]);
+
+      if (threads.length === 0 && replies.length === 0) {
+        return [];
+      }
+
+      // 2) Aggregate replies per thread
+      const repliesByThread = new Map<
+        Thread,
+        { count: number; lastReplyAt: number }
+      >();
+      for (const r of replies) {
+        const existing = repliesByThread.get(r.threadId) ?? {
+          count: 0,
+          lastReplyAt: 0,
+        };
+        existing.count += 1;
+        if (r.createdAt > existing.lastReplyAt) {
+          existing.lastReplyAt = r.createdAt;
+        }
+        repliesByThread.set(r.threadId, existing);
+      }
+
+      // 3) Aggregate per pub
+      const statsByPub = new Map<
+        Pub,
+        {
+          threads: number;
+          replies: number;
+          lastReplyAt: number;
+          lastThreadAt: number;
+        }
+      >();
+
+      for (const t of threads) {
+        const replyInfo = repliesByThread.get(t._id) ?? {
+          count: 0,
+          lastReplyAt: 0,
+        };
+        const existing = statsByPub.get(t.pubId) ?? {
+          threads: 0,
+          replies: 0,
+          lastReplyAt: 0,
+          lastThreadAt: 0,
+        };
+        existing.threads += 1;
+        existing.replies += replyInfo.count;
+        if (replyInfo.lastReplyAt > existing.lastReplyAt) {
+          existing.lastReplyAt = replyInfo.lastReplyAt;
+        }
+        if (t.createdAt > existing.lastThreadAt) {
+          existing.lastThreadAt = t.createdAt;
+        }
+        statsByPub.set(t.pubId, existing);
+      }
+
+      if (statsByPub.size === 0) {
+        return [];
+      }
+
+      // 4) Load paperIds for pubs
+      const pubIds = Array.from(statsByPub.keys());
+      const pubDocs = await this.pubs.find(
+        { _id: { $in: pubIds } },
+        { projection: { _id: 1, paperId: 1 } },
+      ).toArray();
+      const pubToPaperId = new Map<Pub, string>();
+      for (const p of pubDocs) {
+        pubToPaperId.set(p._id, p.paperId);
+      }
+
+      // 5) Build stats array
+      const results: Array<{
+        paperId: string;
+        pubId: Pub;
+        threads: number;
+        replies: number;
+        totalMessages: number;
+        lastReplyAt?: number;
+        lastActivityAt: number;
+      }> = [];
+
+      for (const [pubId, s] of statsByPub.entries()) {
+        const paperId = pubToPaperId.get(pubId);
+        if (!paperId) continue;
+        const lastActivityAt = Math.max(s.lastThreadAt, s.lastReplyAt || 0);
+        const totalMessages = s.threads + s.replies;
+        results.push({
+          paperId,
+          pubId,
+          threads: s.threads,
+          replies: s.replies,
+          totalMessages,
+          lastReplyAt: s.lastReplyAt || undefined,
+          lastActivityAt,
+        });
+      }
+
+      if (results.length === 0) {
+        return [];
+      }
+
+      // 6) Sort according to requested mode
+      const sortMode = sortBy === "recentlyDiscussed"
+        ? "recentlyDiscussed"
+        : "mostDiscussed";
+      const direction = order === "asc" ? 1 : -1;
+
+      results.sort((a, b) => {
+        if (sortMode === "recentlyDiscussed") {
+          const diff = (a.lastActivityAt - b.lastActivityAt) * direction;
+          if (diff !== 0) return diff;
+          // Tie-breaker: total messages
+          return (a.totalMessages - b.totalMessages) * -1;
+        }
+        // mostDiscussed
+        const diff = (a.totalMessages - b.totalMessages) * direction;
+        if (diff !== 0) return diff;
+        // Tie-breaker: last activity (always newest first for ties)
+        return (a.lastActivityAt - b.lastActivityAt) * -1;
+      });
+
+      const limited = typeof limit === "number" && limit > 0
+        ? results.slice(0, limit)
+        : results;
+
+      return limited.map((r) => ({ result: r }));
+    } catch {
+      // Queries should not throw
+      return [];
+    }
+  }
+
+  /**
    * _listThreads(pub: Pub, anchor?: Anchor, sortBy?: string) : (thread: Thread)
    *
    * **requires** nothing
