@@ -37,6 +37,8 @@ These simplifications make PubDiscuss more of an MIT-centric platform, where mod
     - Groups could be used to hold private discussions through members in threads
 - Saved Papers
   - Instead of displaying the user's activity on the right sidebar as shown in the UI sketches, we gave users the ability to save papers to their personal library, which appears as a link on the leftsidebar so that they can easily jump back to them.
+- Every highlighted box is linked to a reply/thread and clicking on either pops up a relevant element (box <–> reply). This was made for better user experience navigating replies and different contexts.
+- Overlapping highlights drop a list of all replies they refer to for easier navigation.
 
 
 ## Concept Changes

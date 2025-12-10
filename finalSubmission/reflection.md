@@ -2,6 +2,12 @@
 
 ## Artem
 
+The most challenging part of this project for me was envisioning the final product we wanted to build. We spent a fair amount of time iterating on ideas that we eventually discarded as well as modifying our existing features, and we also removed some features that were part of the original plan before we converged on a clearer direction.
+
+I worked mostly on the main page viewer and on designing several of the app’s key features. In particular, I spent a lot of time thinking through how to implement highlighting in a robust way: what edge cases it creates, how to handle overlapping highlights, and what the user should actually see in all of those situations. Even though we did not finish the app to the full extent we originally imagined, I feel that we kept generating and refining ideas over time, and I’m happy with where we ended up.
+
+I do wish we could have iterated more after the peer review and made our work more systematic and consistent, but I think everyone on the team followed through on their responsibilities and contributed steadily. Toward the end of the term I became a bit overloaded with other classes, which led me to miss one meeting and do some very long coding sessions that produced large batches of changes for my teammates to review. Even so, I’m satisfied with the final result and what I learned from the process.
+
 ---
 
 ## Aleksandr
