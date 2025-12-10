@@ -146,6 +146,17 @@ interface UserVoteDoc {
   createdAt: number;
 }
 
+/**
+ * UserDiscussion tracks which papers a user has discussed
+ * (posted a thread or reply on)
+ */
+interface UserDiscussionDoc {
+  _id: string; // composite key: `${userId}:${paperId}`
+  userId: User;
+  paperId: string;
+  createdAt: number;
+}
+
 export default class DiscussionPubConcept {
   constructor(private readonly db: Db) {
     // Fire-and-forget index initialization
@@ -164,6 +175,9 @@ export default class DiscussionPubConcept {
   private get userVotes(): Collection<UserVoteDoc> {
     return this.db.collection("userVotes");
   }
+  private get userDiscussions(): Collection<UserDiscussionDoc> {
+    return this.db.collection("userDiscussions");
+  }
 
   private async initIndexes(): Promise<void> {
     try {
@@ -172,8 +186,33 @@ export default class DiscussionPubConcept {
       await this.replies.createIndex({ threadId: 1 });
       await this.replies.createIndex({ parentId: 1 });
       await this.userVotes.createIndex({ userId: 1, type: 1, targetId: 1 }, { unique: true });
+      await this.userDiscussions.createIndex({ userId: 1 }, { background: true });
     } catch {
       // best-effort
+    }
+  }
+
+  /**
+   * Records that a user has discussed a paper (posted thread or reply).
+   * Uses upsert to avoid duplicates.
+   */
+  private async recordUserDiscussion(userId: User, paperId: string): Promise<void> {
+    const compositeId = `${userId}:${paperId}`;
+    try {
+      await this.userDiscussions.updateOne(
+        { _id: compositeId },
+        {
+          $setOnInsert: {
+            _id: compositeId,
+            userId,
+            paperId,
+            createdAt: Date.now(),
+          },
+        },
+        { upsert: true },
+      );
+    } catch {
+      // best-effort, don't fail the main operation
     }
   }
 
@@ -257,6 +296,8 @@ export default class DiscussionPubConcept {
         ...(isAnonymous && { isAnonymous: true }),
       };
       await this.threads.insertOne(doc);
+      // Record that this user has discussed this paper
+      await this.recordUserDiscussion(author, pub.paperId);
       // Support both return types for backward compatibility
       return { newThread: threadId, result: threadId } as {
         newThread: Thread;
@@ -321,6 +362,11 @@ export default class DiscussionPubConcept {
         ...(isAnonymous && { isAnonymous: true }),
       };
       await this.replies.insertOne(doc);
+      // Record that this user has discussed this paper
+      const pub = await this.pubs.findOne({ _id: th.pubId });
+      if (pub) {
+        await this.recordUserDiscussion(author, pub.paperId);
+      }
       // Support both return types for backward compatibility
       return { newReply: replyId, result: replyId } as {
         newReply: Reply;
@@ -918,63 +964,18 @@ export default class DiscussionPubConcept {
    *
    * **requires** nothing
    * **effects** returns all paperIds for which the given user has authored at least
-   * one non-deleted thread or reply.
+   * one thread or reply. Uses the dedicated userDiscussions collection for efficiency.
    */
   async _listPapersDiscussedByUser(
     { user }: { user: User },
   ): Promise<Array<{ result: { paperId: string } }>> {
     try {
-      const threadFilter: Record<string, unknown> = {
-        author: user,
-      };
-      threadFilter.$or = [{ deleted: false }, { deleted: { $exists: false } }];
+      // Simple lookup from the userDiscussions collection
+      const discussions = await this.userDiscussions
+        .find({ userId: user }, { projection: { paperId: 1 } })
+        .toArray();
 
-      const replyFilter: Record<string, unknown> = {
-        author: user,
-      };
-      replyFilter.$or = [{ deleted: false }, { deleted: { $exists: false } }];
-
-      const [userThreads, userReplies] = await Promise.all([
-        this.threads.find(threadFilter).toArray(),
-        this.replies.find(replyFilter).toArray(),
-      ]);
-
-      if (userThreads.length === 0 && userReplies.length === 0) {
-        return [];
-      }
-
-      // Collect all threadIds where the user has participated
-      const threadIds = new Set<Thread>();
-      for (const t of userThreads) {
-        threadIds.add(t._id);
-      }
-      for (const r of userReplies) {
-        threadIds.add(r.threadId);
-      }
-
-      const participatingThreads = await this.threads.find({
-        _id: { $in: Array.from(threadIds) },
-      }).toArray();
-
-      if (participatingThreads.length === 0) {
-        return [];
-      }
-
-      // Map threads to pubs, then pubs to paperIds
-      const pubIds = Array.from(
-        new Set(participatingThreads.map((t) => t.pubId)),
-      );
-      const pubs = await this.pubs.find(
-        { _id: { $in: pubIds } },
-        { projection: { _id: 1, paperId: 1 } },
-      ).toArray();
-
-      const paperIdSet = new Set<string>();
-      for (const p of pubs) {
-        paperIdSet.add(p.paperId);
-      }
-
-      return Array.from(paperIdSet).map((paperId) => ({ result: { paperId } }));
+      return discussions.map((d) => ({ result: { paperId: d.paperId } }));
     } catch {
       return [];
     }
