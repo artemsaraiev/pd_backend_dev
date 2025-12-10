@@ -9,10 +9,6 @@ We were able to implement pubs for each paper on arXiv like in our functional de
 
 These simplifications make PubDiscuss more of an MIT-centric platform, where moderation is controlled not by a separate access control system but through a community-driven system thanks to the upvoting and downvoting feature.
 
-TODO:
-- Clarify access control
-  - Status of author, mod verification
-
 
 ## Changes to Proposed Features we implemented
 - Inline Anchors & Highlighted Threads
