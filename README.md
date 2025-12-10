@@ -4,6 +4,7 @@
 - [Design Summary](finalSubmission/designSummary.md)
 - [Reflection](finalSubmission/reflection.md)
 - [Demo Video (TODO)]()
+- [Weekly Mentor Meeting Notes](projectUpdates)
 
 ## User Testing Submission
 - [Submission](USER_TESTING.md)
