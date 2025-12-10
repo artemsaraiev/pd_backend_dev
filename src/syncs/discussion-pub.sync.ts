@@ -210,6 +210,94 @@ export const DiscussionReplyToResponse: Sync = ({ request, result }) => ({
   then: actions([Requesting.respond, { request, result }]),
 });
 
+// Private reply (with groupId for group-scoped replies)
+export const DiscussionReplyPrivateRequest: Sync = (
+  { request, session, threadId, body, anchorId, groupId, isAnonymous, user },
+) => ({
+  when: actions([Requesting.request, {
+    path: "/DiscussionPub/replyPrivate",
+    session,
+    threadId,
+    body,
+    anchorId,
+    groupId,
+    isAnonymous,
+  }, { request }]),
+  where: async (frames) => {
+    return await frames.query(Sessioning._getUser, { session }, { user });
+  },
+  then: actions([DiscussionPub.reply, { threadId, author: user, body, anchorId, isAnonymous }]),
+});
+
+export const DiscussionReplyPrivateGrantAccess: Sync = (
+  { request, groupId, newReply },
+) => ({
+  when: actions(
+    [Requesting.request, { path: "/DiscussionPub/replyPrivate", groupId }, { request }],
+    [DiscussionPub.reply, {}, { newReply, result: newReply }],
+  ),
+  then: actions([AccessControl.givePrivateAccess, {
+    group: groupId,
+    resource: newReply,
+  }]),
+});
+
+export const DiscussionReplyPrivateResponse: Sync = ({ request, result }) => ({
+  when: actions(
+    [Requesting.request, { path: "/DiscussionPub/replyPrivate" }, { request }],
+    [DiscussionPub.reply, {}, { result }],
+  ),
+  then: actions([Requesting.respond, { request, result }]),
+});
+
+// Private nested reply (with groupId for group-scoped replies)
+export const DiscussionReplyToPrivateRequest: Sync = (
+  { request, session, threadId, parentId, body, anchorId, groupId, isAnonymous, user },
+) => ({
+  when: actions([Requesting.request, {
+    path: "/DiscussionPub/replyToPrivate",
+    session,
+    threadId,
+    parentId,
+    body,
+    anchorId,
+    groupId,
+    isAnonymous,
+  }, { request }]),
+  where: async (frames) => {
+    return await frames.query(Sessioning._getUser, { session }, { user });
+  },
+  then: actions([DiscussionPub.replyTo, {
+    threadId,
+    parentId,
+    author: user,
+    body,
+    anchorId,
+    isAnonymous,
+  }]),
+});
+
+export const DiscussionReplyToPrivateGrantAccess: Sync = (
+  { request, groupId, newReply },
+) => ({
+  when: actions(
+    [Requesting.request, { path: "/DiscussionPub/replyToPrivate", groupId }, { request }],
+    [DiscussionPub.replyTo, {}, { newReply, result: newReply }],
+  ),
+  then: actions([AccessControl.givePrivateAccess, {
+    group: groupId,
+    resource: newReply,
+  }]),
+});
+
+export const DiscussionReplyToPrivateResponse: Sync = ({ request, result }) => ({
+  when: actions(
+    [Requesting.request, { path: "/DiscussionPub/replyToPrivate" }, { request }],
+    [DiscussionPub.replyTo, {}, { result }],
+  ),
+  then: actions([Requesting.respond, { request, result }]),
+});
+
 // DiscussionPub Queries
 export const DiscussionGetPubIdByPaperRequest: Sync = (
   { request, paperId, result },
@@ -337,38 +425,34 @@ export const DiscussionListThreadsWithAnchorAndSessionRequest: Sync = (
         continue;
       }
 
+      // Fetch visibility for this thread so we can include groupId in response
+      const visibilityFrames = await new Frames(frame).query(
+        AccessControl._getResourceVisibility,
+        { resource: threadDoc._id },
+        { visibility },
+      );
+      const vis = visibilityFrames.length > 0 ? visibilityFrames[0][visibility] as {
+        isPublic: boolean;
+        groupId?: string;
+      } | undefined : undefined;
+
+      // Add groupId to thread document for response
+      const enrichedThread = { ...threadDoc, groupId: vis?.groupId ?? null };
+      const enrichedFrame = { ...frame, [thread]: enrichedThread };
+
       // Apply groupFilter
       if (!groupFilterValue || groupFilterValue === "all") {
         // No filter - include all accessible threads
-        accessibleFrames.push(frame);
+        accessibleFrames.push(enrichedFrame);
       } else if (groupFilterValue === "public") {
         // Only public threads
-        const universalFrames = await new Frames(frame).query(
-          AccessControl._hasUniversalAccess,
-          { resource: threadDoc._id },
-          { hasUniversalAccess },
-        );
-        if (
-          universalFrames.length > 0 &&
-          universalFrames[0][hasUniversalAccess] === true
-        ) {
-          accessibleFrames.push(frame);
+        if (vis && vis.isPublic) {
+          accessibleFrames.push(enrichedFrame);
         }
       } else {
         // Specific group - check if thread belongs to that group
-        const visibilityFrames = await new Frames(frame).query(
-          AccessControl._getResourceVisibility,
-          { resource: threadDoc._id },
-          { visibility },
-        );
-        if (visibilityFrames.length > 0) {
-          const vis = visibilityFrames[0][visibility] as {
-            isPublic: boolean;
-            groupId?: string;
-          } | undefined;
-          if (vis && !vis.isPublic && vis.groupId === groupFilterValue) {
-            accessibleFrames.push(frame);
-          }
+        if (vis && !vis.isPublic && vis.groupId === groupFilterValue) {
+          accessibleFrames.push(enrichedFrame);
         }
       }
     }
@@ -480,38 +564,34 @@ export const DiscussionListThreadsWithSessionRequest: Sync = (
         continue;
       }
 
+      // Fetch visibility for this thread so we can include groupId in response
+      const visibilityFrames = await new Frames(frame).query(
+        AccessControl._getResourceVisibility,
+        { resource: threadDoc._id },
+        { visibility },
+      );
+      const vis = visibilityFrames.length > 0 ? visibilityFrames[0][visibility] as {
+        isPublic: boolean;
+        groupId?: string;
+      } | undefined : undefined;
+
+      // Add groupId to thread document for response
+      const enrichedThread = { ...threadDoc, groupId: vis?.groupId ?? null };
+      const enrichedFrame = { ...frame, [thread]: enrichedThread };
+
       // Apply groupFilter
       if (!groupFilterValue || groupFilterValue === "all") {
         // No filter - include all accessible threads
-        accessibleFrames.push(frame);
+        accessibleFrames.push(enrichedFrame);
       } else if (groupFilterValue === "public") {
         // Only public threads
-        const universalFrames = await new Frames(frame).query(
-          AccessControl._hasUniversalAccess,
-          { resource: threadDoc._id },
-          { hasUniversalAccess },
-        );
-        if (
-          universalFrames.length > 0 &&
-          universalFrames[0][hasUniversalAccess] === true
-        ) {
-          accessibleFrames.push(frame);
+        if (vis && vis.isPublic) {
+          accessibleFrames.push(enrichedFrame);
         }
       } else {
         // Specific group - check if thread belongs to that group
-        const visibilityFrames = await new Frames(frame).query(
-          AccessControl._getResourceVisibility,
-          { resource: threadDoc._id },
-          { visibility },
-        );
-        if (visibilityFrames.length > 0) {
-          const vis = visibilityFrames[0][visibility] as {
-            isPublic: boolean;
-            groupId?: string;
-          } | undefined;
-          if (vis && !vis.isPublic && vis.groupId === groupFilterValue) {
-            accessibleFrames.push(frame);
-          }
+        if (vis && !vis.isPublic && vis.groupId === groupFilterValue) {
+          accessibleFrames.push(enrichedFrame);
         }
       }
     }
